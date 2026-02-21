@@ -30,8 +30,9 @@ class DatabaseService {
     String path = join(documentsDirectory.path, 'consistency_tracker.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Increased version
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -57,11 +58,18 @@ class DatabaseService {
       CREATE TABLE $dayRecordsTable (
         date TEXT PRIMARY KEY,
         completed_task_ids TEXT NOT NULL,
+        skipped_task_ids TEXT NOT NULL,
         cheat_used INTEGER NOT NULL,
         completion_score REAL NOT NULL,
         visual_state TEXT NOT NULL
       )
     ''');
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE $dayRecordsTable ADD COLUMN skipped_task_ids TEXT DEFAULT ''");
+    }
   }
 
   // --- User Management ---
