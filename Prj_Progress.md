@@ -1,0 +1,101 @@
+# Project Progress Log
+
+## Thursday, 19 February 2026 - 10:00 AM
+
+**Summary:**
+*   Successfully set up the Flutter development environment on Linux.
+*   Flutter SDK installed and configured.
+*   Android toolchain validated (Android Studio installed, command-line tools installed, all licenses accepted).
+*   Linux desktop development toolchain validated (clang, ninja-build, libgtk-3-dev installed).
+*   Confirmed that Android emulators will be skipped due to system limitations, focusing on physical Android devices for testing.
+*   The Flutter SDK path has been permanently added to the user's `~/.bashrc` file.
+
+## Thursday, 19 February 2026 - 10:30 AM
+
+**Summary:**
+*   Created a new Flutter project named `consistancy_tacker_v1` inside the `Tracker App` directory.
+*   Successfully ran the Flutter project on the Linux desktop, verifying the development environment.
+*   Confirmed that all platforms (Android, iOS, Web, Windows, macOS, Linux) are enabled in the project, respecting future expansion plans.
+
+## Thursday, 19 February 2026 - 11:00 AM
+
+**Summary:**
+*   Completed data modeling for the core entities of the application.
+*   Defined `user_model.dart` with `User` class (id, name, createdAt).
+*   Defined `task_model.dart` with `Task` class (id, name, type, durationDays, createdAt, isActive) and `TaskType` enum.
+*   Defined `day_record_model.dart` with `DayRecord` class (date, completedTaskIds, cheatUsed, completionScore, visualState) and `VisualState` enum.
+*   Implemented `toMap()` and `fromMap()` methods for easy conversion to/from database-friendly formats for all models.
+
+## Thursday, 19 February 2026 - 11:30 AM
+
+**Summary:**
+*   Completed the initial implementation of the Scoring Engine (`scoring_service.dart`).
+*   Implemented `calculateCoreDailyScore`, `calculateTempTaskCredit`, `calculateOverallCompletionScore`, `checkForStarStatus`, and `mapScoreToVisualState` methods.
+*   Added `sqflite` and `path_provider` dependencies to `pubspec.yaml` and ran `flutter pub get`.
+
+## Thursday, 19 February 2026 - 12:00 PM
+
+**Summary:**
+*   Completed the initial implementation of the Database Service (`database_service.dart`).
+*   Configured database initialization with `sqflite` and `path_provider`.
+*   Implemented table creation for `Users`, `Tasks`, and `DayRecords`.
+*   Added basic CRUD operations for `User` (create, get), `Task` (add, update, delete, get active for date), and `DayRecord` (create/update, get, get multiple).
+*   Successfully completed Phase 2: Building the Core Logic (The "Engine").
+
+## Thursday, 19 February 2026 - 12:30 PM
+
+**Summary:**
+*   Completed the First-Run User Setup UI (`first_run_setup_screen.dart`).
+*   Implemented a UI to prompt the user for their name on the first launch.
+*   Integrated with `DatabaseService` to create a new `User` entry.
+*   Modified `main.dart` to check for existing users and display either `FirstRunSetupScreen` or a placeholder `HomeScreen`.
+*   Successfully completed Phase 3, Step 7: First-Run User Setup UI.
+
+## Thursday, 19 February 2026 - 1:00 PM
+
+**Summary:**
+*   Successfully ran the application and verified the First-Run User Setup UI.
+*   Confirmed that after entering a name, the app navigates to the placeholder `HomeScreen`.
+*   Verified that on subsequent runs, the app directly opens to the `HomeScreen`.
+
+## Thursday, 19 February 2026 - 1:30 PM
+
+**Summary:**
+*   Implemented the "Add New Task" UI (`task_form_screen.dart`).
+*   Enabled navigation to the `TaskFormScreen` via a `FloatingActionButton` on the `HomeScreen`.
+*   Verified that clicking the button opens the form, allows task creation (daily/temporary), and shows a confirmation SnackBar.
+*   Successfully completed Phase 3, Step 8a (Add functionality).
+
+## Thursday, 19 February 2026 - 2:00 PM
+
+**Summary:**
+*   Fixed the "every run is a first run" bug by implementing `hasUser()` in `DatabaseService` and using it in `main.dart` for first-run detection.
+*   Removed the debug banner from `MaterialApp` in `main.dart`.
+
+## Thursday, 19 February 2026 - 2:30 PM
+
+**Summary:**
+*   Successfully fixed the UI refresh issue on the dashboard. Adding a new task now immediately updates the dashboard list.
+*   Corrected the checkbox position to be leading in `CheckboxListTile` on the dashboard.
+*   The application is now correctly persisting user data and managing task display on the `HomeScreen`.
+
+## Thursday, 19 February 2026 - 3:00 PM
+
+**Summary:**
+*   Implemented the new dashboard layout:
+    *   Daily and Temporary task lists now take approximately 30% of screen height.
+    *   Individual task items are more compact.
+    *   GitHub-style chart placeholder now takes 30% of screen height.
+    *   Added a placeholder for Task Streaks at the bottom right.
+    *   Temporary tasks now also have checkboxes and mustard yellow text color.
+    *   The overall layout is scrollable.
+
+## Thursday, 19 February 2026 - 3:30 PM
+
+**Summary:**
+*   Applied final dashboard UI refinements:
+    *   Removed AppBar title (`Consistency Tracker Dashboard`).
+    *   Implemented background styling for Daily Tasks (sky-blueish) and Temporary Tasks (sticky-note yellow) with borders.
+    *   Replaced the global FloatingActionButton with individual "Add" buttons (IconButton) in the headers of Daily and Temporary task sections.
+    *   Refactored the bottom section to display the GitHub-style chart placeholder (75% width) and Task Streaks placeholder (25% width) side-by-side.
+    *   Modified `task_form_screen.dart` to accept an `initialTaskType` for pre-selection when adding tasks from individual buttons.

@@ -1,0 +1,59 @@
+Consitancy tracker : 
+The goal of this project is track the consistancy of a user and display it in a visual form. 
+want to keep it complete offline and no complecate setup just plug and play. 
+
+Key funtionality : 
+---------------------------------
+The Flow will be as followed 
+ 
+UserID allocation : 
+On First run Program will ask for User's Name and in the backend we will asign that user a uniquie id like a discord user ID. completely numarical.
+
+Task allocation : 
+next we shall ask for the task what task he wants to track for and for how many days. User can enter however many tasks he wants. 
+once all the tasks has been added we shall ask for the optional cheat days user can at maximum 10 cheat days.
+Two types of task 
+1. which will span through the give number of days aks daily tasks. 
+2. Temperory task only for one day. aka bonus tasks.
+tasks scoring based on the number of tasks and based on bonus/temp tasks of the day. temp task can hold maximum of 0.5 of weitage.
+
+reminder : 
+before the the number of days has been over for the respective taks 
+we give a reminder to user if he wants to continue tracking that tasks or not. 
+
+deletion of tasks : 
+user has the option to delete the task for the day or remove it for the given duration.
+
+tarcker : 
+once all tasks has been completed we will show the display like a git hub tracker to show his consistancy and mark that day as green. 
+moreover if the user mark the cheat day then that day will show up as cheat day in orange or red color. 
+if user fails to complete the tasks then no green box if completes it partially then lighter shade of green. (Just like github commite tracker) 
+if user performs all the tasks plus additional daily task then we show a star on that day. 
+if user does not performes all daily tasks but performs similar amount of temperory tasks we still shows darker green tick on it. 
+Just like an app life dots the only diffrence being 1. its a mobile app 2. it tracks number of days 
+
+Display of tasks : 
+Tasks of the day will be displayed on top of the screen/dashboard along with modify/remove icon. 
+additionally there will be an option for adding a new task for that day if any. 
+
+Addons : 
+---------------
+Trakcer display : 
+it should be displays as computer desktop backround. Moreover it updates as the days goes by and shows the full month tracker.
+
+Future expantion : 
+- Add task with deadlines. 
+- Add an option for user to track / or be able to see their peers progression not the actual tasks just the tracker 
+and show the comparison of their progress achieve that with  given uniquie user id. 
+user  should be able to search and frequantly searched ids will be stored on the system. 
+- Able to sync on mobile app like anki and ability use the app exactly like desktop on phone as well. 
+
+Key questions : 
+1. How should we approch this? What should be the game plan
+2. What technology to use? 
+3. HOw can it be standalone? and how can we have an option to make it online too. 
+4. Should we have a database for it or should we just work with json files?
+5. How can we make a modern / Dashboard like UI in this?
+
+
+
