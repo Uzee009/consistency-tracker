@@ -18,13 +18,15 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   late TextEditingController _nameController;
   late TaskType _taskType;
   late TextEditingController _durationController;
+  late bool _isPerpetual;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.task?.name ?? '');
-    _taskType = widget.task?.type ?? widget.initialTaskType ?? TaskType.daily; // Use initialTaskType if provided
-    _durationController = TextEditingController(text: (widget.task?.durationDays ?? 1).toString());
+    _taskType = widget.task?.type ?? widget.initialTaskType ?? TaskType.daily;
+    _durationController = TextEditingController(text: (widget.task?.durationDays ?? 30).toString());
+    _isPerpetual = widget.task?.isPerpetual ?? false;
   }
 
   @override
@@ -39,36 +41,23 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       final String taskName = _nameController.text.trim();
       final int duration = int.tryParse(_durationController.text) ?? 0;
 
-      if (taskName.isNotEmpty && (_taskType == TaskType.temporary || duration > 0)) {
-        if (widget.task == null) {
-          // Add new task
-          final Task newTask = Task(
-            id: DateTime.now().millisecondsSinceEpoch, // Simple ID generation
-            name: taskName,
-            type: _taskType,
-            durationDays: _taskType == TaskType.daily ? duration : 0,
-            createdAt: DateTime.now(),
-            isActive: true,
-          );
-          await DatabaseService.instance.addTask(newTask);
-        } else {
-          // Update existing task
-          final updatedTask = Task(
-            id: widget.task!.id,
-            name: taskName,
-            type: _taskType,
-            durationDays: _taskType == TaskType.daily ? duration : 0,
-            createdAt: widget.task!.createdAt, // Preserve original creation date
-            isActive: widget.task!.isActive, // Preserve original active status
-          );
-          await DatabaseService.instance.updateTask(updatedTask);
-        }
+      if (taskName.isNotEmpty) {
+        final Task updatedTask = Task(
+          id: widget.task!.id,
+          name: taskName,
+          type: widget.task!.type, // Type cannot be changed when editing
+          durationDays: _isPerpetual ? 0 : duration,
+          isPerpetual: _isPerpetual,
+          createdAt: widget.task!.createdAt,
+          isActive: widget.task!.isActive,
+        );
+        await DatabaseService.instance.updateTask(updatedTask);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Task "${taskName}" saved!')),
+            SnackBar(content: Text('Task "${taskName}" updated!')),
           );
-          Navigator.of(context).pop(); // Go back to the previous screen
+          Navigator.of(context).pop();
         }
       }
     }
@@ -78,7 +67,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.task == null ? 'Add New Task' : 'Edit Task'), // Dynamic title
+        title: Text(widget.task == null ? 'Add New Task' : 'Edit Task'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -100,50 +89,34 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 20),
-              if (widget.task == null && widget.initialTaskType == null) // Show radio buttons only when adding a new task without pre-selected type
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: RadioListTile<TaskType>(
-                        title: const Text('Daily Task'),
-                        value: TaskType.daily, // Value should be specific
-                        groupValue: _taskType,
-                        onChanged: (TaskType? value) {
-                          setState(() {
-                            _taskType = value!;
-                          });
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<TaskType>(
-                        title: const Text('Temporary Task'),
-                        value: TaskType.temporary,
-                        groupValue: _taskType,
-                        onChanged: (TaskType? value) {
-                          setState(() {
-                            _taskType = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              if (widget.task == null && widget.initialTaskType == null) // Add a SizedBox if radio buttons are visible
-                const SizedBox(height: 20),
               if (_taskType == TaskType.daily) ...[
+                const SizedBox(height: 20),
+                SwitchListTile(
+                  title: const Text('Permanent Task'),
+                  subtitle: const Text('This task will not expire.'),
+                  value: _isPerpetual,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _isPerpetual = value;
+                    });
+                  },
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _durationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Duration in Days (e.g., 30, 7)',
-                    border: OutlineInputBorder(),
+                  enabled: !_isPerpetual, // Disable if task is perpetual
+                  decoration: InputDecoration(
+                    labelText: 'Duration in Days (e.g., 30, 90)',
+                    border: const OutlineInputBorder(),
+                    filled: _isPerpetual,
+                    fillColor: Colors.grey[200],
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
-                    if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) <= 0) {
-                      return 'Please enter a valid positive number of days';
+                    if (!_isPerpetual) {
+                      if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) <= 0) {
+                        return 'Please enter a valid positive number of days';
+                      }
                     }
                     return null;
                   },

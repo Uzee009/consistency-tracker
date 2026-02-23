@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:consistancy_tacker_v1/screens/task_form_screen.dart';
-import 'package:consistancy_tacker_v1/screens/tasks_list_screen.dart';
 import 'package:consistancy_tacker_v1/services/database_service.dart';
 import 'package:consistancy_tacker_v1/models/task_model.dart';
 import 'package:consistancy_tacker_v1/models/day_record_model.dart';
@@ -16,46 +15,34 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Task>> _todaysTasksFuture;
-  late DayRecord _todayRecord; // To store and update today's record
+  late DayRecord _todayRecord;
 
   @override
   void initState() {
     super.initState();
-    // Initialize with an empty future to prevent LateInitializationError
     _todaysTasksFuture = Future.value([]);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Load data every time the screen comes into view
     _initializeTodaysData();
   }
 
   void _initializeTodaysData() async {
-    // Get today's date in YYYY-MM-DD format
     final today = DateTime.now();
     final todayFormatted = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
-    // Get or create today's DayRecord
-    // Ensure _todayRecord is always initialized before _todaysTasksFuture is set
     _todayRecord = await DatabaseService.instance.getDayRecord(todayFormatted) ??
         DayRecord(date: todayFormatted, completedTaskIds: [], skippedTaskIds: []);
 
-    // Load today's active tasks
     setState(() {
       _todaysTasksFuture = DatabaseService.instance.getActiveTasksForDate(today);
     });
   }
 
-  // Method to handle task completion toggle
   void _toggleTaskCompletion(Task task, bool? isCompleted) async {
     List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
     List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
 
     if (isCompleted == true) {
       updatedCompletedIds.add(task.id);
-      updatedSkippedIds.remove(task.id); // Cannot be both completed and skipped
+      updatedSkippedIds.remove(task.id);
     } else {
       updatedCompletedIds.remove(task.id);
     }
@@ -63,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _updateTodayRecord(updatedCompletedIds, updatedSkippedIds);
   }
 
-  // Method to handle task skip toggle
   void _toggleTaskSkip(Task task) async {
     List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
     List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
@@ -72,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
       updatedSkippedIds.remove(task.id);
     } else {
       updatedSkippedIds.add(task.id);
-      updatedCompletedIds.remove(task.id); // Cannot be both completed and skipped
+      updatedCompletedIds.remove(task.id);
     }
 
     _updateTodayRecord(updatedCompletedIds, updatedSkippedIds);
@@ -89,8 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     await DatabaseService.instance.createOrUpdateDayRecord(_todayRecord);
-
-    // Rebuild the UI to reflect changes
     setState(() {});
   }
 
@@ -108,14 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Delete Task'),
         content: Text('Are you sure you want to delete "${task.name}"?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -126,69 +104,117 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showAddTaskSheet({required TaskType type}) {
+    final nameController = TextEditingController();
+    final durationController = TextEditingController(text: '30');
+    bool isPerpetual = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16, // Added padding
+              top: 16,
+              left: 16,
+              right: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Add ${type == TaskType.daily ? 'Daily' : 'Temporary'} Task', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Task Name', border: OutlineInputBorder()), autofocus: true),
+                if (type == TaskType.daily) ...[
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: const Text('Permanent Task'),
+                    value: isPerpetual,
+                    onChanged: (value) {
+                      setSheetState(() {
+                        isPerpetual = value;
+                      });
+                    },
+                  ),
+                  if (!isPerpetual)
+                    TextField(
+                      controller: durationController,
+                      decoration: const InputDecoration(labelText: 'Duration in Days', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.number,
+                    ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final String taskName = nameController.text.trim();
+                        if (taskName.isNotEmpty) {
+                          final newTask = Task(
+                            id: DateTime.now().millisecondsSinceEpoch,
+                            name: taskName,
+                            type: type,
+                            isPerpetual: type == TaskType.daily ? isPerpetual : false,
+                            durationDays: type == TaskType.daily && !isPerpetual ? (int.tryParse(durationController.text) ?? 30) : 0,
+                            createdAt: DateTime.now(),
+                          );
+                          await DatabaseService.instance.addTask(newTask);
+                          Navigator.of(context).pop();
+                          _initializeTodaysData();
+                        }
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
-          // Top Row: Daily and Temporary Tasks
           Expanded(
             flex: 1,
             child: Row(
               children: <Widget>[
-                // Daily Tasks Column
-                Expanded(
-                  flex: 1,
-                  child: _buildTaskSection('Daily Tasks', TaskType.daily, Colors.lightBlue[50]!, Colors.blueAccent),
-                ),
-                // Temporary Tasks Column
-                Expanded(
-                  flex: 1,
-                  child: _buildTaskSection('Temporary Tasks', TaskType.temporary, Colors.yellow[100]!, Colors.orangeAccent),
-                ),
+                Expanded(child: _buildTaskSection('Daily Tasks', TaskType.daily, Colors.lightBlue[50]!, Colors.blueAccent)),
+                Expanded(child: _buildTaskSection('Temporary Tasks', TaskType.temporary, Colors.yellow[100]!, Colors.orangeAccent)),
               ],
             ),
           ),
-          // Bottom Row: Consistency Chart and Streaks
           Expanded(
             flex: 1,
             child: Row(
               children: [
-                // GitHub-type Chart Placeholder
                 Expanded(
                   flex: 3,
                   child: Container(
                     color: Colors.grey[200],
                     margin: const EdgeInsets.all(8.0),
-                    child: const Center(
-                      child: Text(
-                        'GitHub-style Consistency Chart (Coming Soon!)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                    ),
+                    child: const Center(child: Text('GitHub-style Consistency Chart (Coming Soon!)', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey))),
                   ),
                 ),
-                // Task Streaks Placeholder
                 Expanded(
                   flex: 1,
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Container(
                       padding: const EdgeInsets.all(8.0),
-                      decoration: BoxDecoration(
-                        color: Colors.blueGrey[100],
-                        borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: Colors.blueGrey),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Streaks', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text('Max: 0', style: TextStyle(color: Colors.blueGrey)),
-                          Text('Current: 0', style: TextStyle(color: Colors.blueGrey)),
-                        ],
-                      ),
+                      decoration: BoxDecoration(color: Colors.blueGrey[100], borderRadius: BorderRadius.circular(8.0), border: Border.all(color: Colors.blueGrey)),
+                      child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text('Streaks', style: TextStyle(fontWeight: FontWeight.bold)), Text('Max: 0', style: TextStyle(color: Colors.blueGrey)), Text('Current: 0', style: TextStyle(color: Colors.blueGrey))]),
                     ),
                   ),
                 ),
@@ -203,11 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTaskSection(String title, TaskType type, Color bgColor, Color borderColor) {
     return Container(
       margin: const EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: borderColor),
-      ),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8.0), border: Border.all(color: borderColor)),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Column(
@@ -219,12 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
                 IconButton(
                   icon: const Icon(Icons.add),
-                  onPressed: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => TaskFormScreen(initialTaskType: type)),
-                    );
-                    _initializeTodaysData();
-                  },
+                  onPressed: () => _showAddTaskSheet(type: type),
                 ),
               ],
             ),
@@ -232,62 +249,41 @@ class _HomeScreenState extends State<HomeScreen> {
               child: FutureBuilder<List<Task>>(
                 future: _todaysTasksFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.where((task) => task.type == type).isEmpty) {
-                    return Center(child: Text('No $title.'));
-                  } else {
-                    final tasks = snapshot.data!.where((task) => task.type == type).toList();
-                    return ListView.builder(
-                      itemCount: tasks.length,
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        final isCompleted = _todayRecord.completedTaskIds.contains(task.id);
-                        final isSkipped = _todayRecord.skippedTaskIds.contains(task.id);
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                  if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+                  final tasks = snapshot.data?.where((task) => task.type == type).toList() ?? [];
+                  if (tasks.isEmpty) return Center(child: Text('No $title.'));
+                  
+                  return ListView.builder(
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+                      final isCompleted = _todayRecord.completedTaskIds.contains(task.id);
+                      final isSkipped = _todayRecord.skippedTaskIds.contains(task.id);
 
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          leading: Checkbox(
-                            value: isCompleted,
-                            onChanged: (bool? value) => _toggleTaskCompletion(task, value),
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        leading: Checkbox(value: isCompleted, onChanged: (bool? value) => _toggleTaskCompletion(task, value)),
+                        title: Text(
+                          task.name,
+                          style: TextStyle(
+                            decoration: isCompleted ? TextDecoration.lineThrough : null,
+                            color: isSkipped ? Colors.grey : Colors.black,
+                            fontStyle: isSkipped ? FontStyle.italic : FontStyle.normal,
                           ),
-                          title: Text(
-                            task.name,
-                            style: TextStyle(
-                              decoration: isCompleted ? TextDecoration.lineThrough : (isSkipped ? TextDecoration.none : null),
-                              color: isSkipped ? Colors.grey : Colors.black,
-                              fontStyle: isSkipped ? FontStyle.italic : FontStyle.normal,
-                            ),
-                          ),
-                          subtitle: isSkipped ? const Text('Skipped', style: TextStyle(fontSize: 10, color: Colors.grey)) : null,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  isSkipped ? Icons.remove_circle : Icons.remove_circle_outline,
-                                  color: isSkipped ? Colors.orange : Colors.grey,
-                                  size: 20,
-                                ),
-                                tooltip: 'Skip task',
-                                onPressed: () => _toggleTaskSkip(task),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 20, color: Colors.blueGrey),
-                                onPressed: () => _editTask(task),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
-                                onPressed: () => _deleteTask(task),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  }
+                        ),
+                        subtitle: isSkipped ? const Text('Skipped', style: TextStyle(fontSize: 10, color: Colors.grey)) : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(icon: Icon(isSkipped ? Icons.remove_circle : Icons.remove_circle_outline, color: isSkipped ? Colors.orange : Colors.grey, size: 20), tooltip: 'Skip task', onPressed: () => _toggleTaskSkip(task)),
+                            IconButton(icon: const Icon(Icons.edit, size: 20, color: Colors.blueGrey), onPressed: () => _editTask(task)),
+                            IconButton(icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent), onPressed: () => _deleteTask(task)),
+                          ],
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
             ),

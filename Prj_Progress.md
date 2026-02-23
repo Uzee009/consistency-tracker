@@ -99,3 +99,21 @@
     *   Replaced the global FloatingActionButton with individual "Add" buttons (IconButton) in the headers of Daily and Temporary task sections.
     *   Refactored the bottom section to display the GitHub-style chart placeholder (75% width) and Task Streaks placeholder (25% width) side-by-side.
     *   Modified `task_form_screen.dart` to accept an `initialTaskType` for pre-selection when adding tasks from individual buttons.
+
+## Saturday, 21 February 2026
+
+**Summary:**
+*   **Resolved Critical UI Errors:** Fixed a major malformed widget tree in `home_screen.dart` that was causing persistent compiler errors.
+*   **Version Control Implementation:** Initialized a Git repository and made an initial commit to establish a baseline for safe development and easy rollbacks.
+*   **UI Layout Refinements:**
+    *   Removed the top `AppBar` to maximize screen space.
+    *   Adjusted the height distribution to a 50/50 split between the task management section and the consistency chart/streaks area.
+*   **Enhanced Task Management:**
+    *   **Edit Task:** Added functionality to edit existing tasks directly from the home screen.
+    *   **Remove Task:** Implemented a secure delete function with a confirmation dialog.
+    *   **Skip Task:** Introduced a "Skip" feature allowing users to mark a task as intentionally skipped for the day.
+*   **Database & Model Updates:**
+    *   Updated `DayRecord` model to track skipped task IDs.
+    *   Performed a database migration (Version 2) to add the `skipped_task_ids` column to the `day_records` table.
+    *   Updated `DatabaseService` to handle the new schema and migration logic.
+*   **Verified Build:** Confirmed that the application compiles and runs successfully on Linux with no critical errors.

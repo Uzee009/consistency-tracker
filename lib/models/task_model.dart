@@ -6,7 +6,8 @@ class Task {
   final int id; // Unique ID for the task
   final String name;
   final TaskType type;
-  final int durationDays; // Applicable for daily tasks
+  final int durationDays; // Applicable for daily tasks, ignored if isPerpetual
+  final bool isPerpetual; // True for tasks that never expire
   final DateTime createdAt;
   final bool isActive;
 
@@ -14,7 +15,8 @@ class Task {
     required this.id,
     required this.name,
     required this.type,
-    this.durationDays = 0, // Default to 0 for temporary tasks
+    this.durationDays = 0,
+    this.isPerpetual = false,
     required this.createdAt,
     this.isActive = true,
   });
@@ -26,6 +28,7 @@ class Task {
       'name': name,
       'type': type.toString().split('.').last, // Store enum as string
       'duration_days': durationDays,
+      'is_perpetual': isPerpetual ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'is_active': isActive ? 1 : 0, // Store boolean as integer
     };
@@ -41,6 +44,7 @@ class Task {
         orElse: () => TaskType.daily, // Default value if not found
       ),
       durationDays: map['duration_days'],
+      isPerpetual: map['is_perpetual'] == 1,
       createdAt: DateTime.parse(map['created_at']),
       isActive: map['is_active'] == 1,
     );
@@ -48,6 +52,6 @@ class Task {
 
   @override
   String toString() {
-    return 'Task(id: $id, name: $name, type: $type, durationDays: $durationDays, createdAt: $createdAt, isActive: $isActive)';
+    return 'Task(id: $id, name: $name, type: $type, durationDays: $durationDays, isPerpetual: $isPerpetual, createdAt: $createdAt, isActive: $isActive)';
   }
 }

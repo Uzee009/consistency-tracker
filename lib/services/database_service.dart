@@ -30,7 +30,7 @@ class DatabaseService {
     String path = join(documentsDirectory.path, 'consistency_tracker.db');
     return await openDatabase(
       path,
-      version: 2, // Increased version
+      version: 3, // Increased version for the new 'is_perpetual' column
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -50,6 +50,7 @@ class DatabaseService {
         name TEXT NOT NULL,
         type TEXT NOT NULL,
         duration_days INTEGER NOT NULL,
+        is_perpetual INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         is_active INTEGER NOT NULL
       )
@@ -69,6 +70,9 @@ class DatabaseService {
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute("ALTER TABLE $dayRecordsTable ADD COLUMN skipped_task_ids TEXT DEFAULT ''");
+    }
+    if (oldVersion < 3) {
+      await db.execute("ALTER TABLE $tasksTable ADD COLUMN is_perpetual INTEGER DEFAULT 0");
     }
   }
 
@@ -91,7 +95,6 @@ class DatabaseService {
     return null;
   }
 
-  // New method to check if any user exists
   Future<bool> hasUser() async {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(usersTable, limit: 1);
@@ -124,20 +127,35 @@ class DatabaseService {
   }
 
   Future<List<Task>> getActiveTasksForDate(DateTime date) async {
-    // This method will need more complex logic later to determine active tasks based on date and duration.
-    // For now, return all active tasks.
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(
       tasksTable,
       where: 'is_active = ?',
-      whereArgs: [1], // Assuming 1 for true, 0 for false
+      whereArgs: [1],
     );
-    return List.generate(maps.length, (i) {
-      return Task.fromMap(maps[i]);
-    });
+
+    List<Task> allTasks = List.generate(maps.length, (i) => Task.fromMap(maps[i]));
+    
+    // Filter out temporary tasks that are older than today
+    // and daily tasks that have expired.
+    return allTasks.where((task) {
+      if (task.type == TaskType.temporary) {
+        // Only include temporary tasks created today
+        return task.createdAt.year == date.year &&
+               task.createdAt.month == date.month &&
+               task.createdAt.day == date.day;
+      } else if (task.type == TaskType.daily) {
+        if (task.isPerpetual) {
+          return true; // Perpetual tasks are always active
+        }
+        // Include daily tasks if today is within their duration
+        final expirationDate = task.createdAt.add(Duration(days: task.durationDays));
+        return date.isBefore(expirationDate);
+      }
+      return false;
+    }).toList();
   }
 
-  // New method to get all tasks
   Future<List<Task>> getAllTasks() async {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(tasksTable);
@@ -149,7 +167,6 @@ class DatabaseService {
   // --- DayRecord Management ---
   Future<int> createOrUpdateDayRecord(DayRecord record) async {
     Database db = await instance.database;
-    // Attempt to update, if no rows affected, then insert
     int count = await db.update(
       dayRecordsTable,
       record.toMap(),
@@ -179,7 +196,7 @@ class DatabaseService {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(
       dayRecordsTable,
-      orderBy: 'date DESC', // Get most recent records first
+      orderBy: 'date DESC',
       limit: limit,
     );
     return List.generate(maps.length, (i) {
