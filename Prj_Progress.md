@@ -117,3 +117,26 @@
     *   Performed a database migration (Version 2) to add the `skipped_task_ids` column to the `day_records` table.
     *   Updated `DatabaseService` to handle the new schema and migration logic.
 *   **Verified Build:** Confirmed that the application compiles and runs successfully on Linux with no critical errors.
+
+## Monday, 23 February 2026
+
+**Summary:**
+*   **Feature: Personalized Cheat Day System:**
+    *   Updated `User` model and performed database migrations (v4 & v5) to support user-defined monthly cheat day allowances.
+    *   Implemented "Cheat Day Tokens" logic: users can declare a cheat day from the dashboard, which uses a token and prevents streak breaks.
+    *   Added a `SettingsScreen` allowing users to update their name and cheat day allowance.
+    *   Integrated remaining token display in the `HomeScreen` AppBar.
+*   **Feature: Custom Git-like Heatmap Grid:**
+    *   Implemented a fully custom, responsive heatmap grid from scratch using core Flutter widgets (replacing third-party packages for better control).
+    *   The grid displays the full current calendar year (2026) with 7 rows (days) and variable columns (weeks).
+    *   Added dynamic month labels (Jan, Feb, etc.) and full day labels (Sun, Mon, etc.) with custom `#2f0035` coloring.
+    *   Implemented visual gaps between months to match the `uhabits`/GitHub aesthetic.
+    *   Applied custom styling: Background `#f6b4ff`, Empty cells `#cb5dda`.
+    *   Added day numbers inside every heatmap cell with auto-contrasting text color.
+    *   Integrated `ScoringService` to drive cell colors based on task performance (Greens), Cheat Days (Orange), and Star Days (Amber).
+*   **UI/UX Refinements:**
+    *   Standardized the task addition flow using a modal bottom sheet for both Daily and Temporary tasks.
+    *   Centered the `HomeScreen` title and refined the user profile menu to include a "Copy ID" feature.
+*   **Stability & Process:**
+    *   Resolved multiple layout overflow and compilation issues.
+    *   Established a rigorous pre-flight build check (Clean -> Get -> Analyze -> Run) to ensure code quality.

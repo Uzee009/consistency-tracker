@@ -39,7 +39,6 @@ dependencies:
   sqflite_common_ffi: ^2.3.3
   path: ^1.9.0
   clipboard: ^3.0.14
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

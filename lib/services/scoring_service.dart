@@ -1,89 +1,75 @@
 // lib/services/scoring_service.dart
 
-import '../models/day_record_model.dart';
-import 'dart:math'; // For min function
+import 'package:consistancy_tacker_v1/models/day_record_model.dart';
+import 'package:consistancy_tacker_v1/models/task_model.dart';
 
 class ScoringService {
-  /// Calculates the core daily score based on completed and expected tasks.
-  /// Returns a value between 0.0 and 1.0.
-  double calculateCoreDailyScore(int completedTasksCount, int totalExpectedTasksCount) {
-    if (totalExpectedTasksCount == 0) {
-      return 0.0; // No tasks, no score. Or handle as per specific rule.
-    }
-    return completedTasksCount / totalExpectedTasksCount;
-  }
+  // This class can be expanded with more complex scoring logic.
+  // For now, it provides a method to calculate the daily completion score.
 
-  /// Calculates credit from temporary tasks, capped at 50% of missing daily work.
-  double calculateTempTaskCredit(int tempTasksCompleted, int missingDailyTasksCount) {
-    if (missingDailyTasksCount <= 0 || tempTasksCompleted <= 0) {
-      return 0.0;
-    }
-    // Temporary tasks can cover at most 50% of missing daily work.
-    return min(tempTasksCompleted.toDouble(), missingDailyTasksCount * 0.5);
-  }
-
-  /// Determines the visual state for a DayRecord based on score, cheat status, and overachievement.
-  VisualState mapScoreToVisualState({
-    required double finalScore,
-    required bool cheatUsed,
-    required bool hasStar,
+  static ScoreResult calculateDayScore({
+    required List<Task> allTasks,
+    required DayRecord dayRecord,
   }) {
-    if (cheatUsed) {
-      return VisualState.cheat;
-    }
-    if (hasStar) {
-      return VisualState.star;
+    if (dayRecord.cheatUsed) {
+      return ScoreResult(
+        completionScore: 0, // Score is irrelevant on a cheat day
+        visualState: VisualState.cheat,
+      );
     }
 
-    if (finalScore >= 1.0) {
-      return VisualState.darkGreen;
-    } else if (finalScore >= 0.76) {
-      return VisualState.green;
-    } else if (finalScore >= 0.51) {
-      return VisualState.lightGreen;
-    } else if (finalScore >= 0.26) {
-      return VisualState.lightGreen; // Example: can differentiate shades later
-    } else if (finalScore > 0.0) {
-      return VisualState.empty; // Represents minimal effort but not empty
-    } else {
+    final dailyTasks = allTasks.where((t) => t.type == TaskType.daily).toList();
+    final tempTasks = allTasks.where((t) => t.type == TaskType.temporary).toList();
+
+    if (dailyTasks.isEmpty && tempTasks.isEmpty) {
+      return ScoreResult(completionScore: 0, visualState: VisualState.empty);
+    }
+
+    final completedDailyTasks = dailyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
+    final completedTempTasks = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
+
+    // Star Logic: All daily tasks completed PLUS at least one temporary task
+    if (dailyTasks.isNotEmpty && completedDailyTasks == dailyTasks.length && completedTempTasks > 0) {
+      return ScoreResult(
+        completionScore: 1.0, // Max score for a star day
+        visualState: VisualState.star,
+      );
+    }
+
+    // Substitution Logic
+    final dailyBenchmark = dailyTasks.length;
+    if (dailyBenchmark == 0) {
+      // If there are no daily tasks, any temp task completion is a bonus
+      return completedTempTasks > 0
+          ? ScoreResult(completionScore: 1, visualState: VisualState.lightGreen)
+          : ScoreResult(completionScore: 0, visualState: VisualState.empty);
+    }
+
+    final effectiveCompleted = completedDailyTasks + completedTempTasks;
+    final score = (effectiveCompleted / dailyBenchmark).clamp(0.0, 1.0);
+
+    return ScoreResult(
+      completionScore: score,
+      visualState: _mapScoreToVisualState(score),
+    );
+  }
+
+  static VisualState _mapScoreToVisualState(double score) {
+    if (score <= 0) {
       return VisualState.empty;
+    } else if (score < 0.5) {
+      return VisualState.lightGreen;
+    } else if (score < 1.0) {
+      return VisualState.green;
+    } else {
+      return VisualState.darkGreen;
     }
   }
+}
 
-  /// Calculates the overall completion score for a day.
-  /// Combines core daily tasks and temporary task compensation.
-  double calculateOverallCompletionScore({
-    required int completedDailyTasks,
-    required int totalDailyTasks,
-    required int completedTemporaryTasks,
-  }) {
-    if (totalDailyTasks == 0) {
-      // If there are no daily tasks, only temporary tasks count towards an "overachievement"
-      // or a base score, but the core score cannot be calculated normally.
-      // For now, return 0.0, as per the plan's focus on daily tasks.
-      // This logic might need refinement based on exact requirements for days with no daily tasks.
-      return 0.0;
-    }
+class ScoreResult {
+  final double completionScore;
+  final VisualState visualState;
 
-    final double coreScore = calculateCoreDailyScore(completedDailyTasks, totalDailyTasks);
-
-    int missingDailyTasks = totalDailyTasks - completedDailyTasks;
-    double tempCredit = calculateTempTaskCredit(completedTemporaryTasks, missingDailyTasks);
-
-    double effectiveCompleted = completedDailyTasks + tempCredit;
-    double adjustedScore = effectiveCompleted / totalDailyTasks;
-
-    // Clamp score to a maximum of 1.0 for regular scoring before star logic
-    return min(adjustedScore, 1.0);
-  }
-
-  /// Determines if a day qualifies for a "star" visual state.
-  bool checkForStarStatus({
-    required int completedDailyTasks,
-    required int totalDailyTasks,
-    required int completedTemporaryTasks,
-  }) {
-    // Star status if all daily tasks are done AND there are bonus temporary tasks
-    return completedDailyTasks >= totalDailyTasks && completedTemporaryTasks > 0;
-  }
+  ScoreResult({required this.completionScore, required this.visualState});
 }

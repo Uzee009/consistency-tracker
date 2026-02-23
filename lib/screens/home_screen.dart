@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:consistancy_tacker_v1/screens/task_form_screen.dart';
 import 'package:consistancy_tacker_v1/services/database_service.dart';
+import 'package:consistancy_tacker_v1/services/scoring_service.dart';
 import 'package:consistancy_tacker_v1/models/task_model.dart';
 import 'package:consistancy_tacker_v1/models/day_record_model.dart';
 import 'package:consistancy_tacker_v1/models/user_model.dart';
@@ -21,6 +22,12 @@ class _HomeScreenState extends State<HomeScreen> {
   late DayRecord _todayRecord;
   User? _currentUser;
   int _cheatDaysUsed = 0;
+  Map<DateTime, int> _heatmapData = {};
+
+  // For heatmap grid sizing
+  static const double _cellSize = 18.0;
+  static const double _cellMargin = 2.0;
+  static const double _totalCellSize = _cellSize + (2 * _cellMargin);
 
   @override
   void initState() {
@@ -44,9 +51,45 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _cheatDaysUsed = await DatabaseService.instance.getCheatDaysUsed(yearMonth);
+    _loadHeatmapData();
 
     setState(() {
       _todaysTasksFuture = DatabaseService.instance.getActiveTasksForDate(today);
+    });
+  }
+
+  void _loadHeatmapData() async {
+    final today = DateTime.now();
+    final startOfYear = DateTime(today.year, 1, 1);
+    
+    final records = await DatabaseService.instance.getDayRecords(limit: 366);
+    final Map<DateTime, int> data = {};
+    for (var record in records) {
+      final date = DateTime.parse(record.date);
+      final cleanDate = DateTime(date.year, date.month, date.day); 
+
+      int intensity;
+
+      if (record.visualState == VisualState.cheat) {
+        intensity = -1;
+      } else if (record.visualState == VisualState.star) {
+        intensity = -2;
+      } else if (record.visualState == VisualState.empty) {
+        intensity = 0;
+      } else if (record.visualState == VisualState.lightGreen) {
+        intensity = 1;
+      } else if (record.visualState == VisualState.green) {
+        intensity = 2;
+      } else if (record.visualState == VisualState.darkGreen) {
+        intensity = 3;
+      } else {
+        intensity = 0;
+      }
+
+      data[cleanDate] = intensity;
+    }
+    setState(() {
+      _heatmapData = data;
     });
   }
 
@@ -83,17 +126,31 @@ class _HomeScreenState extends State<HomeScreen> {
     List<int>? skippedIds,
     bool? cheatUsed,
   }) async {
-    _todayRecord = DayRecord(
+    final currentRecord = DayRecord(
       date: _todayRecord.date,
       completedTaskIds: completedIds ?? _todayRecord.completedTaskIds,
       skippedTaskIds: skippedIds ?? _todayRecord.skippedTaskIds,
       cheatUsed: cheatUsed ?? _todayRecord.cheatUsed,
-      completionScore: _todayRecord.completionScore,
-      visualState: _todayRecord.visualState,
+    );
+
+    final allActiveTasksForToday = await DatabaseService.instance.getActiveTasksForDate(DateTime.parse(currentRecord.date));
+
+    final scoreResult = ScoringService.calculateDayScore(
+      allTasks: allActiveTasksForToday,
+      dayRecord: currentRecord,
+    );
+
+    _todayRecord = DayRecord(
+      date: currentRecord.date,
+      completedTaskIds: currentRecord.completedTaskIds,
+      skippedTaskIds: currentRecord.skippedTaskIds,
+      cheatUsed: currentRecord.cheatUsed,
+      completionScore: scoreResult.completionScore,
+      visualState: scoreResult.visualState,
     );
 
     await DatabaseService.instance.createOrUpdateDayRecord(_todayRecord);
-    _initializeData(); // Re-fetch all data to ensure UI is in sync
+    _initializeData();
   }
 
   void _editTask(Task task) async {
@@ -168,7 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showAddTaskSheet({required TaskType type}) {
-    // ... (rest of the sheet logic remains the same)
     final nameController = TextEditingController();
     final durationController = TextEditingController(text: '30');
     bool isPerpetual = false;
@@ -255,6 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -267,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(right: 8.0),
                 child: Text(
-                  'Tokens: ${_currentUser!.monthlyCheatDays - _cheatDaysUsed}/${_currentUser!.monthlyCheatDays}',
+                  'Tokens: ${(_currentUser!.monthlyCheatDays - _cheatDaysUsed).clamp(0, _currentUser!.monthlyCheatDays)}/${_currentUser!.monthlyCheatDays}',
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -283,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else if (value == 'settings') {
                   Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
-                      .then((_) => _initializeData()); // Re-fetch data after settings change
+                      .then((_) => _initializeData());
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -303,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'settings',
                   child: ListTile(
                       leading: Icon(Icons.settings), title: Text('Settings')),
@@ -338,14 +395,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   flex: 3,
                   child: Container(
-                    color: Colors.grey[200],
+                    padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.all(8.0),
-                    child: const Center(
-                        child: Text(
-                            'GitHub-style Consistency Chart (Coming Soon!)',
-                            textAlign: TextAlign.center,
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.grey))),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF6B4FF),
+                       borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Column(
+                      children: [
+                        // Heatmap Legend
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildLegendItem(Colors.orange, 'Cheat Day'),
+                              _buildLegendItem(Colors.amber, 'Star Day'),
+                              _buildLegendItem(const Color(0xFFCB5DDA), 'No Activity'),
+                              _buildLegendItem(const Color(0xFFC8E6C9), 'Low'),
+                              _buildLegendItem(const Color(0xFF81C784), 'Medium'),
+                              _buildLegendItem(const Color(0xFF388E3C), 'High'),
+                            ],
+                          ),
+                        ),
+                        // Custom Heatmap Grid
+                        _buildHeatmapGrid(),
+                      ],
+                    ),
                   ),
                 ),
                 Expanded(
@@ -496,4 +572,187 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  
+  Widget _buildLegendItem(Color color, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(text, style: const TextStyle(fontSize: 10)),
+      ],
+    );
+  }
+
+  Widget _buildHeatmapGrid() {
+    final List<Widget> weekColumns = [];
+    final today = DateTime.now();
+    
+    DateTime rawStartDate = DateTime(today.year, 1, 1);
+    
+    DateTime startDate = rawStartDate;
+    while (startDate.weekday != DateTime.sunday) {
+      startDate = startDate.subtract(const Duration(days: 1));
+    }
+
+    DateTime endDate = DateTime(today.year, 12, 31);
+    while (endDate.weekday != DateTime.saturday) {
+        endDate = endDate.add(const Duration(days: 1));
+    }
+
+    final List<MonthLabelData> monthLabelsData = [];
+    final List<String> monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    final List<String> weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final Widget dayLabelColumn = Column(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: weekdays.map((name) => Container(
+        height: _totalCellSize,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: _cellMargin),
+        child: Text(name, style: const TextStyle(fontSize: 10, color: Color(0xFF2F0035))),
+      )).toList(),
+    );
+    
+    DateTime currentDate = startDate;
+    int lastMonth = -1;
+    double currentMonthSpanWidth = 0;
+
+    while (currentDate.isBefore(endDate.add(const Duration(days: 1)))) {
+      if (currentDate.month != lastMonth && lastMonth != -1) {
+        monthLabelsData.add(
+          MonthLabelData(
+            name: monthNames[lastMonth - 1],
+            width: currentMonthSpanWidth,
+          ),
+        );
+        weekColumns.add(
+          const SizedBox(width: _totalCellSize),
+        );
+        monthLabelsData.add(
+          MonthLabelData(name: '', width: _totalCellSize),
+        );
+        currentMonthSpanWidth = 0;
+      }
+      lastMonth = currentDate.month;
+      
+      currentMonthSpanWidth += _totalCellSize;
+
+      List<Widget> dayCellsInWeek = [];
+      for (int i = 0; i < 7; i++) {
+        final day = currentDate.add(Duration(days: i));
+        
+        bool isDayWithinYear = day.year == today.year && day.isAfter(rawStartDate.subtract(const Duration(days:1))) && day.isBefore(DateTime(today.year, 12, 31).add(const Duration(days:1)));
+
+        final int intensity = _heatmapData[DateTime(day.year, day.month, day.day)] ?? 0;
+        Color cellColor;
+
+        if (intensity == -1) {
+          cellColor = Colors.orange;
+        } else if (intensity == -2) {
+          cellColor = Colors.amber;
+        } else if (intensity == 1) {
+          cellColor = const Color(0xFFC8E6C9);
+        } else if (intensity == 2) {
+          cellColor = const Color(0xFF81C784);
+        } else if (intensity == 3) {
+          cellColor = const Color(0xFF388E3C);
+        } else {
+          cellColor = const Color(0xFFCB5DDA);
+        }
+
+        dayCellsInWeek.add(
+          isDayWithinYear ?
+          GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Date: ${day.toIso8601String().split('T')[0]}')));
+            },
+            child: Container(
+              width: _cellSize,
+              height: _cellSize,
+              margin: const EdgeInsets.all(_cellMargin),
+              decoration: BoxDecoration(
+                color: cellColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: Center(
+                child: Text(
+                  day.day.toString(),
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: (cellColor.computeLuminance() > 0.5) ? Colors.black : Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          )
+          : const SizedBox(width: _totalCellSize, height: _totalCellSize),
+        );
+      }
+      weekColumns.add(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: dayCellsInWeek,
+        ),
+      );
+      currentDate = currentDate.add(const Duration(days: 7));
+    }
+
+    if (currentMonthSpanWidth > 0) {
+      monthLabelsData.add(
+        MonthLabelData(
+          name: monthNames[lastMonth - 1],
+          width: currentMonthSpanWidth,
+        ),
+      );
+    }
+    
+    return Expanded(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  const SizedBox(width: _totalCellSize * 1.5),
+                  ...monthLabelsData.map((data) => SizedBox(
+                    width: data.width,
+                    child: Text(data.name, textAlign: TextAlign.left, style: const TextStyle(fontSize: 10, color: Color(0xFF2F0035))),
+                  )),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                dayLabelColumn,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: weekColumns,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MonthLabelData {
+  final String name;
+  final double width;
+
+  MonthLabelData({required this.name, required this.width});
 }
