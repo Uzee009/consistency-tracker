@@ -86,17 +86,17 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: Colors.deepPurple[50]!, width: 1),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -113,18 +113,18 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   children: [
                     if (_isReportMode)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.deepPurple[900],
-                          borderRadius: BorderRadius.circular(4),
+                          color: Colors.black, // Shadcn dark mode style badge
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
-                          'REPORT MODE',
+                          'Report Mode',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ),
@@ -132,17 +132,15 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                       spacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _buildLegendItem(Colors.orange[300]!, 'Cheat'),
-                        _buildLegendItem(Colors.green[600]!, 'Star', hasStar: true),
-                        _buildLegendItem(Colors.deepPurple[50]!, 'None'),
+                        _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                        _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true), // Emerald 500
+                        _buildLegendItem(Colors.grey[100]!, 'None'),
                         const SizedBox(width: 4),
-                        const Text('|', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                        const SizedBox(width: 4),
-                        const Text('Less', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
-                        _buildLegendItem(Colors.green[100]!, ''),
-                        _buildLegendItem(Colors.green[300]!, ''),
-                        _buildLegendItem(Colors.green[600]!, ''),
-                        const Text('More', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
+                        const Text('Less', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w400)),
+                        _buildLegendItem(const Color(0xFFD1FAE5), ''), // Emerald 100
+                        _buildLegendItem(const Color(0xFF6EE7B7), ''), // Emerald 300
+                        _buildLegendItem(const Color(0xFF10B981), ''), // Emerald 500
+                        const Text('More', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w400)),
                       ],
                     ),
                   ],
@@ -303,12 +301,12 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
          } else {
             final int intensity = widget.heatmapData[DateTime(dDate.year, dDate.month, dDate.day)] ?? 0;
             Color cellColor;
-            if (intensity == -1) cellColor = Colors.orange[300]!;
-            else if (intensity == -2) cellColor = Colors.green[600]!;
-            else if (intensity == 1) cellColor = Colors.green[100]!;
-            else if (intensity == 2) cellColor = Colors.green[300]!;
-            else if (intensity == 3) cellColor = Colors.green[600]!;
-            else cellColor = Colors.deepPurple[50]!;
+            if (intensity == -1) cellColor = Colors.orange[400]!;
+            else if (intensity == -2) cellColor = const Color(0xFF10B981); // Emerald 500
+            else if (intensity == 1) cellColor = const Color(0xFFD1FAE5); // Emerald 100
+            else if (intensity == 2) cellColor = const Color(0xFF6EE7B7); // Emerald 300
+            else if (intensity == 3) cellColor = const Color(0xFF10B981); // Emerald 500
+            else cellColor = Colors.grey[50]!;
             
             if (intensity == -2) starCount++;
             if (intensity == -1) cheatCount++;
@@ -325,7 +323,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: cellColor,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.black.withOpacity(0.05), width: 0.5),
                     ),
                     child: Center(
                        child: intensity == -2
@@ -480,12 +479,13 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         children: weekdays.map((name) => Container(
           height: dynamicTotalCellHeight,
           alignment: Alignment.centerLeft,
-          child: Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.deepPurple[900])),
+          child: Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600])),
         )).toList(),
       ),
     );
 
     for (int i = 0; i < monthsCount; i++) {
+      // ... (keep targetDate logic)
       DateTime targetDate;
       if (_isReportMode) {
         targetDate = DateTime(today.year, today.month - (monthsCount - 1 - i), 1);
@@ -520,12 +520,12 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           final int intensity = widget.heatmapData[DateTime(day.year, day.month, day.day)] ?? 0;
           Color cellColor;
 
-          if (intensity == -1) cellColor = Colors.orange[300]!;
-          else if (intensity == -2) cellColor = Colors.green[600]!;
-          else if (intensity == 1) cellColor = Colors.green[100]!;
-          else if (intensity == 2) cellColor = Colors.green[300]!;
-          else if (intensity == 3) cellColor = Colors.green[600]!;
-          else cellColor = Colors.deepPurple[50]!;
+          if (intensity == -1) cellColor = Colors.orange[400]!;
+          else if (intensity == -2) cellColor = const Color(0xFF10B981); // Emerald 500
+          else if (intensity == 1) cellColor = const Color(0xFFD1FAE5); // Emerald 100
+          else if (intensity == 2) cellColor = const Color(0xFF6EE7B7); // Emerald 300
+          else if (intensity == 3) cellColor = const Color(0xFF10B981); // Emerald 500
+          else cellColor = Colors.grey[50]!;
 
           dayCellsInWeek.add(
             GestureDetector(
@@ -539,6 +539,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 decoration: BoxDecoration(
                   color: cellColor,
                   borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.black.withOpacity(0.05), width: 0.5),
                 ),
                 child: Center(
                   child: intensity == -2
@@ -581,15 +582,15 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple[900])),
+                      color: Colors.grey[700])),
             ),
             Container(
               padding: const EdgeInsets.symmetric(vertical: 2),
               decoration: showHighlight
                   ? BoxDecoration(
-                      color: const Color(0xFFB39DDB),
+                      color: const Color(0xFFF1F5F9), // Slate 50
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF9575CD), width: 1),
+                      border: Border.all(color: const Color(0xFFCBD5E1), width: 1), // Slate 300
                     )
                   : null,
               child: Row(mainAxisSize: MainAxisSize.min, children: thisMonthWeeks),

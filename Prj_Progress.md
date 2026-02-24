@@ -140,3 +140,22 @@
 *   **Stability & Process:**
     *   Resolved multiple layout overflow and compilation issues.
     *   Established a rigorous pre-flight build check (Clean -> Get -> Analyze -> Run) to ensure code quality.
+
+## Tuesday, 24 February 2026
+
+**Summary:**
+*   **Heatmap UI/UX Overhaul:**
+    *   Implemented a modern **DeepPurple Material theme** with high-contrast labels and a clean white background.
+    *   Refactored the grid to a **month-by-month layout**, fixing month-blending bugs and ensuring accurate day counts.
+    *   Implemented **auto-centering** and current-month highlighting.
+    *   Added **Functional Duration Tabs** (1M, 3M, 6M, 1Y) with a **shadcn-inspired** design.
+    *   Introduced **Report Mode**, allowing users to toggle between Planning (forward-looking) and Historical (backward-looking) views.
+*   **Adaptive Grid Logic:**
+    *   Developed a **Full-Bleed Grid** for the 1M view to fill the container horizontally and vertically.
+    *   Implemented a **Hybrid Centering** approach for the 3M view to maximize space usage while maintaining square cells.
+*   **Enhanced Visual Feedback:**
+    *   Updated **Star Days** to display a star icon over a dark green background.
+    *   Added **Cheat Day Safety Logic**: prevents declaring cheat days if tasks are already completed, with visual lock icons and tooltips.
+*   **Code Quality & Architecture:**
+    *   Extracted the entire heatmap system into a dedicated, modular **ConsistencyHeatmap** widget (`lib/widgets/consistency_heatmap.dart`), significantly reducing `HomeScreen` complexity.
+    *   Implemented **1M Calendar Navigation**, allowing users to browse past and future months using navigation controls.
