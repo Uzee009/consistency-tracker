@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _heatmapScrollController = ScrollController();
   bool _hasInitialScrolled = false;
   String _heatmapRange = '1Y';
+  bool _isReportMode = false;
 
   // For heatmap grid sizing
   static const double _cellSize = 22.0; // Increased from 18
@@ -102,18 +103,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _scrollToCurrentMonth() async {
     // Wait a bit to ensure layout is complete and maxScrollExtent is calculated
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 150));
     if (!_heatmapScrollController.hasClients) return;
 
     final today = DateTime.now();
-    final currentMonth = today.month;
-    double targetOffset = _totalCellSize * 1.5; // Start after dayLabelColumn
+    int monthsCount = 12;
+    if (_heatmapRange == '1M') {
+      monthsCount = 1;
+    } else if (_heatmapRange == '3M') {
+      monthsCount = 3;
+    } else if (_heatmapRange == '6M') {
+      monthsCount = 6;
+    }
 
-    // We need to re-calculate the widths same as in _buildHeatmapGrid
-    // Month width = (number of weeks) * _totalCellSize
-    for (int month = 1; month < currentMonth; month++) {
-      final firstDay = DateTime(today.year, month, 1);
-      final lastDay = DateTime(today.year, month + 1, 0);
+    double targetOffset = _totalCellSize * 1.5; // Start after dayLabelColumn
+    double currentMonthWidth = 0;
+    bool foundCurrentMonth = false;
+
+    // We need to mirror the logic in _buildHeatmapGrid to find the exact offset
+    for (int i = 0; i < monthsCount; i++) {
+      DateTime targetDate;
+      if (_isReportMode) {
+        targetDate = DateTime(today.year, today.month - (monthsCount - 1 - i), 1);
+      } else {
+        if (_heatmapRange == '1Y') {
+          targetDate = DateTime(today.year, i + 1, 1);
+        } else {
+          targetDate = DateTime(today.year, today.month + i, 1);
+        }
+      }
+
+      final month = targetDate.month;
+      final year = targetDate.year;
+      
+      final firstDay = DateTime(year, month, 1);
+      final lastDay = DateTime(year, month + 1, 0);
       
       int weeks = 0;
       DateTime tempDay = firstDay;
@@ -124,25 +148,21 @@ class _HomeScreenState extends State<HomeScreen> {
         tempDay = tempDay.add(Duration(days: daysLeftInWeek));
       }
       
-      targetOffset += (weeks * _totalCellSize);
+      final monthW = weeks * _totalCellSize;
+      
+      if (month == today.month && year == today.year) {
+        currentMonthWidth = monthW;
+        foundCurrentMonth = true;
+        break; // Found it, stop adding to offset
+      }
+
+      targetOffset += monthW;
       targetOffset += (_totalCellSize / 2); // The gap
     }
 
-    // Now add half of current month's width to center it
-    final firstDayCurrent = DateTime(today.year, currentMonth, 1);
-    final lastDayCurrent = DateTime(today.year, currentMonth + 1, 0);
-    int currentMonthWeeks = 0;
-    DateTime tempDayCurrent = firstDayCurrent;
-    while (tempDayCurrent.isBefore(lastDayCurrent.add(const Duration(days: 1)))) {
-      currentMonthWeeks++;
-      int startWeekday = tempDayCurrent.weekday % 7;
-      int daysLeftInWeek = 7 - startWeekday;
-      tempDayCurrent = tempDayCurrent.add(Duration(days: daysLeftInWeek));
-    }
-    
-    final currentMonthWidth = currentMonthWeeks * _totalCellSize;
+    if (!foundCurrentMonth) return;
+
     final screenWidth = MediaQuery.of(context).size.width * 0.75;
-    
     double finalScroll = targetOffset + (currentMonthWidth / 2) - (screenWidth / 2);
     finalScroll = finalScroll.clamp(0.0, _heatmapScrollController.position.maxScrollExtent);
 
@@ -494,79 +514,124 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Legends (Left Side)
+                            // Legends & Status (Left Side)
                             Expanded(
                               child: Wrap(
-                                spacing: 8,
+                                spacing: 12,
                                 runSpacing: 8,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  _buildLegendItem(Colors.orange[300]!, 'Cheat'),
-                                  _buildLegendItem(Colors.green[600]!, 'Star', hasStar: true),
-                                  _buildLegendItem(Colors.deepPurple[50]!, 'None'),
-                                  const SizedBox(width: 4),
-                                  const Text('|', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                                  const SizedBox(width: 4),
-                                  const Text('Less', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
-                                  _buildLegendItem(Colors.green[100]!, ''),
-                                  _buildLegendItem(Colors.green[300]!, ''),
-                                  _buildLegendItem(Colors.green[600]!, ''),
-                                  const Text('More', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Shadcn-style Tabs / Range Selector (Right Side)
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200], // Muted background
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: ['1M', '3M', '6M', '1Y'].map((range) {
-                                  final isSelected = _heatmapRange == range;
-                                  return GestureDetector(
-                                    onTap: () => setState(() => _heatmapRange = range),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  Wrap(
+                                    spacing: 8,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      _buildLegendItem(Colors.orange[300]!, 'Cheat'),
+                                      _buildLegendItem(Colors.green[600]!, 'Star', hasStar: true),
+                                      _buildLegendItem(Colors.deepPurple[50]!, 'None'),
+                                      const SizedBox(width: 4),
+                                      const Text('|', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                                      const SizedBox(width: 4),
+                                      const Text('Less', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
+                                      _buildLegendItem(Colors.green[100]!, ''),
+                                      _buildLegendItem(Colors.green[300]!, ''),
+                                      _buildLegendItem(Colors.green[600]!, ''),
+                                      const Text('More', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                  if (_isReportMode)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: isSelected ? Colors.white : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(6),
-                                        boxShadow: isSelected
-                                            ? [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.05),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 2),
-                                                )
-                                              ]
-                                            : [],
+                                        color: Colors.deepPurple[900],
+                                        borderRadius: BorderRadius.circular(4),
                                       ),
-                                      child: Text(
-                                        range,
+                                      child: const Text(
+                                        'REPORT MODE',
                                         style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                          color: isSelected ? Colors.black : Colors.grey[600],
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
                                         ),
                                       ),
                                     ),
-                                  );
-                                }).toList(),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Custom Heatmap Grid
-                        _buildHeatmapGrid(),
-                      ],
-                    ),
-                  ),
-                ),
+                            const SizedBox(width: 8),
+                                                        // Tabs & Toggle (Right Side)
+                                                        Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            // Report Toggle Button
+                                                            IconButton(
+                                                              onPressed: () {
+                                                                setState(() => _isReportMode = !_isReportMode);
+                                                                _scrollToCurrentMonth();
+                                                              },
+                                                              icon: Icon(
+                                                                _isReportMode ? Icons.analytics : Icons.analytics_outlined,
+                                                                color: _isReportMode ? Colors.deepPurple[900] : Colors.grey[600],
+                                                                size: 20,
+                                                              ),
+                                                              tooltip: 'Toggle Report Mode',
+                                                            ),
+                                                            const SizedBox(width: 4),
+                                                            // Duration Tabs
+                                                            Container(
+                                                              padding: const EdgeInsets.all(4),
+                                                              decoration: BoxDecoration(
+                                                                color: Colors.grey[200],
+                                                                borderRadius: BorderRadius.circular(8),
+                                                              ),
+                                                              child: Row(
+                                                                children: ['1M', '3M', '6M', '1Y'].map((range) {
+                                                                  final isSelected = _heatmapRange == range;
+                                                                  return GestureDetector(
+                                                                    onTap: () {
+                                                                      setState(() => _heatmapRange = range);
+                                                                      _scrollToCurrentMonth();
+                                                                    },
+                                                                    child: AnimatedContainer(
+                                                                      duration: const Duration(milliseconds: 200),
+                                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                                      decoration: BoxDecoration(
+                                                                        color: isSelected ? Colors.white : Colors.transparent,
+                                                                        borderRadius: BorderRadius.circular(6),
+                                                                        boxShadow: isSelected
+                                                                            ? [
+                                                                                BoxShadow(
+                                                                                  color: Colors.black.withOpacity(0.05),
+                                                                                  blurRadius: 4,
+                                                                                  offset: const Offset(0, 2),
+                                                                                )
+                                                                              ]
+                                                                            : [],
+                                                                      ),
+                                                                      child: Text(
+                                                                        range,
+                                                                        style: TextStyle(
+                                                                          fontSize: 10,
+                                                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                                                          color: isSelected ? Colors.black : Colors.grey[600],
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                }).toList(),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    // Custom Heatmap Grid
+                                                    _buildHeatmapGrid(),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
                 Expanded(
                   flex: 1,
                   child: Padding(
@@ -761,9 +826,37 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    for (int month = 1; month <= 12; month++) {
-      final firstDayOfMonth = DateTime(today.year, month, 1);
-      final lastDayOfMonth = DateTime(today.year, month + 1, 0);
+    int monthsCount = 12;
+    if (_heatmapRange == '1M') {
+      monthsCount = 1;
+    } else if (_heatmapRange == '3M') {
+      monthsCount = 3;
+    } else if (_heatmapRange == '6M') {
+      monthsCount = 6;
+    }
+
+    for (int i = 0; i < monthsCount; i++) {
+      // Logic for calculating the target date based on mode
+      DateTime targetDate;
+      if (_isReportMode) {
+        // Backward looking (Historical)
+        targetDate = DateTime(today.year, today.month - (monthsCount - 1 - i), 1);
+      } else {
+        // Forward looking (Planning)
+        if (_heatmapRange == '1Y') {
+          // Standard Calendar Year: Jan to Dec
+          targetDate = DateTime(today.year, i + 1, 1);
+        } else {
+          // Current month + X months ahead
+          targetDate = DateTime(today.year, today.month + i, 1);
+        }
+      }
+
+      final month = targetDate.month;
+      final year = targetDate.year;
+
+      final firstDayOfMonth = DateTime(year, month, 1);
+      final lastDayOfMonth = DateTime(year, month + 1, 0);
       double monthWidth = 0;
       List<Widget> thisMonthWeeks = [];
 
@@ -844,7 +937,7 @@ class _HomeScreenState extends State<HomeScreen> {
         monthWidth += _totalCellSize;
       }
 
-      final bool isCurrentMonth = month == today.month;
+      final bool isCurrentMonth = month == today.month && year == today.year;
 
       weekColumns.add(
         Container(
@@ -863,10 +956,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-      monthLabelsData.add(MonthLabelData(name: monthNames[month - 1], width: monthWidth));
+      String monthLabel = monthNames[month - 1];
+      if (year != today.year) {
+        monthLabel += " '${year.toString().substring(2)}";
+      }
+      monthLabelsData.add(MonthLabelData(name: monthLabel, width: monthWidth));
 
       // Add a gap between months
-      if (month < 12) {
+      if (i < monthsCount - 1) {
         weekColumns.add(const SizedBox(width: _totalCellSize / 2));
         monthLabelsData.add(MonthLabelData(name: '', width: _totalCellSize / 2));
       }
