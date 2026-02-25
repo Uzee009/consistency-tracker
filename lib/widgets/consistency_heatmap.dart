@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/style_service.dart';
+import '../main.dart';
 
 class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
@@ -69,14 +71,17 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final style = styleNotifier.value;
+    final containerBg = StyleService.getHeatmapBg(style, isDark);
+    final borderColor = StyleService.getDailyTaskBorder(style, isDark);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF09090B) : const Color(0xFFF4F4F5),
+        color: containerBg,
         borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), width: 1),
+        border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
@@ -119,7 +124,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                       children: [
                         _buildLegendItem(Colors.orange[400]!, 'Cheat'),
                         _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                        _buildLegendItem(isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0), 'None'),
+                        _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
                         const SizedBox(width: 2),
                         _buildLegendItem(const Color(0xFFD1FAE5), ''),
                         _buildLegendItem(const Color(0xFFA7F3D0), ''),
@@ -189,33 +194,27 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildHeatmapGrid(),
+          Expanded(child: _buildHeatmapGrid()),
         ],
       ),
     );
   }
 
   Widget _buildHeatmapGrid() {
-    return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (_heatmapRange == '1M') {
-            return _build1MView(constraints);
-          } else if (_heatmapRange == '3M') {
-            return _build3MView(constraints);
-          } else {
-            return _buildStandardView(constraints, _heatmapRange == '6M' ? 6 : 12);
-          }
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (_heatmapRange == '1M') {
+          return _build1MView(constraints);
+        } else if (_heatmapRange == '3M') {
+          return _buildGenericView(constraints, 3, is1M: true, showCurrentMonthHighlight: true);
+        } else {
+          return _buildGenericView(constraints, _heatmapRange == '6M' ? 6 : 12);
+        }
+      },
     );
   }
 
   Widget _build1MView(BoxConstraints constraints) {
-    return _buildHorizontal1MView(constraints);
-  }
-
-  Widget _buildHorizontal1MView(BoxConstraints constraints) {
     final double availableWidth = constraints.maxWidth;
     final double availableHeight = constraints.maxHeight;
     final List<String> weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -248,6 +247,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     
     final double totalGridWidth = cellWidth * 7;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final style = styleNotifier.value;
     
     List<Widget> gridRows = [];
     DateTime iterDay = firstDayOfMonth;
@@ -273,7 +273,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             else if (intensity == 3) cellColor = const Color(0xFF6EE7B7);
             else if (intensity == 4) cellColor = const Color(0xFF34D399);
             else if (intensity == 5) cellColor = const Color(0xFF10B981);
-            else cellColor = isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0);
+            else cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
             
             weekRowCells.add(
               GestureDetector(
@@ -363,14 +363,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     );
   }
 
-  Widget _build3MView(BoxConstraints constraints) {
-    return _buildGenericView(constraints, 3, is1M: true, showCurrentMonthHighlight: true);
-  }
-
-  Widget _buildStandardView(BoxConstraints constraints, int months) {
-    return _buildGenericView(constraints, months);
-  }
-
   Widget _buildGenericView(BoxConstraints constraints, int monthsCount, {bool is1M = false, bool showCurrentMonthHighlight = true}) {
     final double availableWidth = constraints.maxWidth;
     final double availableHeight = constraints.maxHeight;
@@ -378,6 +370,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final List<String> monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final List<String> weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final style = styleNotifier.value;
     
     const double verticalPadding = 6.0;
     const double monthLabelHeight = 18.0;
@@ -483,7 +476,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           else if (intensity == 3) cellColor = const Color(0xFF6EE7B7);
           else if (intensity == 4) cellColor = const Color(0xFF34D399);
           else if (intensity == 5) cellColor = const Color(0xFF10B981);
-          else cellColor = isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0);
+          else cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
 
           dayCellsInWeek.add(
             GestureDetector(
@@ -537,7 +530,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
           decoration: BoxDecoration(
-            color: showHighlight ? (isDark ? const Color(0xFF18181B) : Colors.white) : Colors.transparent,
+            color: showHighlight ? StyleService.getHeatmapHighlight(style, isDark) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: showHighlight 

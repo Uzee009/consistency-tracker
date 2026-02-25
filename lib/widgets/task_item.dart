@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../services/style_service.dart';
+import '../main.dart';
 
 class TaskItem extends StatelessWidget {
   final Task task;
@@ -24,6 +26,7 @@ class TaskItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final style = styleNotifier.value;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
@@ -31,7 +34,7 @@ class TaskItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: isCompleted 
             ? Colors.transparent 
-            : (isDark ? const Color(0xFF27272A) : Colors.white),
+            : StyleService.getTaskItemBg(style, isDark, task.type),
         borderRadius: BorderRadius.circular(12.0),
         border: Border.all(
           color: isCompleted 

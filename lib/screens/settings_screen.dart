@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
-import 'package:consistency_tracker_v1/main.dart'; // Import themeNotifier
+import 'package:consistency_tracker_v1/services/style_service.dart';
+import 'package:consistency_tracker_v1/main.dart'; // Import themeNotifier, styleNotifier
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -58,6 +59,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     themeNotifier.value = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('theme_mode', mode.index);
+  }
+
+  Future<void> _updateStyle(VisualStyle style) async {
+    styleNotifier.value = style;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('visual_style', style.index);
   }
 
   @override
@@ -143,13 +150,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                           dropdownColor: isDark ? const Color(0xFF18181B) : Colors.white,
-                          items: [
+                          items: const [
                             DropdownMenuItem(value: ThemeMode.system, child: Text('System Default')),
                             DropdownMenuItem(value: ThemeMode.light, child: Text('Light Mode')),
                             DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark Mode')),
                           ],
                           onChanged: (value) {
                             if (value != null) _updateTheme(value);
+                          },
+                        ),
+                      );
+                    }
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Style Selector
+                Text(
+                  'App Style',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF4F4F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ValueListenableBuilder<VisualStyle>(
+                    valueListenable: styleNotifier,
+                    builder: (context, currentStyle, _) {
+                      return DropdownButtonHideUnderline(
+                        child: DropdownButton<VisualStyle>(
+                          value: currentStyle,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          dropdownColor: isDark ? const Color(0xFF18181B) : Colors.white,
+                          items: const [
+                            DropdownMenuItem(value: VisualStyle.minimalist, child: Text('Minimalist (Zinc)')),
+                            DropdownMenuItem(value: VisualStyle.vibrant, child: Text('Vibrant (Colorful)')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) _updateStyle(value);
                           },
                         ),
                       );

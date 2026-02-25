@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
+import '../services/style_service.dart';
+import '../main.dart';
 import 'task_item.dart';
 
 class TaskSection extends StatelessWidget {
   final String title;
   final TaskType type;
-  final Color bgColor;
-  final Color borderColor;
   final List<Task> tasks;
   final DayRecord dayRecord;
   final VoidCallback onAddPressed;
@@ -21,8 +21,6 @@ class TaskSection extends StatelessWidget {
     super.key,
     required this.title,
     required this.type,
-    required this.bgColor,
-    required this.borderColor,
     required this.tasks,
     required this.dayRecord,
     required this.onAddPressed,
@@ -37,6 +35,15 @@ class TaskSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final filteredTasks = tasks.where((task) => task.type == type).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final style = styleNotifier.value;
+
+    final bgColor = type == TaskType.daily 
+        ? StyleService.getDailyTaskBg(style, isDark)
+        : StyleService.getTempTaskBg(style, isDark);
+    
+    final borderColor = type == TaskType.daily
+        ? StyleService.getDailyTaskBorder(style, isDark)
+        : StyleService.getTempTaskBorder(style, isDark);
 
     return Container(
       margin: const EdgeInsets.all(8.0),

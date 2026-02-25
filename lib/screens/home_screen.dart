@@ -1,19 +1,19 @@
 // lib/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:consistency_tracker_v1/screens/task_form_screen.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/scoring_service.dart';
 import 'package:consistency_tracker_v1/models/task_model.dart';
 import 'package:consistency_tracker_v1/models/day_record_model.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
-import 'package:consistency_tracker_v1/screens/settings_screen.dart';
 import 'package:consistency_tracker_v1/widgets/consistency_heatmap.dart';
 import 'package:consistency_tracker_v1/widgets/add_task_bottom_sheet.dart';
 import 'package:consistency_tracker_v1/widgets/task_section.dart';
 import 'package:consistency_tracker_v1/widgets/streak_board.dart';
 import 'package:consistency_tracker_v1/widgets/user_menu.dart';
+import 'package:consistency_tracker_v1/services/style_service.dart';
+import 'package:consistency_tracker_v1/main.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _currentUser;
   int _cheatDaysUsed = 0;
   Map<DateTime, int> _heatmapData = {};
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -69,16 +68,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _cheatDaysUsed = cheatUsed;
         _heatmapData = heatmapData;
         _todaysTasks = tasks;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadHeatmapData() async {
-    final records = await DatabaseService.instance.getDayRecords(limit: 366);
-    if (mounted) {
-      setState(() {
-        _heatmapData = ScoringService.mapRecordsToHeatmapData(records);
       });
     }
   }
@@ -261,96 +250,95 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('CONSISTENCY'),
-        centerTitle: true,
-        actions: [
-          if (_currentUser != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8.0),
+    return ValueListenableBuilder<VisualStyle>(
+      valueListenable: styleNotifier,
+      builder: (context, style, _) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('CONSISTENCY'),
+            centerTitle: true,
+            actions: [
+              if (_currentUser != null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Row(
+                      children: [
+                        if (_todayRecord.completedTaskIds.isNotEmpty)
+                          Tooltip(
+                            message: 'Cheat Day locked (tasks completed)',
+                            child: Icon(Icons.lock_outline, size: 12, color: Colors.orange.withOpacity(0.6)),
+                          ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tokens: ${(_currentUser!.monthlyCheatDays - _cheatDaysUsed).clamp(0, _currentUser!.monthlyCheatDays)}',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              UserMenu(
+                currentUser: _currentUser,
+                onSettingsReturn: _initializeData,
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                flex: 1,
                 child: Row(
-                  children: [
-                    if (_todayRecord.completedTaskIds.isNotEmpty)
-                      Tooltip(
-                        message: 'Cheat Day locked (tasks completed)',
-                        child: Icon(Icons.lock_outline, size: 12, color: Colors.orange.withOpacity(0.6)),
+                  children: <Widget>[
+                    Expanded(
+                      child: TaskSection(
+                        title: 'DAILY',
+                        type: TaskType.daily,
+                        tasks: _todaysTasks,
+                        dayRecord: _todayRecord,
+                        onAddPressed: () => _showAddTaskSheet(type: TaskType.daily),
+                        onCheatPressed: _onDeclareCheatDayPressed,
+                        onToggleCompletion: _toggleTaskCompletion,
+                        onToggleSkip: _toggleTaskSkip,
+                        onEdit: _editTask,
+                        onDelete: _deleteTask,
                       ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Tokens: ${(_currentUser!.monthlyCheatDays - _cheatDaysUsed).clamp(0, _currentUser!.monthlyCheatDays)}',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                    ),
+                    Expanded(
+                      child: TaskSection(
+                        title: 'TEMPORARY',
+                        type: TaskType.temporary,
+                        tasks: _todaysTasks,
+                        dayRecord: _todayRecord,
+                        onAddPressed: () => _showAddTaskSheet(type: TaskType.temporary),
+                        onToggleCompletion: _toggleTaskCompletion,
+                        onToggleSkip: _toggleTaskSkip,
+                        onEdit: _editTask,
+                        onDelete: _deleteTask,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-          UserMenu(
-            currentUser: _currentUser,
-            onSettingsReturn: _initializeData,
+              Expanded(
+                flex: 1,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: ConsistencyHeatmap(heatmapData: _heatmapData),
+                    ),
+                    const Expanded(
+                      flex: 1,
+                      child: StreakBoard(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            flex: 1,
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: TaskSection(
-                    title: 'DAILY',
-                    type: TaskType.daily,
-                    bgColor: isDark ? const Color(0xFF18181B) : Colors.white,
-                    borderColor: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
-                    tasks: _todaysTasks,
-                    dayRecord: _todayRecord,
-                    onAddPressed: () => _showAddTaskSheet(type: TaskType.daily),
-                    onCheatPressed: _onDeclareCheatDayPressed,
-                    onToggleCompletion: _toggleTaskCompletion,
-                    onToggleSkip: _toggleTaskSkip,
-                    onEdit: _editTask,
-                    onDelete: _deleteTask,
-                  ),
-                ),
-                Expanded(
-                  child: TaskSection(
-                    title: 'TEMPORARY',
-                    type: TaskType.temporary,
-                    bgColor: isDark ? const Color(0xFF09090B) : const Color(0xFFF4F4F5),
-                    borderColor: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
-                    tasks: _todaysTasks,
-                    dayRecord: _todayRecord,
-                    onAddPressed: () => _showAddTaskSheet(type: TaskType.temporary),
-                    onToggleCompletion: _toggleTaskCompletion,
-                    onToggleSkip: _toggleTaskSkip,
-                    onEdit: _editTask,
-                    onDelete: _deleteTask,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: ConsistencyHeatmap(heatmapData: _heatmapData),
-                ),
-                const Expanded(
-                  flex: 1,
-                  child: StreakBoard(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

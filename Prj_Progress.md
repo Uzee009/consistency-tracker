@@ -141,19 +141,37 @@
     *   Resolved multiple layout overflow and compilation issues.
     *   Established a rigorous pre-flight build check (Clean -> Get -> Analyze -> Run) to ensure code quality.
 
-## Wednesday, 25 February 2026
+## Wednesday, 25 February 2026 - Session 2 (Ultra-Minimalist Branch)
 
 **Summary:**
-*   **Global Refactoring:** Performed a project-wide spelling correction, renaming all instances of "consistancy" to "consistency" in source code, file paths, documentation, and project configuration.
-*   **UI/UX Modernization (Shadcn-inspired):**
-    *   Redesigned task sections and items with a flat, minimalist aesthetic, removing drop shadows and elevations for a cleaner look.
-    *   Updated the global theme to **Deep Purple** as the primary color.
-    *   Refined the `FirstRunSetupScreen` and `AddTaskBottomSheet` with modern typography and styled components.
-    *   Improved contrast in task sections by using darker blue and yellow shades.
-*   **Feature Enhancements & Bug Fixes:**
-    *   **Dynamic Heatmap Scaling:** Expanded the green color scale to five distinct levels (Level 1 to Level 5) with a more granular scoring breakdown.
-    *   **Legacy Mapping:** Implemented logic to ensure old visual states map correctly to the new 5-level system.
-    *   **Smooth UI Refresh:** Fixed a bug where task sections would reload and lose scroll position; refactored rendering to use `List<Task>` instead of `FutureBuilder`.
-    *   **Score Recalculation:** Implemented `_refreshTodayRecord` to ensure the heatmap and scores update immediately when tasks are added, edited, or removed.
-    *   **Enhanced Controls:** Added a "Cheat Day" label to the header button for better clarity.
-*   **Version Control:** Committed all changes to the repository, establishing a new stable baseline for the modernized application.
+*   **Branch Management:** Created and switched to the `ultra-minimal-UI` branch for focused aesthetic refinements.
+*   **Aesthetic Overhaul:** Transitioned the application to a pure **Grayscale Palette** (Zinc/Slate) while maintaining the vibrant functional colors of the heatmap.
+*   **Dark Mode Persistence:**
+    *   Added `shared_preferences` dependency for persistent data storage.
+    *   Implemented a global `themeNotifier` to handle System, Light, and Dark modes.
+    *   Added a **Theme Mode Switcher** in the Settings menu with persistent saving.
+*   **Shadcn-Inspired Component Redesign:**
+    *   **User Menu:** Redesigned with a modern avatar, User ID display in the header, and a quick-copy shortcut.
+    *   **Settings Screen:** Refactored into a professional form layout with a primary "Save Changes" button at the bottom and improved typography.
+    *   **Task Controls:** Enhanced "Skip", "Edit", and "Delete" actions by placing them in high-visibility circular buttons with modern touch feedback.
+*   **Heatmap Precision:**
+    *   Fixed pixel-level baseline misalignment by standardizing month container structures.
+    *   Improved current month indicator contrast using a high-contrast Zinc-200 (light) / Zinc-950 (dark) background.
+    *   Refined typography with capitalized shorthand months (Jan, Feb, etc.) and optimized cell text sizing.
+*   **Stability:** Resolved several `RenderFlex` overflows and a `LateInitializationError` in `HomeScreen` to ensure a smooth, crash-free experience.
+
+## Wednesday, 25 February 2026 - Session 3 (Style Engine Implementation)
+
+**Summary:**
+*   **Feature: Dual Visual Style Engine:**
+    *   Implemented a `StyleService` to manage two distinct UI "personalities": **Minimalist** (Zinc/Slate) and **Vibrant** (Colorful).
+    *   Added a `styleNotifier` to handle app-wide style state with persistent saving via `SharedPreferences`.
+    *   Integrated a **Style Selector** in the Settings screen.
+*   **Vibrant Style Refinement:**
+    *   Restored the iconic Sky Blue and Mustard Yellow backgrounds for task sections from the master branch.
+    *   **Vibrant Dark Mode:** Designed a bespoke "Neon/Midnight" palette with deep purple heatmap backgrounds (`#170D26`) and color-coordinated task item backgrounds (Blue 950 and Amber 950).
+    *   **Vibrant Light Mode:** Enhanced task item consistency with subtle tinted backgrounds (Blue 50 and Yellow 50) instead of plain white.
+*   **Architectural Improvements:**
+    *   Decoupled widget styling from layout logic using a centralized `StyleService` bridge.
+    *   Refactored `TaskSection`, `TaskItem`, and `ConsistencyHeatmap` to be style-aware.
+    *   Cleaned up unused code, variables, and imports to maintain high code quality standards.
