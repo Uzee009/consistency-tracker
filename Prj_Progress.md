@@ -175,3 +175,24 @@
     *   Decoupled widget styling from layout logic using a centralized `StyleService` bridge.
     *   Refactored `TaskSection`, `TaskItem`, and `ConsistencyHeatmap` to be style-aware.
     *   Cleaned up unused code, variables, and imports to maintain high code quality standards.
+
+## Wednesday, 25 February 2026 - Session 4 (History & Focus Mode)
+
+**Summary:**
+*   **Feature: Interactive Historical Day View:**
+    *   Enabled date selection via the main heatmap: clicking any past date now updates the dashboard to show that specific day's records.
+    *   Integrated a refined date display and a "TODAY" reset button directly into the heatmap header for a unified control interface.
+    *   Ensured full dashboard interactivity for historical dates (late logging support).
+*   **Feature: Contextual Task Focus Mode:**
+    *   Implemented "Task Focus Mode": clicking a task name in the list now filters the main heatmap to show ONLY that task's history.
+    *   Designed a Shadcn-style filter badge with a clear (X) action to revert to the global consistency view.
+    *   Refined heatmap legends to binary "Missed/Achieved" states when in focus mode.
+*   **Logic Engine Refinement:**
+    *   **Weighted Skip Scoring:** Skips now correctly adjust the daily benchmark (making the day "excused") but prevent earning a "Star."
+    *   **Cheat Day Regret:** Added logic to detect task completion on a Cheat Day, prompting the user to cancel the cheat and refund their token.
+*   **GitHub Deployment:**
+    *   Established the official GitHub repository: `https://github.com/Uzee009/consistency-tracker.git`.
+    - Initialized the remote and pushed all development branches (`master`, `feature/history-and-task-stats`, etc.) for full cloud backup.
+*   **Developer Experience:**
+    *   Generated a standalone `february_dummy_data.db` for manual data seeding and cross-device testing.
+    *   Confirmed full Windows compatibility for future testing sessions.
