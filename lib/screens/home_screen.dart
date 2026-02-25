@@ -261,9 +261,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Consistency Tracker'),
+        title: const Text('CONSISTENCY'),
         centerTitle: true,
         actions: [
           if (_currentUser != null)
@@ -273,14 +275,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: [
                     if (_todayRecord.completedTaskIds.isNotEmpty)
-                      const Tooltip(
+                      Tooltip(
                         message: 'Cheat Day locked (tasks completed)',
-                        child: Icon(Icons.lock_outline, size: 14, color: Colors.orange),
+                        child: Icon(Icons.lock_outline, size: 12, color: Colors.orange.withOpacity(0.6)),
                       ),
                     const SizedBox(width: 4),
                     Text(
-                      'Tokens: ${(_currentUser!.monthlyCheatDays - _cheatDaysUsed).clamp(0, _currentUser!.monthlyCheatDays)}/${_currentUser!.monthlyCheatDays}',
-                      style: const TextStyle(fontSize: 12),
+                      'Tokens: ${(_currentUser!.monthlyCheatDays - _cheatDaysUsed).clamp(0, _currentUser!.monthlyCheatDays)}',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
                     ),
                   ],
                 ),
@@ -300,10 +302,10 @@ class _HomeScreenState extends State<HomeScreen> {
               children: <Widget>[
                 Expanded(
                   child: TaskSection(
-                    title: 'Daily Tasks',
+                    title: 'DAILY',
                     type: TaskType.daily,
-                    bgColor: const Color(0xFFE0F2FE), // Blue 100
-                    borderColor: const Color(0xFF7DD3FC), // Blue 300
+                    bgColor: const Color(0xFFE0F2FE),
+                    borderColor: const Color(0xFF7DD3FC),
                     tasks: _todaysTasks,
                     dayRecord: _todayRecord,
                     onAddPressed: () => _showAddTaskSheet(type: TaskType.daily),
@@ -316,10 +318,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Expanded(
                   child: TaskSection(
-                    title: 'Temporary Tasks',
+                    title: 'TEMPORARY',
                     type: TaskType.temporary,
-                    bgColor: const Color(0xFFFEF9C3), // Yellow 100
-                    borderColor: const Color(0xFFFDE047), // Yellow 300
+                    bgColor: const Color(0xFFFEF9C3),
+                    borderColor: const Color(0xFFFDE047),
                     tasks: _todaysTasks,
                     dayRecord: _todayRecord,
                     onAddPressed: () => _showAddTaskSheet(type: TaskType.temporary),

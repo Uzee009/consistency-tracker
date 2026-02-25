@@ -5,33 +5,57 @@ class StreakBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        padding: const EdgeInsets.all(8.0),
-        decoration: BoxDecoration(
-          color: Colors.blueGrey[100],
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: Colors.blueGrey),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Streaks',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Max: 0',
-              style: TextStyle(color: Colors.blueGrey),
-            ),
-            Text(
-              'Current: 0',
-              style: TextStyle(color: Colors.blueGrey),
-            ),
-          ],
-        ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.01),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
       ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'STREAKS',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildStreakItem(context, 'Current', '0'),
+          const Divider(height: 16),
+          _buildStreakItem(context, 'Best', '0'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakItem(BuildContext context, String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          ),
+        ),
+      ],
     );
   }
 }

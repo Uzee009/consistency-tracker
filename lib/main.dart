@@ -38,55 +38,126 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    const Color zinc950 = Color(0xFF09090B);
+    const Color zinc900 = Color(0xFF18181B);
+    const Color zinc800 = Color(0xFF27272A);
+    const Color zinc400 = Color(0xFFA1A1AA);
+    const Color zinc200 = Color(0xFFE4E4E7);
+    const Color zinc100 = Color(0xFFF4F4F5);
+
     return MaterialApp(
       title: 'Consistency Tracker',
+      themeMode: ThemeMode.system,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
-          primary: Colors.deepPurple[700],
+          surface: Colors.white,
+          onSurface: const Color(0xFF09090B),
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFAFAFA),
+        scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF0F172A),
+          foregroundColor: Color(0xFF09090B),
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0F172A),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF09090B),
+            letterSpacing: -0.4,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: zinc100,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+            borderSide: const BorderSide(color: Colors.deepPurple, width: 1),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintStyle: const TextStyle(color: zinc400, fontSize: 14),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.deepPurple[700],
+            backgroundColor: zinc950,
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
         ),
+        dividerTheme: const DividerThemeData(
+          thickness: 1,
+          color: zinc100,
+          space: 1,
+        ),
       ),
-      debugShowCheckedModeBanner: false, // Remove debug banner
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+          surface: zinc950,
+          onSurface: Colors.white,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: zinc950,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: zinc950,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+            letterSpacing: -0.4,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: zinc900,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.deepPurple, width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintStyle: const TextStyle(color: zinc800, fontSize: 14),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: zinc950,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          thickness: 1,
+          color: zinc900,
+          space: 1,
+        ),
+      ),
+      debugShowCheckedModeBanner: false,
       home: FutureBuilder<bool>(
         future: _isFirstRun,
         builder: (context, snapshot) {

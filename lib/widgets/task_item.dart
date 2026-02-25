@@ -23,29 +23,32 @@ class TaskItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+      margin: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 2.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
       decoration: BoxDecoration(
-        color: isCompleted ? Colors.white.withOpacity(0.5) : Colors.white,
+        color: isCompleted ? Colors.transparent : (isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.01)),
         borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(
-          color: isCompleted ? Colors.transparent : Colors.grey.withOpacity(0.15),
-          width: 1,
-        ),
       ),
       child: Row(
         children: [
-          Transform.scale(
-            scale: 0.9,
+          SizedBox(
+            width: 24,
+            height: 24,
             child: Checkbox(
               value: isCompleted,
               onChanged: onToggleCompletion,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-              activeColor: task.type == TaskType.daily ? Colors.blue[600] : Colors.amber[700],
+              activeColor: Colors.deepPurple,
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                width: 1.5,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,41 +57,38 @@ class TaskItem extends StatelessWidget {
                 Text(
                   task.name,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: isCompleted ? FontWeight.w400 : FontWeight.w500,
                     decoration: isCompleted ? TextDecoration.lineThrough : null,
                     color: isCompleted 
-                        ? Colors.grey[400] 
-                        : (isSkipped ? Colors.grey[500] : Colors.blueGrey[900]),
+                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.3)
+                        : (isSkipped ? Colors.orange.withOpacity(0.8) : Theme.of(context).colorScheme.onSurface),
                     fontStyle: isSkipped ? FontStyle.italic : FontStyle.normal,
                   ),
                 ),
-                if (isSkipped)
-                  const Text(
-                    'Skipped',
-                    style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.w600),
-                  ),
               ],
             ),
           ),
-          _buildActionButton(
-            icon: isSkipped ? Icons.remove_circle : Icons.remove_circle_outline,
-            color: isSkipped ? Colors.orange : Colors.blueGrey[400]!,
-            tooltip: 'Skip',
-            onPressed: onToggleSkip,
-          ),
-          _buildActionButton(
-            icon: Icons.edit_outlined,
-            color: Colors.blueGrey[400]!,
-            tooltip: 'Edit',
-            onPressed: onEdit,
-          ),
-          _buildActionButton(
-            icon: Icons.delete_outline,
-            color: Colors.red[300]!,
-            tooltip: 'Delete',
-            onPressed: onDelete,
-          ),
+          if (!isCompleted) ...[
+            _buildActionButton(
+              icon: isSkipped ? Icons.remove_circle : Icons.remove_circle_outline,
+              color: isSkipped ? Colors.orange : Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              tooltip: 'Skip',
+              onPressed: onToggleSkip,
+            ),
+            _buildActionButton(
+              icon: Icons.edit_outlined,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              tooltip: 'Edit',
+              onPressed: onEdit,
+            ),
+            _buildActionButton(
+              icon: Icons.delete_outline,
+              color: Colors.red.withOpacity(0.4),
+              tooltip: 'Delete',
+              onPressed: onDelete,
+            ),
+          ],
         ],
       ),
     );
@@ -106,8 +106,8 @@ class TaskItem extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.all(6.0),
-          child: Icon(icon, size: 18, color: color),
+          padding: const EdgeInsets.all(4.0),
+          child: Icon(icon, size: 16, color: color),
         ),
       ),
     );

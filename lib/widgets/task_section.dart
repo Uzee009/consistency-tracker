@@ -36,13 +36,17 @@ class TaskSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filteredTasks = tasks.where((task) => task.type == type).toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.all(12.0),
+      margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: isDark ? Theme.of(context).colorScheme.surface : bgColor.withOpacity(isDark ? 0.05 : 0.4),
         borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: borderColor, width: 1.5),
+        border: Border.all(
+          color: isDark ? Colors.white10 : borderColor.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,18 +58,19 @@ class TaskSection extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                    color: Colors.blueGrey,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 Row(
                   children: [
                     if (type == TaskType.daily && onCheatPressed != null)
                       _buildHeaderButton(
-                        label: 'Cheat Day',
+                        context,
+                        label: 'Cheat',
                         icon: Icons.celebration_outlined,
                         color: dayRecord.completedTaskIds.isNotEmpty
                             ? Colors.blueGrey[200]!
@@ -77,8 +82,9 @@ class TaskSection extends StatelessWidget {
                       ),
                     const SizedBox(width: 4),
                     _buildHeaderButton(
+                      context,
                       icon: Icons.add_rounded,
-                      color: Colors.blueGrey[600]!,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       tooltip: 'Add Task',
                       onPressed: onAddPressed,
                     ),
@@ -87,17 +93,17 @@ class TaskSection extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: Colors.black12),
+          const Divider(),
           Expanded(
             child: filteredTasks.isEmpty
                 ? Center(
                     child: Text(
                       'No tasks yet',
-                      style: TextStyle(color: Colors.blueGrey[300], fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3), fontSize: 13),
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     itemCount: filteredTasks.length,
                     itemBuilder: (context, index) {
                       final task = filteredTasks[index];
@@ -124,7 +130,8 @@ class TaskSection extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderButton({
+  Widget _buildHeaderButton(
+    BuildContext context, {
     required IconData icon,
     String? label,
     required Color color,
@@ -134,8 +141,7 @@ class TaskSection extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
           borderRadius: BorderRadius.circular(8),
@@ -149,13 +155,13 @@ class TaskSection extends StatelessWidget {
                     label,
                     style: TextStyle(
                       color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(width: 4),
                 ],
-                Icon(icon, size: 20, color: color),
+                Icon(icon, size: 18, color: color),
               ],
             ),
           ),

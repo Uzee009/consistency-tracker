@@ -26,7 +26,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
         id: DateTime.now().millisecondsSinceEpoch,
         name: name,
         createdAt: DateTime.now(),
-        monthlyCheatDays: 2, // Default value
+        monthlyCheatDays: 2,
       );
       await DatabaseService.instance.createUser(newUser);
 
@@ -40,86 +40,68 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          padding: const EdgeInsets.symmetric(horizontal: 40.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Welcome Icon/Art
-              Icon(
-                Icons.auto_awesome,
-                size: 80,
-                color: Colors.deepPurple[700],
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'Welcome!',
+              Text(
+                'CONSISTENCY',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -1,
-                  color: Color(0xFF0F172A),
+                  letterSpacing: 4,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Ready to build your consistency streak? Let\'s get you started.',
+              const SizedBox(height: 64),
+              Text(
+                'Build your discipline.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF64748B),
-                  height: 1.5,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.8,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 48),
-              const Text(
-                'Your Name',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155),
-                ),
-              ),
-              const SizedBox(height: 8),
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. John Doe',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  hintText: 'Enter your name',
+                  fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
                 ),
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _completeSetup,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.deepPurple[700],
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
                 child: const Text(
-                  'Continue',
+                  'Start Tracking',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Your progress is stored locally on this device.',
+              const SizedBox(height: 64),
+              Text(
+                'Minimalist habit tracking for the focused mind.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF94A3B8),
-                  fontStyle: FontStyle.italic,
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
