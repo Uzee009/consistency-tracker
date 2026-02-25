@@ -73,6 +73,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleTaskCompletion(Task task, bool? isCompleted) async {
+    bool cheatUsed = _todayRecord.cheatUsed;
+
+    if (cheatUsed && isCompleted == true) {
+      final bool? cancelCheat = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cancel Cheat Day?'),
+          content: const Text('You are starting to work! Would you like to cancel your Cheat Day and get your token back?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep Cheat'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Cancel Cheat & Refund', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
+
+      if (cancelCheat == true) {
+        final today = DateTime.now();
+        final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
+        await DatabaseService.instance.decrementCheatDaysUsed(yearMonth);
+        cheatUsed = false; // Update local variable to prevent further popups in this call
+        _updateTodayRecord(cheatUsed: false);
+      }
+    }
+
     List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
     List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
 
@@ -83,7 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
       updatedCompletedIds.remove(task.id);
     }
 
-    _updateTodayRecord(completedIds: updatedCompletedIds, skippedIds: updatedSkippedIds);
+    _updateTodayRecord(
+      completedIds: updatedCompletedIds, 
+      skippedIds: updatedSkippedIds,
+      cheatUsed: cheatUsed, // Ensure we pass the updated state
+    );
   }
 
   void _toggleTaskSkip(Task task) async {

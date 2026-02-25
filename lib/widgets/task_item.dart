@@ -50,11 +50,11 @@ class TaskItem extends StatelessWidget {
             height: 24,
             child: Checkbox(
               value: isCompleted,
-              onChanged: onToggleCompletion,
+              onChanged: isSkipped ? null : onToggleCompletion,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               activeColor: isDark ? Colors.white : Colors.black,
               side: BorderSide(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(isSkipped ? 0.1 : 0.4),
                 width: 1.5,
               ),
             ),
@@ -69,11 +69,13 @@ class TaskItem extends StatelessWidget {
                   task.name,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: isCompleted ? FontWeight.w400 : FontWeight.w600,
+                    fontWeight: (isCompleted || isSkipped) ? FontWeight.w400 : FontWeight.w600,
                     decoration: isCompleted ? TextDecoration.lineThrough : null,
                     color: isCompleted 
                         ? Theme.of(context).colorScheme.onSurface.withOpacity(0.3)
-                        : (isSkipped ? Colors.orange[400] : Theme.of(context).colorScheme.onSurface),
+                        : (isSkipped 
+                           ? Colors.orange[400]!.withOpacity(0.8) 
+                           : Theme.of(context).colorScheme.onSurface),
                     fontStyle: isSkipped ? FontStyle.italic : FontStyle.normal,
                   ),
                 ),

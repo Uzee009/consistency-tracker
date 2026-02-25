@@ -11,9 +11,10 @@ class ScoringService {
     required List<Task> allTasks,
     required DayRecord dayRecord,
   }) {
-    if (dayRecord.cheatUsed) {
+    // If it's a cheat day AND NO tasks were done, return cheat state
+    if (dayRecord.cheatUsed && dayRecord.completedTaskIds.isEmpty) {
       return ScoreResult(
-        completionScore: 0, // Score is irrelevant on a cheat day
+        completionScore: 0,
         visualState: VisualState.cheat,
       );
     }
@@ -27,26 +28,29 @@ class ScoringService {
 
     final completedDailyTasks = dailyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
     final completedTempTasks = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
+    final skippedDailyTasks = dailyTasks.where((t) => dayRecord.skippedTaskIds.contains(t.id)).length;
+
+    // A skip is an "excuse", so we remove it from the required daily benchmark
+    // However, we ensure we don't divide by zero
+    final dailyBenchmark = (dailyTasks.length - skippedDailyTasks).clamp(1, 999);
+    
+    // Effective completed score
+    final effectiveCompleted = completedDailyTasks + completedTempTasks;
+    final score = (effectiveCompleted / dailyBenchmark).clamp(0.0, 1.0);
 
     // Star Logic: All daily tasks completed PLUS at least one temporary task
-    if (dailyTasks.isNotEmpty && completedDailyTasks == dailyTasks.length && completedTempTasks > 0) {
+    // BUG FIX: Cannot get a star if any task was skipped
+    final hasStar = (dailyTasks.isNotEmpty && 
+                    completedDailyTasks == (dailyTasks.length - skippedDailyTasks) && 
+                    completedTempTasks > 0 && 
+                    skippedDailyTasks == 0);
+
+    if (hasStar) {
       return ScoreResult(
-        completionScore: 1.0, // Max score for a star day
+        completionScore: 1.0,
         visualState: VisualState.star,
       );
     }
-
-    // Substitution Logic
-    final dailyBenchmark = dailyTasks.length;
-    if (dailyBenchmark == 0) {
-      // If there are no daily tasks, any temp task completion is a bonus
-      return completedTempTasks > 0
-          ? ScoreResult(completionScore: 1, visualState: VisualState.level1)
-          : ScoreResult(completionScore: 0, visualState: VisualState.empty);
-    }
-
-    final effectiveCompleted = completedDailyTasks + completedTempTasks;
-    final score = (effectiveCompleted / dailyBenchmark).clamp(0.0, 1.0);
 
     return ScoreResult(
       completionScore: score,
