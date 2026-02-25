@@ -141,21 +141,19 @@
     *   Resolved multiple layout overflow and compilation issues.
     *   Established a rigorous pre-flight build check (Clean -> Get -> Analyze -> Run) to ensure code quality.
 
-## Tuesday, 24 February 2026
+## Wednesday, 25 February 2026
 
 **Summary:**
-*   **Heatmap UI/UX Overhaul:**
-    *   Implemented a modern **DeepPurple Material theme** with high-contrast labels and a clean white background.
-    *   Refactored the grid to a **month-by-month layout**, fixing month-blending bugs and ensuring accurate day counts.
-    *   Implemented **auto-centering** and current-month highlighting.
-    *   Added **Functional Duration Tabs** (1M, 3M, 6M, 1Y) with a **shadcn-inspired** design.
-    *   Introduced **Report Mode**, allowing users to toggle between Planning (forward-looking) and Historical (backward-looking) views.
-*   **Adaptive Grid Logic:**
-    *   Developed a **Full-Bleed Grid** for the 1M view to fill the container horizontally and vertically.
-    *   Implemented a **Hybrid Centering** approach for the 3M view to maximize space usage while maintaining square cells.
-*   **Enhanced Visual Feedback:**
-    *   Updated **Star Days** to display a star icon over a dark green background.
-    *   Added **Cheat Day Safety Logic**: prevents declaring cheat days if tasks are already completed, with visual lock icons and tooltips.
-*   **Code Quality & Architecture:**
-    *   Extracted the entire heatmap system into a dedicated, modular **ConsistencyHeatmap** widget (`lib/widgets/consistency_heatmap.dart`), significantly reducing `HomeScreen` complexity.
-    *   Implemented **1M Calendar Navigation**, allowing users to browse past and future months using navigation controls.
+*   **Global Refactoring:** Performed a project-wide spelling correction, renaming all instances of "consistancy" to "consistency" in source code, file paths, documentation, and project configuration.
+*   **UI/UX Modernization (Shadcn-inspired):**
+    *   Redesigned task sections and items with a flat, minimalist aesthetic, removing drop shadows and elevations for a cleaner look.
+    *   Updated the global theme to **Deep Purple** as the primary color.
+    *   Refined the `FirstRunSetupScreen` and `AddTaskBottomSheet` with modern typography and styled components.
+    *   Improved contrast in task sections by using darker blue and yellow shades.
+*   **Feature Enhancements & Bug Fixes:**
+    *   **Dynamic Heatmap Scaling:** Expanded the green color scale to five distinct levels (Level 1 to Level 5) with a more granular scoring breakdown.
+    *   **Legacy Mapping:** Implemented logic to ensure old visual states map correctly to the new 5-level system.
+    *   **Smooth UI Refresh:** Fixed a bug where task sections would reload and lose scroll position; refactored rendering to use `List<Task>` instead of `FutureBuilder`.
+    *   **Score Recalculation:** Implemented `_refreshTodayRecord` to ensure the heatmap and scores update immediately when tasks are added, edited, or removed.
+    *   **Enhanced Controls:** Added a "Cheat Day" label to the header button for better clarity.
+*   **Version Control:** Committed all changes to the repository, establishing a new stable baseline for the modernized application.

@@ -24,10 +24,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<Task> _todaysTasks = [];
-  late DayRecord _todayRecord;
+  DayRecord _todayRecord = DayRecord(
+    date: DateTime.now().toIso8601String().split('T')[0],
+    completedTaskIds: [],
+  );
   User? _currentUser;
   int _cheatDaysUsed = 0;
   Map<DateTime, int> _heatmapData = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -41,29 +45,42 @@ class _HomeScreenState extends State<HomeScreen> {
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
     final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
 
-    _todayRecord = await DatabaseService.instance.getDayRecord(todayFormatted) ??
+    final record = await DatabaseService.instance.getDayRecord(todayFormatted) ??
         DayRecord(date: todayFormatted, completedTaskIds: [], skippedTaskIds: []);
 
     final users = await DatabaseService.instance.getAllUsers();
+    User? currentUser;
     if (users.isNotEmpty) {
-      _currentUser = users.first;
+      currentUser = users.first;
     }
 
-    _cheatDaysUsed = await DatabaseService.instance.getCheatDaysUsed(yearMonth);
-    await _loadHeatmapData();
+    final cheatUsed = await DatabaseService.instance.getCheatDaysUsed(yearMonth);
+    
+    // Load heatmap data before setting state to ensure smooth transition
+    final records = await DatabaseService.instance.getDayRecords(limit: 366);
+    final heatmapData = ScoringService.mapRecordsToHeatmapData(records);
 
     final tasks = await DatabaseService.instance.getActiveTasksForDate(today);
 
-    setState(() {
-      _todaysTasks = tasks;
-    });
+    if (mounted) {
+      setState(() {
+        _todayRecord = record;
+        _currentUser = currentUser;
+        _cheatDaysUsed = cheatUsed;
+        _heatmapData = heatmapData;
+        _todaysTasks = tasks;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadHeatmapData() async {
     final records = await DatabaseService.instance.getDayRecords(limit: 366);
-    setState(() {
-      _heatmapData = ScoringService.mapRecordsToHeatmapData(records);
-    });
+    if (mounted) {
+      setState(() {
+        _heatmapData = ScoringService.mapRecordsToHeatmapData(records);
+      });
+    }
   }
 
   void _toggleTaskCompletion(Task task, bool? isCompleted) async {
