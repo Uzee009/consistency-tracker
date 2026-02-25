@@ -4,10 +4,14 @@ import '../main.dart';
 
 class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
+  final Function(DateTime)? onDateSelected;
+  final DateTime? selectedDate;
 
   const ConsistencyHeatmap({
     super.key,
     required this.heatmapData,
+    this.onDateSelected,
+    this.selectedDate,
   });
 
   @override
@@ -75,6 +79,15 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final containerBg = StyleService.getHeatmapBg(style, isDark);
     final borderColor = StyleService.getDailyTaskBorder(style, isDark);
 
+    final today = DateTime.now();
+    final bool isViewingToday = widget.selectedDate == null || 
+        (widget.selectedDate!.year == today.year && 
+         widget.selectedDate!.month == today.month && 
+         widget.selectedDate!.day == today.day);
+
+    final List<String> monthNamesShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    final String dateString = widget.selectedDate == null ? "" : "${widget.selectedDate!.day} ${monthNamesShort[widget.selectedDate!.month - 1]} ${widget.selectedDate!.year}";
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       margin: const EdgeInsets.all(8.0),
@@ -101,23 +114,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (_isReportMode)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white : Colors.black,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'REPORT',
-                          style: TextStyle(
-                            color: isDark ? Colors.black : Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
                     Wrap(
                       spacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -133,6 +129,59 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                         _buildLegendItem(const Color(0xFF10B981), ''),
                       ],
                     ),
+                    if (!isViewingToday) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        height: 20,
+                        width: 1,
+                        color: isDark ? Colors.white10 : Colors.black12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        dateString,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: Theme.of(context).colorScheme.primary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          if (widget.onDateSelected != null) {
+                            widget.onDateSelected!(DateTime.now());
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.today_rounded, 
+                                size: 12, 
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'TODAY',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -275,10 +324,17 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             else if (intensity == 5) cellColor = const Color(0xFF10B981);
             else cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
             
+            final bool isSelected = widget.selectedDate != null && 
+                dDate.year == widget.selectedDate!.year && 
+                dDate.month == widget.selectedDate!.month && 
+                dDate.day == widget.selectedDate!.day;
+            
             weekRowCells.add(
               GestureDetector(
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Date: ${dDate.toIso8601String().split('T')[0]}')));
+                  if (widget.onDateSelected != null) {
+                    widget.onDateSelected!(dDate);
+                  }
                 },
                 child: Container(
                   width: cellWidth,
@@ -288,11 +344,14 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     decoration: BoxDecoration(
                       color: cellColor,
                       borderRadius: BorderRadius.circular(6),
+                      border: isSelected 
+                          ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                          : null,
                     ),
                     child: Center(
                        child: intensity == -2
                         ? Icon(Icons.star, size: cellHeight * 0.35, color: Colors.white)
-                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.3).clamp(12, 18), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: FontWeight.w500)),
+                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.3).clamp(12, 18), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500)),
                     ),
                   ),
                 ),
@@ -478,10 +537,17 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           else if (intensity == 5) cellColor = const Color(0xFF10B981);
           else cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
 
+          final bool isSelected = widget.selectedDate != null && 
+              day.year == widget.selectedDate!.year && 
+              day.month == widget.selectedDate!.month && 
+              day.day == widget.selectedDate!.day;
+
           dayCellsInWeek.add(
             GestureDetector(
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Date: ${day.toIso8601String().split('T')[0]}')));
+                if (widget.onDateSelected != null) {
+                  widget.onDateSelected!(day);
+                }
               },
               child: SizedBox(
                 width: dynamicTotalCellSize,
@@ -492,6 +558,9 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     decoration: BoxDecoration(
                       color: cellColor,
                       borderRadius: BorderRadius.circular(3),
+                      border: isSelected 
+                          ? Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5)
+                          : null,
                     ),
                     child: Center(
                       child: intensity == -2
@@ -500,7 +569,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                               day.day.toString(),
                               style: TextStyle(
                                 fontSize: (dynamicTotalCellHeight * 0.35).clamp(8, 12),
-                                fontWeight: FontWeight.w500,
+                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
                                 color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white,
                               ),
                             ),

@@ -31,21 +31,21 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _currentUser;
   int _cheatDaysUsed = 0;
   Map<DateTime, int> _heatmapData = {};
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    _initializeData(_selectedDate);
   }
 
-  void _initializeData() async {
-    final today = DateTime.now();
-    final todayFormatted =
-        "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-    final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
+  void _initializeData(DateTime date) async {
+    final dateFormatted =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final yearMonth = "${date.year}-${date.month.toString().padLeft(2, '0')}";
 
-    final record = await DatabaseService.instance.getDayRecord(todayFormatted) ??
-        DayRecord(date: todayFormatted, completedTaskIds: [], skippedTaskIds: []);
+    final record = await DatabaseService.instance.getDayRecord(dateFormatted) ??
+        DayRecord(date: dateFormatted, completedTaskIds: [], skippedTaskIds: []);
 
     final users = await DatabaseService.instance.getAllUsers();
     User? currentUser;
@@ -59,10 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final records = await DatabaseService.instance.getDayRecords(limit: 366);
     final heatmapData = ScoringService.mapRecordsToHeatmapData(records);
 
-    final tasks = await DatabaseService.instance.getActiveTasksForDate(today);
+    final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
 
     if (mounted) {
       setState(() {
+        _selectedDate = date;
         _todayRecord = record;
         _currentUser = currentUser;
         _cheatDaysUsed = cheatUsed;
@@ -70,6 +71,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _todaysTasks = tasks;
       });
     }
+  }
+
+  void _onDateSelected(DateTime date) {
+    if (date.isAfter(DateTime.now())) return; // Prevent selecting future dates
+    _initializeData(date);
   }
 
   void _toggleTaskCompletion(Task task, bool? isCompleted) async {
@@ -129,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     await DatabaseService.instance.createOrUpdateDayRecord(_todayRecord);
-    _initializeData();
+    _initializeData(_selectedDate);
   }
 
   void _editTask(Task task) async {
@@ -137,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => TaskFormScreen(task: task)),
     );
     await _refreshTodayRecord();
-    _initializeData();
+    _initializeData(_selectedDate);
   }
 
   void _deleteTask(Task task) async {
@@ -160,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirm == true) {
       await DatabaseService.instance.deleteTask(task.id);
       await _refreshTodayRecord();
-      _initializeData();
+      _initializeData(_selectedDate);
     }
   }
 
@@ -241,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
         type: type,
         onTaskAdded: () async {
           await _refreshTodayRecord();
-          _initializeData();
+          _initializeData(_selectedDate);
         },
       ),
     );
@@ -280,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               UserMenu(
                 currentUser: _currentUser,
-                onSettingsReturn: _initializeData,
+                onSettingsReturn: () => _initializeData(_selectedDate),
               ),
             ],
           ),
@@ -326,7 +332,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       flex: 3,
-                      child: ConsistencyHeatmap(heatmapData: _heatmapData),
+                      child: ConsistencyHeatmap(
+                        heatmapData: _heatmapData,
+                        selectedDate: _selectedDate,
+                        onDateSelected: _onDateSelected,
+                      ),
                     ),
                     const Expanded(
                       flex: 1,
