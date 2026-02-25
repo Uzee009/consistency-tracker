@@ -50,7 +50,7 @@ class _MyAppState extends State<MyApp> {
       themeMode: ThemeMode.system,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: Colors.grey,
           surface: Colors.white,
           onSurface: const Color(0xFF09090B),
         ),
@@ -62,26 +62,26 @@ class _MyAppState extends State<MyApp> {
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
             color: Color(0xFF09090B),
-            letterSpacing: -0.4,
+            letterSpacing: 2,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: zinc100,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.deepPurple, width: 1),
+            borderRadius: BorderRadius.circular(4),
+            borderSide: const BorderSide(color: Color(0xFF09090B), width: 1),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           hintStyle: const TextStyle(color: zinc400, fontSize: 14),
@@ -92,8 +92,8 @@ class _MyAppState extends State<MyApp> {
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
           ),
         ),
         dividerTheme: const DividerThemeData(
@@ -104,7 +104,7 @@ class _MyAppState extends State<MyApp> {
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: Colors.grey,
           brightness: Brightness.dark,
           surface: zinc950,
           onSurface: Colors.white,
@@ -117,26 +117,26 @@ class _MyAppState extends State<MyApp> {
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
             color: Colors.white,
-            letterSpacing: -0.4,
+            letterSpacing: 2,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: zinc900,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.deepPurple, width: 1),
+            borderRadius: BorderRadius.circular(4),
+            borderSide: const BorderSide(color: Colors.white, width: 1),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           hintStyle: const TextStyle(color: zinc800, fontSize: 14),
@@ -147,8 +147,8 @@ class _MyAppState extends State<MyApp> {
             foregroundColor: zinc950,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
           ),
         ),
         dividerTheme: const DividerThemeData(

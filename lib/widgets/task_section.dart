@@ -41,12 +41,16 @@ class TaskSection extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: isDark ? Theme.of(context).colorScheme.surface : bgColor.withOpacity(isDark ? 0.05 : 0.4),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(
-          color: isDark ? Colors.white10 : borderColor.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: borderColor, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,10 +63,10 @@ class TaskSection extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                   ),
                 ),
                 Row(
@@ -70,11 +74,11 @@ class TaskSection extends StatelessWidget {
                     if (type == TaskType.daily && onCheatPressed != null)
                       _buildHeaderButton(
                         context,
-                        label: 'Cheat',
+                        label: 'CHEAT',
                         icon: Icons.celebration_outlined,
                         color: dayRecord.completedTaskIds.isNotEmpty
-                            ? Colors.blueGrey[200]!
-                            : Colors.orange[600]!,
+                            ? (isDark ? Colors.white10 : Colors.black12)
+                            : Colors.orange[400]!,
                         tooltip: dayRecord.completedTaskIds.isNotEmpty
                             ? 'Cheat Day locked'
                             : 'Declare Cheat Day',
@@ -84,7 +88,7 @@ class TaskSection extends StatelessWidget {
                     _buildHeaderButton(
                       context,
                       icon: Icons.add_rounded,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurface,
                       tooltip: 'Add Task',
                       onPressed: onAddPressed,
                     ),
@@ -99,7 +103,7 @@ class TaskSection extends StatelessWidget {
                 ? Center(
                     child: Text(
                       'No tasks yet',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3), fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2), fontSize: 13),
                     ),
                   )
                 : ListView.builder(
@@ -138,15 +142,17 @@ class TaskSection extends StatelessWidget {
     required String tooltip,
     required VoidCallback onPressed,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.transparent,
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -155,13 +161,14 @@ class TaskSection extends StatelessWidget {
                     label,
                     style: TextStyle(
                       color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
                     ),
                   ),
                   const SizedBox(width: 4),
                 ],
-                Icon(icon, size: 18, color: color),
+                Icon(icon, size: 16, color: color),
               ],
             ),
           ),

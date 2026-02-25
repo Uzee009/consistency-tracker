@@ -304,8 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TaskSection(
                     title: 'DAILY',
                     type: TaskType.daily,
-                    bgColor: const Color(0xFFE0F2FE),
-                    borderColor: const Color(0xFF7DD3FC),
+                    bgColor: isDark ? const Color(0xFF18181B) : Colors.white,
+                    borderColor: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
                     tasks: _todaysTasks,
                     dayRecord: _todayRecord,
                     onAddPressed: () => _showAddTaskSheet(type: TaskType.daily),
@@ -320,8 +320,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TaskSection(
                     title: 'TEMPORARY',
                     type: TaskType.temporary,
-                    bgColor: const Color(0xFFFEF9C3),
-                    borderColor: const Color(0xFFFDE047),
+                    bgColor: isDark ? const Color(0xFF09090B) : const Color(0xFFF4F4F5),
+                    borderColor: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
                     tasks: _todaysTasks,
                     dayRecord: _todayRecord,
                     onAddPressed: () => _showAddTaskSheet(type: TaskType.temporary),

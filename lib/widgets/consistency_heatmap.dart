@@ -61,7 +61,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           child: hasStar ? const Center(child: Icon(Icons.star, size: 6, color: Colors.white)) : null,
         ),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+        Text(text, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -71,12 +71,19 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12.0),
+        color: isDark ? const Color(0xFF09090B) : const Color(0xFFF4F4F5),
+        borderRadius: BorderRadius.circular(16.0),
         border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -89,13 +96,30 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    if (_isReportMode)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white : Colors.black,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'REPORT',
+                          style: TextStyle(
+                            color: isDark ? Colors.black : Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
                     Wrap(
                       spacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _buildLegendItem(Colors.orange[400]!, 'Cheat'),
                         _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                        _buildLegendItem(isDark ? const Color(0xFF27272A) : Colors.grey[100]!, 'None'),
+                        _buildLegendItem(isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0), 'None'),
                         const SizedBox(width: 2),
                         _buildLegendItem(const Color(0xFFD1FAE5), ''),
                         _buildLegendItem(const Color(0xFFA7F3D0), ''),
@@ -118,7 +142,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     },
                     icon: Icon(
                       _isReportMode ? Icons.analytics : Icons.analytics_outlined,
-                      color: _isReportMode ? Colors.deepPurple : Colors.grey[500],
+                      color: isDark ? Colors.white : Colors.black,
                       size: 18,
                     ),
                     padding: EdgeInsets.zero,
@@ -129,7 +153,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   Container(
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
@@ -142,7 +166,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
                               borderRadius: BorderRadius.circular(4),
@@ -150,8 +174,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                             child: Text(
                               range,
                               style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                fontSize: 10,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                 color: isSelected ? (isDark ? Colors.white : Colors.black) : Colors.grey[500],
                               ),
                             ),
@@ -164,7 +188,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildHeatmapGrid(),
         ],
       ),
@@ -194,7 +218,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   Widget _buildHorizontal1MView(BoxConstraints constraints) {
     final double availableWidth = constraints.maxWidth;
     final double availableHeight = constraints.maxHeight;
-    final List<String> weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    final List<String> weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     final List<String> monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     
     final DateTime targetDate = _current1MDate;
@@ -215,8 +239,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         tempDay = tempDay.add(const Duration(days: 7));
     }
     
-    final double headerHeight = 35.0;
-    final double weekdayHeaderHeight = 20.0;
+    final double headerHeight = 40.0;
+    final double weekdayHeaderHeight = 25.0;
     final double contentHeight = availableHeight - headerHeight - weekdayHeaderHeight;
     
     final double cellWidth = (availableWidth - 2.0) / 7;
@@ -249,7 +273,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             else if (intensity == 3) cellColor = const Color(0xFF6EE7B7);
             else if (intensity == 4) cellColor = const Color(0xFF34D399);
             else if (intensity == 5) cellColor = const Color(0xFF10B981);
-            else cellColor = isDark ? const Color(0xFF27272A) : Colors.grey[50]!;
+            else cellColor = isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0);
             
             weekRowCells.add(
               GestureDetector(
@@ -263,12 +287,12 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: cellColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Center(
                        child: intensity == -2
-                        ? Icon(Icons.star, size: cellHeight * 0.3, color: Colors.white)
-                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.25).clamp(10, 16), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: FontWeight.w500)),
+                        ? Icon(Icons.star, size: cellHeight * 0.35, color: Colors.white)
+                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.3).clamp(12, 18), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: FontWeight.w500)),
                     ),
                   ),
                 ),
@@ -291,7 +315,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 20),
+                  icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 22),
                   onPressed: () {
                     setState(() {
                       _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
@@ -301,13 +325,14 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 Text(
                   '${monthNames[month - 1]} $year',
                   style: TextStyle(
-                    fontSize: 13, 
-                    fontWeight: FontWeight.w600, 
+                    fontSize: 14, 
+                    fontWeight: FontWeight.w900, 
+                    letterSpacing: 1,
                     color: Theme.of(context).colorScheme.onSurface
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                  icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
                   onPressed: () {
                     setState(() {
                       _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
@@ -325,7 +350,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               children: [
                 ...weekdays.map((day) => SizedBox(
                   width: cellWidth,
-                  child: Center(child: Text(day, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey[500]))),
+                  child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5))),
                 )),
               ],
             ),
@@ -354,9 +379,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final List<String> weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    final double maxPossibleCellHeight = (availableHeight - 30) / 7.5;
-    const double weekdayLabelWidth = 20.0;
-    final double gridAvailableWidth = availableWidth - weekdayLabelWidth - 2.0;
+    const double verticalPadding = 6.0;
+    const double monthLabelHeight = 18.0;
+    const double horizontalPaddingPerMonth = 16.0; 
+    final double reservedHeight = 55.0; 
+    final double dynamicTotalCellHeight = (availableHeight - reservedHeight) / 7.0;
     
     double totalUnits = 0; 
     List<int> monthWeeksCount = [];
@@ -389,29 +416,28 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     double unitWidth;
     bool shouldScroll = false;
 
+    final double staticWidthTotal = (monthsCount * horizontalPaddingPerMonth) + 30.0;
+    final double availableWidthForCells = availableWidth - staticWidthTotal;
+
     if (is1M) {
-      unitWidth = gridAvailableWidth / totalUnits;
+      unitWidth = availableWidthForCells / totalUnits;
     } else {
-      unitWidth = maxPossibleCellHeight; 
-      if (unitWidth * totalUnits > gridAvailableWidth) {
+      unitWidth = dynamicTotalCellHeight; 
+      if (unitWidth * totalUnits > availableWidthForCells) {
         shouldScroll = true;
       }
     }
 
     final double dynamicTotalCellSize = unitWidth;
-    final double dynamicTotalCellHeight = maxPossibleCellHeight;
-    final double dynamicCellWidth = dynamicTotalCellSize * 0.9;
-    final double dynamicCellHeight = dynamicTotalCellHeight * 0.85;
     
     final List<Widget> dynamicMonthWidgets = [];
 
     final Widget dynamicDayLabelColumn = SizedBox(
-      width: weekdayLabelWidth,
+      width: 20,
       child: Column(
-        children: weekdays.map((name) => Container(
+        children: weekdays.map((name) => SizedBox(
           height: dynamicTotalCellHeight,
-          alignment: Alignment.centerLeft,
-          child: Text(name, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+          child: Center(child: Text(name, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.grey[500]))),
         )).toList(),
       ),
     );
@@ -457,32 +483,36 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           else if (intensity == 3) cellColor = const Color(0xFF6EE7B7);
           else if (intensity == 4) cellColor = const Color(0xFF34D399);
           else if (intensity == 5) cellColor = const Color(0xFF10B981);
-          else cellColor = isDark ? const Color(0xFF27272A) : Colors.grey[50]!;
+          else cellColor = isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0);
 
           dayCellsInWeek.add(
             GestureDetector(
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Date: ${day.toIso8601String().split('T')[0]}')));
               },
-              child: Container(
-                width: dynamicCellWidth,
-                height: dynamicCellHeight,
-                margin: const EdgeInsets.all(1),
-                decoration: BoxDecoration(
-                  color: cellColor,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Center(
-                  child: intensity == -2
-                      ? Icon(Icons.star, size: dynamicCellHeight * 0.4, color: Colors.white)
-                      : Text(
-                          day.day.toString(),
-                          style: TextStyle(
-                            fontSize: (dynamicCellHeight * 0.3).clamp(7, 10),
-                            fontWeight: FontWeight.w500,
-                            color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white,
-                          ),
-                        ),
+              child: SizedBox(
+                width: dynamicTotalCellSize,
+                height: dynamicTotalCellHeight,
+                child: Padding(
+                  padding: const EdgeInsets.all(1.2),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: cellColor,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Center(
+                      child: intensity == -2
+                          ? Icon(Icons.star, size: dynamicTotalCellHeight * 0.4, color: Colors.white)
+                          : Text(
+                              day.day.toString(),
+                              style: TextStyle(
+                                fontSize: (dynamicTotalCellHeight * 0.35).clamp(8, 12),
+                                fontWeight: FontWeight.w500,
+                                color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -504,33 +534,45 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
       if (year != today.year) monthLabel += " '${year.toString().substring(2)}";
 
       dynamicMonthWidgets.add(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 18,
-              child: Text(monthLabel,
-                  style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[500])),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
+          decoration: BoxDecoration(
+            color: showHighlight ? (isDark ? const Color(0xFF18181B) : Colors.white) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: showHighlight 
+                ? (isDark ? Colors.white10 : Colors.black.withOpacity(0.05))
+                : Colors.transparent, 
+              width: 1,
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              decoration: showHighlight
-                  ? BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.01),
-                      borderRadius: BorderRadius.circular(6),
-                    )
-                  : null,
-              child: Row(mainAxisSize: MainAxisSize.min, children: thisMonthWeeks),
-            ),
-          ],
+            boxShadow: showHighlight ? [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ] : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: monthLabelHeight,
+                child: Text(monthLabel,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                        color: isCurrentMonth ? Theme.of(context).colorScheme.onSurface : Colors.grey[600])),
+              ),
+              Row(mainAxisSize: MainAxisSize.min, children: thisMonthWeeks),
+            ],
+          ),
         ),
       );
       
       if (i < monthsCount - 1) {
-        dynamicMonthWidgets.add(SizedBox(width: dynamicTotalCellSize * 0.2));
+        dynamicMonthWidgets.add(SizedBox(width: dynamicTotalCellSize * 0.1));
       }
     }
 
@@ -540,7 +582,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 18.0), 
+            padding: const EdgeInsets.only(top: verticalPadding + monthLabelHeight + 2.0), 
             child: dynamicDayLabelColumn,
           ),
           Flexible(
@@ -549,7 +591,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               scrollDirection: Axis.horizontal,
               physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
               child: Container(
-                width: shouldScroll ? null : availableWidth - weekdayLabelWidth,
+                width: shouldScroll ? null : availableWidth - 25.0,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,

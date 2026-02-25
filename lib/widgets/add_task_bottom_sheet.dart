@@ -30,10 +30,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
@@ -51,33 +53,34 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: isDark ? Colors.white10 : Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           Text(
             'Add ${widget.type == TaskType.daily ? 'Daily' : 'Temporary'} Task',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
-              color: Color(0xFF0F172A),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Define your new consistency goal below.',
-            style: TextStyle(color: Colors.blueGrey[500], fontSize: 14),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontSize: 14),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Task Name',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _nameController,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             decoration: const InputDecoration(
               hintText: 'e.g. Read for 30 mins',
             ),
@@ -89,30 +92,31 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
               ),
               child: SwitchListTile(
-                title: const Text(
+                title: Text(
                   'Permanent Task',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                 ),
-                subtitle: const Text('Does not expire'),
+                subtitle: Text('Does not expire', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4))),
                 value: _isPerpetual,
-                activeColor: Colors.deepPurple,
+                activeColor: isDark ? Colors.white : Colors.black,
                 onChanged: (value) => setState(() => _isPerpetual = value),
               ),
             ),
             if (!_isPerpetual) ...[
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Duration in Days',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _durationController,
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 decoration: const InputDecoration(
                   hintText: '30',
                   helperText: 'How many days this task should appear',
@@ -130,9 +134,9 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                   ),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                  child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4))),
                 ),
               ),
               const SizedBox(width: 12),

@@ -67,7 +67,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.8,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
@@ -89,8 +89,9 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 child: const Text(
                   'Start Tracking',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
