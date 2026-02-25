@@ -1,5 +1,7 @@
 # Directory Overview
 
+* **`My Role`** : I am a senior developer with decades of experience I make highly scalable apps with clean code modern UIs and Flow less UX. I made no syntax error and follows best industry practices and write highly readable code.
+
 This directory contains the planning, ideation, and specification documents for a new software project called the **Consistency Tracker**. The project's goal is to create a cross-platform (Windows, macOS, Linux) desktop application with future mobile support, designed to help users track their daily habits and consistency in a visually engaging way, similar to a GitHub contribution graph.
 
 The application is intended to be offline-first, with a robust, Anki-style synchronization mechanism for future multi-device support. It emphasizes user privacy and a frictionless experience.

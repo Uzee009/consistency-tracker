@@ -1,7 +1,7 @@
 // lib/services/scoring_service.dart
 
-import 'package:consistancy_tacker_v1/models/day_record_model.dart';
-import 'package:consistancy_tacker_v1/models/task_model.dart';
+import 'package:consistency_tracker_v1/models/day_record_model.dart';
+import 'package:consistency_tracker_v1/models/task_model.dart';
 
 class ScoringService {
   // This class can be expanded with more complex scoring logic.
@@ -41,7 +41,7 @@ class ScoringService {
     if (dailyBenchmark == 0) {
       // If there are no daily tasks, any temp task completion is a bonus
       return completedTempTasks > 0
-          ? ScoreResult(completionScore: 1, visualState: VisualState.lightGreen)
+          ? ScoreResult(completionScore: 1, visualState: VisualState.level1)
           : ScoreResult(completionScore: 0, visualState: VisualState.empty);
     }
 
@@ -57,13 +57,57 @@ class ScoringService {
   static VisualState _mapScoreToVisualState(double score) {
     if (score <= 0) {
       return VisualState.empty;
-    } else if (score < 0.5) {
-      return VisualState.lightGreen;
+    } else if (score < 0.2) {
+      return VisualState.level1;
+    } else if (score < 0.4) {
+      return VisualState.level2;
+    } else if (score < 0.7) {
+      return VisualState.level3;
     } else if (score < 1.0) {
-      return VisualState.green;
+      return VisualState.level4;
     } else {
-      return VisualState.darkGreen;
+      return VisualState.level5;
     }
+  }
+
+  static Map<DateTime, int> mapRecordsToHeatmapData(List<DayRecord> records) {
+    final Map<DateTime, int> data = {};
+    for (var record in records) {
+      final date = DateTime.parse(record.date);
+      final cleanDate = DateTime(date.year, date.month, date.day);
+
+      int intensity;
+
+      switch (record.visualState) {
+        case VisualState.cheat:
+          intensity = -1;
+          break;
+        case VisualState.star:
+          intensity = -2;
+          break;
+        case VisualState.empty:
+          intensity = 0;
+          break;
+        case VisualState.level1:
+          intensity = 1;
+          break;
+        case VisualState.level2:
+          intensity = 2;
+          break;
+        case VisualState.level3:
+          intensity = 3;
+          break;
+        case VisualState.level4:
+          intensity = 4;
+          break;
+        case VisualState.level5:
+          intensity = 5;
+          break;
+      }
+
+      data[cleanDate] = intensity;
+    }
+    return data;
   }
 }
 

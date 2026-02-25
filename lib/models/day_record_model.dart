@@ -2,9 +2,11 @@
 
 enum VisualState {
   empty,
-  lightGreen,
-  green,
-  darkGreen,
+  level1,
+  level2,
+  level3,
+  level4,
+  level5,
   cheat,
   star,
 }
@@ -50,10 +52,21 @@ class DayRecord {
           : [],
       cheatUsed: map['cheat_used'] == 1,
       completionScore: map['completion_score'] ?? 0.0,
-      visualState: VisualState.values.firstWhere(
-        (e) => e.toString().split('.').last == map['visual_state'],
-        orElse: () => VisualState.empty, // Default value if not found
-      ),
+      visualState: _mapStringToVisualState(map['visual_state']),
+    );
+  }
+
+  static VisualState _mapStringToVisualState(String? stateStr) {
+    if (stateStr == null) return VisualState.empty;
+
+    // Legacy mapping
+    if (stateStr == 'lightGreen') return VisualState.level1;
+    if (stateStr == 'green') return VisualState.level3;
+    if (stateStr == 'darkGreen') return VisualState.level5;
+
+    return VisualState.values.firstWhere(
+      (e) => e.toString().split('.').last == stateStr,
+      orElse: () => VisualState.empty,
     );
   }
 

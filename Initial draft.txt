@@ -1,5 +1,5 @@
 Consitancy tracker : 
-The goal of this project is track the consistancy of a user and display it in a visual form. 
+The goal of this project is track the consistency of a user and display it in a visual form. 
 want to keep it complete offline and no complecate setup just plug and play. 
 
 Key funtionality : 
@@ -25,7 +25,7 @@ deletion of tasks :
 user has the option to delete the task for the day or remove it for the given duration.
 
 tarcker : 
-once all tasks has been completed we will show the display like a git hub tracker to show his consistancy and mark that day as green. 
+once all tasks has been completed we will show the display like a git hub tracker to show his consistency and mark that day as green. 
 moreover if the user mark the cheat day then that day will show up as cheat day in orange or red color. 
 if user fails to complete the tasks then no green box if completes it partially then lighter shade of green. (Just like github commite tracker) 
 if user performs all the tasks plus additional daily task then we show a star on that day. 

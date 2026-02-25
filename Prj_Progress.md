@@ -13,7 +13,7 @@
 ## Thursday, 19 February 2026 - 10:30 AM
 
 **Summary:**
-*   Created a new Flutter project named `consistancy_tacker_v1` inside the `Tracker App` directory.
+*   Created a new Flutter project named `consistency_tracker_v1` inside the `Tracker App` directory.
 *   Successfully ran the Flutter project on the Linux desktop, verifying the development environment.
 *   Confirmed that all platforms (Android, iOS, Web, Windows, macOS, Linux) are enabled in the project, respecting future expansion plans.
 

@@ -1,9 +1,9 @@
 // lib/screens/tasks_list_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:consistancy_tacker_v1/services/database_service.dart';
-import 'package:consistancy_tacker_v1/models/task_model.dart';
-import 'package:consistancy_tacker_v1/screens/task_form_screen.dart'; // New Import
+import 'package:consistency_tracker_v1/services/database_service.dart';
+import 'package:consistency_tracker_v1/models/task_model.dart';
+import 'package:consistency_tracker_v1/screens/task_form_screen.dart'; // New Import
 
 class TasksListScreen extends StatefulWidget {
   const TasksListScreen({super.key});

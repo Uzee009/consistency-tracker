@@ -137,9 +137,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                         _buildLegendItem(Colors.grey[100]!, 'None'),
                         const SizedBox(width: 4),
                         const Text('Less', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w400)),
-                        _buildLegendItem(const Color(0xFFD1FAE5), ''), // Emerald 100
-                        _buildLegendItem(const Color(0xFF6EE7B7), ''), // Emerald 300
-                        _buildLegendItem(const Color(0xFF10B981), ''), // Emerald 500
+                        _buildLegendItem(const Color(0xFFD1FAE5), ''), // Level 1 (Emerald 100)
+                        _buildLegendItem(const Color(0xFFA7F3D0), ''), // Level 2 (Emerald 200)
+                        _buildLegendItem(const Color(0xFF6EE7B7), ''), // Level 3 (Emerald 300)
+                        _buildLegendItem(const Color(0xFF34D399), ''), // Level 4 (Emerald 400)
+                        _buildLegendItem(const Color(0xFF10B981), ''), // Level 5 (Emerald 500)
                         const Text('More', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w400)),
                       ],
                     ),
@@ -303,9 +305,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             Color cellColor;
             if (intensity == -1) cellColor = Colors.orange[400]!;
             else if (intensity == -2) cellColor = const Color(0xFF10B981); // Emerald 500
-            else if (intensity == 1) cellColor = const Color(0xFFD1FAE5); // Emerald 100
-            else if (intensity == 2) cellColor = const Color(0xFF6EE7B7); // Emerald 300
-            else if (intensity == 3) cellColor = const Color(0xFF10B981); // Emerald 500
+            else if (intensity == 1) cellColor = const Color(0xFFD1FAE5); // Level 1 (Emerald 100)
+            else if (intensity == 2) cellColor = const Color(0xFFA7F3D0); // Level 2 (Emerald 200)
+            else if (intensity == 3) cellColor = const Color(0xFF6EE7B7); // Level 3 (Emerald 300)
+            else if (intensity == 4) cellColor = const Color(0xFF34D399); // Level 4 (Emerald 400)
+            else if (intensity == 5) cellColor = const Color(0xFF10B981); // Level 5 (Emerald 500)
             else cellColor = Colors.grey[50]!;
             
             if (intensity == -2) starCount++;
@@ -522,9 +526,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
 
           if (intensity == -1) cellColor = Colors.orange[400]!;
           else if (intensity == -2) cellColor = const Color(0xFF10B981); // Emerald 500
-          else if (intensity == 1) cellColor = const Color(0xFFD1FAE5); // Emerald 100
-          else if (intensity == 2) cellColor = const Color(0xFF6EE7B7); // Emerald 300
-          else if (intensity == 3) cellColor = const Color(0xFF10B981); // Emerald 500
+          else if (intensity == 1) cellColor = const Color(0xFFD1FAE5); // Level 1 (Emerald 100)
+          else if (intensity == 2) cellColor = const Color(0xFFA7F3D0); // Level 2 (Emerald 200)
+          else if (intensity == 3) cellColor = const Color(0xFF6EE7B7); // Level 3 (Emerald 300)
+          else if (intensity == 4) cellColor = const Color(0xFF34D399); // Level 4 (Emerald 400)
+          else if (intensity == 5) cellColor = const Color(0xFF10B981); // Level 5 (Emerald 500)
           else cellColor = Colors.grey[50]!;
 
           dayCellsInWeek.add(

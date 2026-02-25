@@ -1,4 +1,4 @@
-# consistancy_tacker_v1
+# consistency_tracker_v1
 
 A new Flutter project.
 
