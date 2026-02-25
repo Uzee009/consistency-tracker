@@ -11,6 +11,7 @@ class TaskItem extends StatelessWidget {
   final VoidCallback onToggleSkip;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onFocusRequested;
 
   const TaskItem({
     super.key,
@@ -21,6 +22,7 @@ class TaskItem extends StatelessWidget {
     required this.onToggleSkip,
     required this.onEdit,
     required this.onDelete,
+    required this.onFocusRequested,
   });
 
   @override
@@ -61,23 +63,30 @@ class TaskItem extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  task.name,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: isCompleted ? FontWeight.w400 : FontWeight.w600,
-                    decoration: isCompleted ? TextDecoration.lineThrough : null,
-                    color: isCompleted 
-                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.3)
-                        : (isSkipped ? Colors.orange[400] : Theme.of(context).colorScheme.onSurface),
-                    fontStyle: isSkipped ? FontStyle.italic : FontStyle.normal,
-                  ),
+            child: InkWell(
+              onTap: onFocusRequested,
+              borderRadius: BorderRadius.circular(4),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      task.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: isCompleted ? FontWeight.w400 : FontWeight.w600,
+                        decoration: isCompleted ? TextDecoration.lineThrough : null,
+                        color: isCompleted 
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.3)
+                            : (isSkipped ? Colors.orange[400] : Theme.of(context).colorScheme.onSurface),
+                        fontStyle: isSkipped ? FontStyle.italic : FontStyle.normal,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           if (!isCompleted) ...[

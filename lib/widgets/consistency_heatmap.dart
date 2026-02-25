@@ -6,12 +6,16 @@ class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
   final Function(DateTime)? onDateSelected;
   final DateTime? selectedDate;
+  final String? focusedTaskName;
+  final VoidCallback? onClearFocus;
 
   const ConsistencyHeatmap({
     super.key,
     required this.heatmapData,
     this.onDateSelected,
     this.selectedDate,
+    this.focusedTaskName,
+    this.onClearFocus,
   });
 
   @override
@@ -118,17 +122,56 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                       spacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _buildLegendItem(Colors.orange[400]!, 'Cheat'),
-                        _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                        _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
-                        const SizedBox(width: 2),
-                        _buildLegendItem(const Color(0xFFD1FAE5), ''),
-                        _buildLegendItem(const Color(0xFFA7F3D0), ''),
-                        _buildLegendItem(const Color(0xFF6EE7B7), ''),
-                        _buildLegendItem(const Color(0xFF34D399), ''),
-                        _buildLegendItem(const Color(0xFF10B981), ''),
+                        if (widget.focusedTaskName == null) ...[
+                          _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                          _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
+                          _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
+                          const SizedBox(width: 2),
+                          _buildLegendItem(const Color(0xFFD1FAE5), ''),
+                          _buildLegendItem(const Color(0xFFA7F3D0), ''),
+                          _buildLegendItem(const Color(0xFF6EE7B7), ''),
+                          _buildLegendItem(const Color(0xFF34D399), ''),
+                          _buildLegendItem(const Color(0xFF10B981), ''),
+                        ] else ...[
+                          _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
+                          _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+                        ],
                       ],
                     ),
+                    if (widget.focusedTaskName != null) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.focusedTaskName!.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: widget.onClearFocus,
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     if (!isViewingToday) ...[
                       const SizedBox(width: 4),
                       Container(

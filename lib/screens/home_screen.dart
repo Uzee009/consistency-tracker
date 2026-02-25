@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _cheatDaysUsed = 0;
   Map<DateTime, int> _heatmapData = {};
   DateTime _selectedDate = DateTime.now();
+  Task? _focusedTask;
 
   @override
   void initState() {
@@ -55,9 +56,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final cheatUsed = await DatabaseService.instance.getCheatDaysUsed(yearMonth);
     
-    // Load heatmap data before setting state to ensure smooth transition
-    final records = await DatabaseService.instance.getDayRecords(limit: 366);
-    final heatmapData = ScoringService.mapRecordsToHeatmapData(records);
+    // Determine Heatmap Data: Global vs Focused Task
+    Map<DateTime, int> heatmapData;
+    if (_focusedTask != null) {
+      final taskHistory = await DatabaseService.instance.getTaskHistory(_focusedTask!.id);
+      heatmapData = ScoringService.mapTaskRecordsToHeatmapData(taskHistory);
+    } else {
+      final records = await DatabaseService.instance.getDayRecords(limit: 366);
+      heatmapData = ScoringService.mapRecordsToHeatmapData(records);
+    }
 
     final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
 
@@ -71,6 +78,20 @@ class _HomeScreenState extends State<HomeScreen> {
         _todaysTasks = tasks;
       });
     }
+  }
+
+  void _onTaskFocusRequested(Task task) {
+    setState(() {
+      _focusedTask = task;
+    });
+    _initializeData(_selectedDate);
+  }
+
+  void _onClearFocus() {
+    setState(() {
+      _focusedTask = null;
+    });
+    _initializeData(_selectedDate);
   }
 
   void _onDateSelected(DateTime date) {
@@ -308,6 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onToggleSkip: _toggleTaskSkip,
                         onEdit: _editTask,
                         onDelete: _deleteTask,
+                        onTaskFocusRequested: _onTaskFocusRequested,
                       ),
                     ),
                     Expanded(
@@ -321,6 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onToggleSkip: _toggleTaskSkip,
                         onEdit: _editTask,
                         onDelete: _deleteTask,
+                        onTaskFocusRequested: _onTaskFocusRequested,
                       ),
                     ),
                   ],
@@ -336,6 +359,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         heatmapData: _heatmapData,
                         selectedDate: _selectedDate,
                         onDateSelected: _onDateSelected,
+                        focusedTaskName: _focusedTask?.name,
+                        onClearFocus: _onClearFocus,
                       ),
                     ),
                     const Expanded(
