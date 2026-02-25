@@ -16,50 +16,122 @@ class UserMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (currentUser == null) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        if (value == 'copy_id') {
-          Clipboard.setData(ClipboardData(text: currentUser!.id.toString()));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User ID copied to clipboard!')),
-          );
-        } else if (value == 'settings') {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
-              .then((_) => onSettingsReturn());
-        }
-      },
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        PopupMenuItem<String>(
-          enabled: false,
-          child: Text(
-            currentUser!.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        hoverColor: Colors.transparent,
+        splashColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<String>(
+        offset: const Offset(0, 45),
+        elevation: 10,
+        shadowColor: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+        ),
+        color: isDark ? const Color(0xFF18181B) : Colors.white,
+        onSelected: (value) {
+          if (value == 'copy_id') {
+            Clipboard.setData(ClipboardData(text: currentUser!.id.toString()));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('User ID copied to clipboard!')),
+            );
+          } else if (value == 'settings') {
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
+                .then((_) => onSettingsReturn());
+          }
+        },
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+          PopupMenuItem<String>(
+            enabled: false,
+            height: 40,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  currentUser!.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                InkWell(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: currentUser!.id.toString()));
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('User ID copied to clipboard!')),
+                    );
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'ID: ${currentUser!.id}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.copy_rounded,
+                        size: 10,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: 'settings',
+            height: 40,
+            child: _buildMenuItem(context, Icons.settings_outlined, 'Settings'),
+          ),
+        ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: CircleAvatar(
+            radius: 14,
+            backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: Icon(
+              Icons.person_outline_rounded,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            ),
           ),
         ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'copy_id',
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('ID: ${currentUser!.id.toString()}'),
-              const Icon(Icons.copy, size: 18),
-            ],
-          ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem(BuildContext context, IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
         ),
-        PopupMenuItem<String>(
-          value: 'settings',
-          child: const ListTile(
-            leading: Icon(Icons.settings),
-            title: Text('Settings'),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
-      icon: const Icon(Icons.account_circle),
     );
   }
 }
