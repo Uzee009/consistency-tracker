@@ -411,12 +411,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         children: [
                           Expanded(
-                            flex: 3, // 30% of this section
+                            flex: 2, // 20% of this section
                             child: AnalyticsKPIs(analytics: _analytics, isHorizontal: true),
                           ),
                           const SizedBox(height: 8),
                           Expanded(
-                            flex: 7, // 70% of this section
+                            flex: 8, // 80% of this section
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(

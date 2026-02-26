@@ -16,7 +16,7 @@ class AnalyticsKPIs extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.01),
         borderRadius: BorderRadius.circular(16.0),
@@ -38,8 +38,8 @@ class AnalyticsKPIs extends StatelessWidget {
 
   List<Widget> _buildItems(BuildContext context, bool isDark) {
     final separator = isHorizontal 
-        ? VerticalDivider(color: isDark ? Colors.white10 : Colors.black12, width: 24, indent: 8, endIndent: 8)
-        : Divider(color: isDark ? Colors.white10 : Colors.black12, height: 24);
+        ? VerticalDivider(color: isDark ? Colors.white10 : Colors.black12, width: 20, indent: 4, endIndent: 4)
+        : Divider(color: isDark ? Colors.white10 : Colors.black12, height: 16);
 
     return [
       _buildKPIItem(
@@ -75,37 +75,37 @@ class AnalyticsKPIs extends StatelessWidget {
     required String subtitle,
     required Color color,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 7,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.1,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+    return Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "$label $subtitle",
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 7,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: color,
-            height: 1,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                  height: 1.1,
+                ),
+              ),
+            ),
           ),
-        ),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 7,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
