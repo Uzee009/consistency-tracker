@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/user_model.dart';
 import '../screens/settings_screen.dart';
-import '../services/database_service.dart';
 
 class UserMenu extends StatelessWidget {
   final User? currentUser;
@@ -43,14 +42,6 @@ class UserMenu extends StatelessWidget {
             Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
                 .then((_) => onSettingsReturn());
-          } else if (value == 'seed') {
-            await DatabaseService.instance.seedData();
-            onSettingsReturn();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Database seeded for February!')),
-              );
-            }
           }
         },
         itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -105,11 +96,6 @@ class UserMenu extends StatelessWidget {
             value: 'settings',
             height: 40,
             child: _buildMenuItem(context, Icons.settings_outlined, 'Settings'),
-          ),
-          PopupMenuItem<String>(
-            value: 'seed',
-            height: 40,
-            child: _buildMenuItem(context, Icons.storage_rounded, 'Seed Dummy Data (Feb)'),
           ),
         ],
         child: Padding(
