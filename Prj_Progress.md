@@ -218,3 +218,19 @@
     *   Removed the "Seed Dummy Data (Feb)" option from the `UserMenu` UI.
     *   Deleted the standalone `february_dummy_data.db` file.
 *   **Result:** The application is now free of development-only seeding triggers, ensuring a cleaner production-ready state.
+
+## Thursday, 26 February 2026 - Session 3 (Advanced Analytics & KPI Dashboard)
+
+**Summary:**
+*   **Analytics Engine:**
+    *   Implemented `AnalyticsResult` logic in `ScoringService` to calculate **Recovery Rate**, **Current Streak**, and **Longest Streak**.
+    *   Designed the logic to support both global consistency and individual task history.
+*   **UI/UX Optimization:**
+    *   Redesigned the dashboard's analytics section with a 20/80 vertical split.
+    *   Created the `AnalyticsKPIs` widget with a responsive horizontal layout to sit above the graph area.
+    *   Implemented `FittedBox` and layout refinements to resolve `RenderFlex` overflow issues on restricted viewports.
+    *   Updated `HomeScreen` to handle focused task state and dynamic analytics recalculation.
+*   **Workflow & Stability:**
+    *   Established "Consult" and "Dev" operational modes in `GEMINI.md`.
+    *   Fixed heatmap scrolling for Windows/Linux desktop via `ScrollConfiguration`.
+    *   Cleaned up unused `StreakBoard` references and ensured the project remains stable with `flutter analyze`.
