@@ -10,7 +10,7 @@ import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/widgets/consistency_heatmap.dart';
 import 'package:consistency_tracker_v1/widgets/add_task_bottom_sheet.dart';
 import 'package:consistency_tracker_v1/widgets/task_section.dart';
-import 'package:consistency_tracker_v1/widgets/streak_board.dart';
+import 'package:consistency_tracker_v1/widgets/analytics_kpis.dart';
 import 'package:consistency_tracker_v1/widgets/user_menu.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/main.dart';
@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<DateTime, int> _heatmapData = {};
   DateTime _selectedDate = DateTime.now();
   Task? _focusedTask;
+  AnalyticsResult _analytics = AnalyticsResult.empty();
 
   @override
   void initState() {
@@ -56,14 +57,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final cheatUsed = await DatabaseService.instance.getCheatDaysUsed(yearMonth);
     
-    // Determine Heatmap Data: Global vs Focused Task
+    // Fetch records for analytics and heatmap
+    final allRecords = await DatabaseService.instance.getDayRecords(limit: 366);
+    
+    // Determine Heatmap Data and Analytics: Global vs Focused Task
     Map<DateTime, int> heatmapData;
+    AnalyticsResult analytics;
+
     if (_focusedTask != null) {
       final taskHistory = await DatabaseService.instance.getTaskHistory(_focusedTask!.id);
       heatmapData = ScoringService.mapTaskRecordsToHeatmapData(taskHistory);
+      analytics = ScoringService.calculateAnalytics(taskHistory, taskId: _focusedTask!.id);
     } else {
-      final records = await DatabaseService.instance.getDayRecords(limit: 366);
-      heatmapData = ScoringService.mapRecordsToHeatmapData(records);
+      heatmapData = ScoringService.mapRecordsToHeatmapData(allRecords);
+      analytics = ScoringService.calculateAnalytics(allRecords);
     }
 
     final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
@@ -76,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _cheatDaysUsed = cheatUsed;
         _heatmapData = heatmapData;
         _todaysTasks = tasks;
+        _analytics = analytics;
       });
     }
   }
@@ -314,6 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ValueListenableBuilder<VisualStyle>(
       valueListenable: styleNotifier,
       builder: (context, style, _) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Scaffold(
           appBar: AppBar(
             title: const Text('CONSISTENCY'),
@@ -397,9 +406,36 @@ class _HomeScreenState extends State<HomeScreen> {
                         onClearFocus: _onClearFocus,
                       ),
                     ),
-                    const Expanded(
-                      flex: 1,
-                      child: StreakBoard(),
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            flex: 3, // 30% of this section
+                            child: AnalyticsKPIs(analytics: _analytics, isHorizontal: true),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            flex: 7, // 70% of this section
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.01),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'GRAPH CAROUSEL PLACEHOLDER',
+                                  style: TextStyle(fontSize: 8, color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

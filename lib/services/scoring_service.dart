@@ -124,6 +124,103 @@ class ScoringService {
     }
     return data;
   }
+
+  static AnalyticsResult calculateAnalytics(List<DayRecord> records, {int? taskId}) {
+    if (records.isEmpty) return AnalyticsResult.empty();
+
+    // Ensure chronological order
+    final sortedRecords = List<DayRecord>.from(records)..sort((a, b) => a.date.compareTo(b.date));
+    
+    int currentStreak = 0;
+    int longestStreak = 0;
+    int tempStreak = 0;
+    int totalMisses = 0;
+    int successfulRecoveries = 0;
+
+    for (int i = 0; i < sortedRecords.length; i++) {
+      final record = sortedRecords[i];
+      bool isSuccess;
+
+      if (taskId != null) {
+        // Individual Task: Success = Completed
+        isSuccess = record.completedTaskIds.contains(taskId);
+      } else {
+        // Overall: Success = Score > 0.8 OR Cheat Day
+        isSuccess = (record.completionScore >= 0.8 || record.cheatUsed);
+      }
+
+      if (isSuccess) {
+        tempStreak++;
+        if (tempStreak > longestStreak) longestStreak = tempStreak;
+        
+        // Check for recovery: was the previous day a miss?
+        if (i > 0) {
+          final prevRecord = sortedRecords[i-1];
+          bool prevIsMiss;
+          if (taskId != null) {
+            prevIsMiss = !prevRecord.completedTaskIds.contains(taskId) && !prevRecord.cheatUsed;
+          } else {
+            prevIsMiss = prevRecord.completionScore < 0.5 && !prevRecord.cheatUsed;
+          }
+
+          if (prevIsMiss) {
+            successfulRecoveries++;
+          }
+        }
+      } else {
+        // If not success AND not a cheat day, it's a miss
+        if (!record.cheatUsed) {
+          totalMisses++;
+          tempStreak = 0;
+        }
+        // Cheat days keep the streak alive but don't increment it (Standard behavior)
+      }
+    }
+
+    // Current Streak: Count backwards from latest
+    currentStreak = 0;
+    for (int i = sortedRecords.length - 1; i >= 0; i--) {
+      final record = sortedRecords[i];
+      bool isSuccess;
+      if (taskId != null) {
+        isSuccess = record.completedTaskIds.contains(taskId);
+      } else {
+        isSuccess = (record.completionScore >= 0.8 || record.cheatUsed);
+      }
+
+      if (isSuccess) {
+        currentStreak++;
+      } else if (!record.cheatUsed) {
+        break;
+      }
+    }
+
+    double recoveryRate = totalMisses > 0 ? (successfulRecoveries / totalMisses) : 1.0;
+
+    return AnalyticsResult(
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+      recoveryRate: recoveryRate,
+    );
+  }
+}
+
+class AnalyticsResult {
+  final int currentStreak;
+  final int longestStreak;
+  final double recoveryRate;
+
+  AnalyticsResult({
+    required this.currentStreak,
+    required this.longestStreak,
+    required this.recoveryRate,
+  });
+
+  factory AnalyticsResult.empty() => AnalyticsResult(
+    currentStreak: 0,
+    longestStreak: 0,
+    recoveryRate: 1.0,
+  );
 }
 
 class ScoreResult {
