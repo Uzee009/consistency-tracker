@@ -60,7 +60,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
           decoration: BoxDecoration(
             color: isSelected 
                 ? (isDark ? Colors.white : Colors.black)
-                : (isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02)),
+                : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02)),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected ? Colors.transparent : Colors.transparent,
@@ -74,7 +74,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 size: 20,
                 color: isSelected 
                     ? (isDark ? Colors.black : Colors.white)
-                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 8),
               Text(
@@ -85,7 +85,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                   letterSpacing: 0.5,
                   color: isSelected 
                       ? (isDark ? Colors.black : Colors.white)
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
             ],
@@ -115,7 +115,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 4,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                 ),
               ),
               const SizedBox(height: 64),
@@ -138,7 +138,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
               const SizedBox(height: 12),
@@ -148,7 +148,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 decoration: InputDecoration(
                   hintText: 'John Doe',
-                  fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
+                  fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
                 ),
                 textCapitalization: TextCapitalization.words,
               ),
@@ -161,7 +161,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
               const SizedBox(height: 16),
@@ -191,7 +191,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                   fontWeight: FontWeight.w500,
                 ),
               ),

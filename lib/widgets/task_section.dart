@@ -55,7 +55,7 @@ class TaskSection extends StatelessWidget {
         border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -75,7 +75,7 @@ class TaskSection extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
                 Row(
@@ -112,7 +112,7 @@ class TaskSection extends StatelessWidget {
                 ? Center(
                     child: Text(
                       'No tasks yet',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2), fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2), fontSize: 13),
                     ),
                   )
                 : ListView.builder(
@@ -156,7 +156,7 @@ class TaskSection extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onPressed,

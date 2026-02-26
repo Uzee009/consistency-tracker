@@ -55,7 +55,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Task "${taskName}" updated!')),
+            SnackBar(content: Text('Task "$taskName" updated!')),
           );
           Navigator.of(context).pop();
         }

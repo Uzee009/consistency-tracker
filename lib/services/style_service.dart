@@ -13,7 +13,7 @@ class StyleService {
 
   static Color getDailyTaskBg(VisualStyle style, bool isDark) {
     if (style == VisualStyle.vibrant) {
-      return isDark ? const Color(0xFF1E3A8A).withOpacity(0.3) : const Color(0xFFE0F2FE); // Blue 900 : 100
+      return isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFE0F2FE); // Blue 900 : 100
     }
     return isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5); // Zinc 900 : 100
   }
@@ -22,12 +22,12 @@ class StyleService {
     if (style == VisualStyle.vibrant) {
       return isDark ? const Color(0xFF3B82F6) : const Color(0xFF7DD3FC); // Blue 500 : 300
     }
-    return isDark ? Colors.white10 : Colors.black.withOpacity(0.05);
+    return isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05);
   }
 
   static Color getTempTaskBg(VisualStyle style, bool isDark) {
     if (style == VisualStyle.vibrant) {
-      return isDark ? const Color(0xFF713F12).withOpacity(0.3) : const Color(0xFFFEF9C3); // Yellow 900 : 100
+      return isDark ? const Color(0xFF713F12).withValues(alpha: 0.3) : const Color(0xFFFEF9C3); // Yellow 900 : 100
     }
     return isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5);
   }
@@ -36,7 +36,7 @@ class StyleService {
     if (style == VisualStyle.vibrant) {
       return isDark ? const Color(0xFFEAB308) : const Color(0xFFFDE047); // Yellow 500 : 300
     }
-    return isDark ? Colors.white10 : Colors.black.withOpacity(0.05);
+    return isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05);
   }
 
   static Color getHeatmapBg(VisualStyle style, bool isDark) {

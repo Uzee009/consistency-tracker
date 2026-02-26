@@ -102,7 +102,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -144,7 +144,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                       Container(
                         padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
                         ),
@@ -166,7 +166,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                               child: Icon(
                                 Icons.close_rounded,
                                 size: 14,
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -251,7 +251,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   Container(
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
@@ -359,14 +359,25 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
          } else {
             final int intensity = widget.heatmapData[DateTime(dDate.year, dDate.month, dDate.day)] ?? 0;
             Color cellColor;
-            if (intensity == -1) cellColor = Colors.orange[400]!;
-            else if (intensity == -2) cellColor = const Color(0xFF10B981);
-            else if (intensity == 1) cellColor = const Color(0xFFD1FAE5);
-            else if (intensity == 2) cellColor = const Color(0xFFA7F3D0);
-            else if (intensity == 3) cellColor = const Color(0xFF6EE7B7);
-            else if (intensity == 4) cellColor = const Color(0xFF34D399);
-            else if (intensity == 5) cellColor = const Color(0xFF10B981);
-            else cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
+            
+            // This part was just for reference, fixing actual linting issues below
+            if (intensity == -1) {
+              cellColor = Colors.orange[400]!;
+            } else if (intensity == -2) {
+              cellColor = const Color(0xFF10B981);
+            } else if (intensity == 1) {
+              cellColor = const Color(0xFFD1FAE5);
+            } else if (intensity == 2) {
+              cellColor = const Color(0xFFA7F3D0);
+            } else if (intensity == 3) {
+              cellColor = const Color(0xFF6EE7B7);
+            } else if (intensity == 4) {
+              cellColor = const Color(0xFF34D399);
+            } else if (intensity == 5) {
+              cellColor = const Color(0xFF10B981);
+            } else {
+              cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
+            }
             
             final bool isSelected = widget.selectedDate != null && 
                 dDate.year == widget.selectedDate!.year && 
@@ -572,15 +583,23 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           final int intensity = widget.heatmapData[DateTime(day.year, day.month, day.day)] ?? 0;
           Color cellColor;
 
-          if (intensity == -1) cellColor = Colors.orange[400]!;
-          else if (intensity == -2) cellColor = const Color(0xFF10B981);
-          else if (intensity == 1) cellColor = const Color(0xFFD1FAE5);
-          else if (intensity == 2) cellColor = const Color(0xFFA7F3D0);
-          else if (intensity == 3) cellColor = const Color(0xFF6EE7B7);
-          else if (intensity == 4) cellColor = const Color(0xFF34D399);
-          else if (intensity == 5) cellColor = const Color(0xFF10B981);
-          else cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
-
+                      if (intensity == -1) {
+                        cellColor = Colors.orange[400]!;
+                      } else if (intensity == -2) {
+                        cellColor = const Color(0xFF10B981);
+                      } else if (intensity == 1) {
+                        cellColor = const Color(0xFFD1FAE5);
+                      } else if (intensity == 2) {
+                        cellColor = const Color(0xFFA7F3D0);
+                      } else if (intensity == 3) {
+                        cellColor = const Color(0xFF6EE7B7);
+                      } else if (intensity == 4) {
+                        cellColor = const Color(0xFF34D399);
+                      } else if (intensity == 5) {
+                        cellColor = const Color(0xFF10B981);
+                      } else {
+                        cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
+                      }
           final bool isSelected = widget.selectedDate != null && 
               day.year == widget.selectedDate!.year && 
               day.month == widget.selectedDate!.month && 
@@ -647,13 +666,13 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: showHighlight 
-                ? (isDark ? Colors.white10 : Colors.black.withOpacity(0.05))
+                ? (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05))
                 : Colors.transparent, 
               width: 1,
             ),
             boxShadow: showHighlight ? [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),

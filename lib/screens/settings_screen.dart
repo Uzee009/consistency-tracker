@@ -114,7 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Customize how the application looks.',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -126,14 +126,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF4F4F5),
+                    color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF4F4F5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ValueListenableBuilder<ThemeMode>(
@@ -172,14 +172,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF4F4F5),
+                    color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF4F4F5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ValueListenableBuilder<VisualStyle>(
@@ -224,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Manage your identity and preferences.',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -236,7 +236,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -255,14 +255,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF4F4F5),
+                    color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF4F4F5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -297,7 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Maximum number of cheat days allowed per month.',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                 ),
                 
@@ -312,7 +312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text(
                     'Cancel',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                       fontWeight: FontWeight.w600,
                     ),
                   ),

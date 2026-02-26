@@ -337,12 +337,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (_todayRecord.completedTaskIds.isNotEmpty)
                           Tooltip(
                             message: 'Cheat Day locked (tasks completed)',
-                            child: Icon(Icons.lock_outline, size: 12, color: Colors.orange.withOpacity(0.6)),
+                            child: Icon(Icons.lock_outline, size: 12, color: Colors.orange.withValues(alpha: 0.6)),
                           ),
                         const SizedBox(width: 4),
                         Text(
                           'Tokens: ${(_currentUser!.monthlyCheatDays - _cheatDaysUsed).clamp(0, _currentUser!.monthlyCheatDays)}',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                         ),
                       ],
                     ),
@@ -420,10 +420,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
-                                color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.01),
+                                color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
                                 ),
                               ),
                               child: const Center(

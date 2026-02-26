@@ -70,12 +70,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           const SizedBox(height: 8),
           Text(
             'Define your new consistency goal below.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontSize: 14),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 14),
           ),
           const SizedBox(height: 24),
           Text(
             'Task Name',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -92,7 +92,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
               ),
@@ -101,9 +101,10 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   'Permanent Task',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                 ),
-                subtitle: Text('Does not expire', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4))),
+                subtitle: Text('Does not expire', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
                 value: _isPerpetual,
-                activeColor: isDark ? Colors.white : Colors.black,
+                activeTrackColor: isDark ? Colors.white : Colors.black,
+                inactiveTrackColor: isDark ? Colors.white10 : Colors.black12,
                 onChanged: (value) => setState(() => _isPerpetual = value),
               ),
             ),
@@ -111,7 +112,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               const SizedBox(height: 20),
               Text(
                 'Duration in Days',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -136,7 +137,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                   ),
-                  child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4))),
+                  child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
                 ),
               ),
               const SizedBox(width: 12),

@@ -26,10 +26,10 @@ class UserMenu extends StatelessWidget {
       child: PopupMenuButton<String>(
         offset: const Offset(0, 45),
         elevation: 10,
-        shadowColor: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
+        shadowColor: Colors.black.withValues(alpha: isDark ? 0.5 : 0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+          side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
         ),
         color: isDark ? const Color(0xFF18181B) : Colors.white,
         onSelected: (value) async {
@@ -76,14 +76,14 @@ class UserMenu extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(width: 4),
                       Icon(
                         Icons.copy_rounded,
                         size: 10,
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                       ),
                     ],
                   ),
@@ -102,11 +102,11 @@ class UserMenu extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
           child: CircleAvatar(
             radius: 14,
-            backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            backgroundColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
             child: Icon(
               Icons.person_outline_rounded,
               size: 18,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -120,7 +120,7 @@ class UserMenu extends StatelessWidget {
         Icon(
           icon,
           size: 16,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
         const SizedBox(width: 10),
         Text(
