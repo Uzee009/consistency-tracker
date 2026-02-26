@@ -113,6 +113,17 @@ class ScoringService {
     }
     return data;
   }
+
+  static Map<DateTime, int> mapTaskRecordsToHeatmapData(List<DayRecord> records) {
+    final Map<DateTime, int> data = {};
+    for (var record in records) {
+      final date = DateTime.parse(record.date);
+      final cleanDate = DateTime(date.year, date.month, date.day);
+      // For a single task, it's binary: 5 (Completed) or 0 (Empty)
+      data[cleanDate] = 5; 
+    }
+    return data;
+  }
 }
 
 class ScoreResult {

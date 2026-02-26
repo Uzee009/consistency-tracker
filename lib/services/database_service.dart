@@ -237,6 +237,20 @@ class DatabaseService {
     });
   }
 
+  Future<List<DayRecord>> getTaskHistory(int taskId) async {
+    Database db = await instance.database;
+    // We fetch all records and filter in Dart for simplicity since task IDs are stored in a CSV string
+    // In a massive DB we would use LIKE '%taskId%', but for local mobile/desktop this is fine.
+    List<Map<String, dynamic>> maps = await db.query(
+      dayRecordsTable,
+      orderBy: 'date ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return DayRecord.fromMap(maps[i]);
+    }).where((record) => record.completedTaskIds.contains(taskId)).toList();
+  }
+
   // --- Cheat Day Management ---
   Future<int> getCheatDaysUsed(String yearMonth) async {
     final db = await database;

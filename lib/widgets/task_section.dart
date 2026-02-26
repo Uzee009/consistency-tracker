@@ -16,6 +16,7 @@ class TaskSection extends StatelessWidget {
   final Function(Task) onToggleSkip;
   final Function(Task) onEdit;
   final Function(Task) onDelete;
+  final Function(Task) onTaskFocusRequested;
 
   const TaskSection({
     super.key,
@@ -29,6 +30,7 @@ class TaskSection extends StatelessWidget {
     required this.onToggleSkip,
     required this.onEdit,
     required this.onDelete,
+    required this.onTaskFocusRequested,
   });
 
   @override
@@ -132,6 +134,7 @@ class TaskSection extends StatelessWidget {
                         onToggleSkip: () => onToggleSkip(task),
                         onEdit: () => onEdit(task),
                         onDelete: () => onDelete(task),
+                        onFocusRequested: () => onTaskFocusRequested(task),
                       );
                     },
                   ),

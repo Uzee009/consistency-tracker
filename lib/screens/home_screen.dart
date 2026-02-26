@@ -31,21 +31,22 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _currentUser;
   int _cheatDaysUsed = 0;
   Map<DateTime, int> _heatmapData = {};
+  DateTime _selectedDate = DateTime.now();
+  Task? _focusedTask;
 
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    _initializeData(_selectedDate);
   }
 
-  void _initializeData() async {
-    final today = DateTime.now();
-    final todayFormatted =
-        "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-    final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
+  void _initializeData(DateTime date) async {
+    final dateFormatted =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final yearMonth = "${date.year}-${date.month.toString().padLeft(2, '0')}";
 
-    final record = await DatabaseService.instance.getDayRecord(todayFormatted) ??
-        DayRecord(date: todayFormatted, completedTaskIds: [], skippedTaskIds: []);
+    final record = await DatabaseService.instance.getDayRecord(dateFormatted) ??
+        DayRecord(date: dateFormatted, completedTaskIds: [], skippedTaskIds: []);
 
     final users = await DatabaseService.instance.getAllUsers();
     User? currentUser;
@@ -55,14 +56,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final cheatUsed = await DatabaseService.instance.getCheatDaysUsed(yearMonth);
     
-    // Load heatmap data before setting state to ensure smooth transition
-    final records = await DatabaseService.instance.getDayRecords(limit: 366);
-    final heatmapData = ScoringService.mapRecordsToHeatmapData(records);
+    // Determine Heatmap Data: Global vs Focused Task
+    Map<DateTime, int> heatmapData;
+    if (_focusedTask != null) {
+      final taskHistory = await DatabaseService.instance.getTaskHistory(_focusedTask!.id);
+      heatmapData = ScoringService.mapTaskRecordsToHeatmapData(taskHistory);
+    } else {
+      final records = await DatabaseService.instance.getDayRecords(limit: 366);
+      heatmapData = ScoringService.mapRecordsToHeatmapData(records);
+    }
 
-    final tasks = await DatabaseService.instance.getActiveTasksForDate(today);
+    final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
 
     if (mounted) {
       setState(() {
+        _selectedDate = date;
         _todayRecord = record;
         _currentUser = currentUser;
         _cheatDaysUsed = cheatUsed;
@@ -70,6 +78,25 @@ class _HomeScreenState extends State<HomeScreen> {
         _todaysTasks = tasks;
       });
     }
+  }
+
+  void _onTaskFocusRequested(Task task) {
+    setState(() {
+      _focusedTask = task;
+    });
+    _initializeData(_selectedDate);
+  }
+
+  void _onClearFocus() {
+    setState(() {
+      _focusedTask = null;
+    });
+    _initializeData(_selectedDate);
+  }
+
+  void _onDateSelected(DateTime date) {
+    if (date.isAfter(DateTime.now())) return; // Prevent selecting future dates
+    _initializeData(date);
   }
 
   void _toggleTaskCompletion(Task task, bool? isCompleted) async {
@@ -163,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     await DatabaseService.instance.createOrUpdateDayRecord(_todayRecord);
-    _initializeData();
+    _initializeData(_selectedDate);
   }
 
   void _editTask(Task task) async {
@@ -171,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => TaskFormScreen(task: task)),
     );
     await _refreshTodayRecord();
-    _initializeData();
+    _initializeData(_selectedDate);
   }
 
   void _deleteTask(Task task) async {
@@ -194,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirm == true) {
       await DatabaseService.instance.deleteTask(task.id);
       await _refreshTodayRecord();
-      _initializeData();
+      _initializeData(_selectedDate);
     }
   }
 
@@ -275,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
         type: type,
         onTaskAdded: () async {
           await _refreshTodayRecord();
-          _initializeData();
+          _initializeData(_selectedDate);
         },
       ),
     );
@@ -314,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               UserMenu(
                 currentUser: _currentUser,
-                onSettingsReturn: _initializeData,
+                onSettingsReturn: () => _initializeData(_selectedDate),
               ),
             ],
           ),
@@ -336,6 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onToggleSkip: _toggleTaskSkip,
                         onEdit: _editTask,
                         onDelete: _deleteTask,
+                        onTaskFocusRequested: _onTaskFocusRequested,
                       ),
                     ),
                     Expanded(
@@ -349,6 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onToggleSkip: _toggleTaskSkip,
                         onEdit: _editTask,
                         onDelete: _deleteTask,
+                        onTaskFocusRequested: _onTaskFocusRequested,
                       ),
                     ),
                   ],
@@ -360,7 +389,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       flex: 3,
-                      child: ConsistencyHeatmap(heatmapData: _heatmapData),
+                      child: ConsistencyHeatmap(
+                        heatmapData: _heatmapData,
+                        selectedDate: _selectedDate,
+                        onDateSelected: _onDateSelected,
+                        focusedTaskName: _focusedTask?.name,
+                        onClearFocus: _onClearFocus,
+                      ),
                     ),
                     const Expanded(
                       flex: 1,
