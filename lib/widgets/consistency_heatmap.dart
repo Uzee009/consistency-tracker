@@ -691,16 +691,24 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             child: dynamicDayLabelColumn,
           ),
           Flexible(
-            child: SingleChildScrollView(
-              controller: _heatmapScrollController,
-              scrollDirection: Axis.horizontal,
-              physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
-              child: Container(
-                width: shouldScroll ? null : availableWidth - 25.0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: dynamicMonthWidgets,
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                },
+              ),
+              child: SingleChildScrollView(
+                controller: _heatmapScrollController,
+                scrollDirection: Axis.horizontal,
+                physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                child: Container(
+                  width: shouldScroll ? null : availableWidth - 25.0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: dynamicMonthWidgets,
+                  ),
                 ),
               ),
             ),
