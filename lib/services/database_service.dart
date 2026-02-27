@@ -173,17 +173,27 @@ class DatabaseService {
 
     List<Task> allTasks = List.generate(maps.length, (i) => Task.fromMap(maps[i]));
     
+    // Normalize target date to midnight for comparison
+    final targetDate = DateTime(date.year, date.month, date.day);
+
     return allTasks.where((task) {
+      final taskCreatedDate = DateTime(task.createdAt.year, task.createdAt.month, task.createdAt.day);
+
+      // Rule 1: A task cannot exist BEFORE its creation date
+      if (targetDate.isBefore(taskCreatedDate)) {
+        return false;
+      }
+
       if (task.type == TaskType.temporary) {
-        return task.createdAt.year == date.year &&
-               task.createdAt.month == date.month &&
-               task.createdAt.day == date.day;
+        // Temporary tasks only appear on their EXACT creation day
+        return targetDate.isAtSameMomentAs(taskCreatedDate);
       } else if (task.type == TaskType.daily) {
+        // Daily tasks appear if they are perpetual OR within their duration window
         if (task.isPerpetual) {
           return true;
         }
-        final expirationDate = task.createdAt.add(Duration(days: task.durationDays));
-        return date.isBefore(expirationDate);
+        final expirationDate = taskCreatedDate.add(Duration(days: task.durationDays));
+        return targetDate.isBefore(expirationDate);
       }
       return false;
     }).toList();
