@@ -167,8 +167,11 @@ class ScoringService {
           // Global totals: completions only
           if (taskTypeMap != null) {
             for (var id in record.completedTaskIds) {
-              if (taskTypeMap[id] == TaskType.daily) totalDailyCompleted++;
-              else if (taskTypeMap[id] == TaskType.temporary) totalTempCompleted++;
+              if (taskTypeMap[id] == TaskType.daily) {
+                totalDailyCompleted++;
+              } else if (taskTypeMap[id] == TaskType.temporary) {
+                totalTempCompleted++;
+              }
             }
           }
         }
@@ -216,9 +219,12 @@ class ScoringService {
       } else if (isCheat || isSkipped) {
         // Preserve
       } else {
-        if (!foundLastActivity && i == totalDays) isAtRisk = true;
-        if (hasFailedOnce) break; 
-        else {
+        if (!foundLastActivity && i == totalDays) {
+          isAtRisk = true;
+        }
+        if (hasFailedOnce) {
+          break; 
+        } else {
           hasFailedOnce = true;
           foundLastActivity = true;
         }
@@ -387,14 +393,18 @@ class ScoringService {
     for (int i = 0; i < points.length; i += bucketSize) {
       int end = (i + bucketSize < points.length) ? i + bucketSize : points.length;
       double avg = 0;
-      for (int j = i; j < end; j++) avg += points[j].value;
+      for (int j = i; j < end; j++) {
+        avg += points[j].value;
+      }
       bucketed.add(MomentumPoint(date: points[i].date, value: avg / (end - i)));
     }
     return bucketed;
   }
 
   static List<VolumePoint> _bucketVolume(List<VolumePoint> points, String range) {
-    if (range == '1M') return points;
+    if (range == '1M') {
+      return points;
+    }
     
     List<VolumePoint> bucketed = [];
     int bucketSize = (range == '1Y') ? 30 : 7;
@@ -402,7 +412,9 @@ class ScoringService {
     for (int i = 0; i < points.length; i += bucketSize) {
       int end = (i + bucketSize < points.length) ? i + bucketSize : points.length;
       int total = 0;
-      for (int j = i; j < end; j++) total += points[j].count;
+      for (int j = i; j < end; j++) {
+        total += points[j].count;
+      }
       bucketed.add(VolumePoint(date: points[i].date, count: total));
     }
     return bucketed;

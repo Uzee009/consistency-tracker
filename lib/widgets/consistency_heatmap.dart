@@ -725,7 +725,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 controller: _heatmapScrollController,
                 scrollDirection: Axis.horizontal,
                 physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
-                child: Container(
+                child: SizedBox(
                   width: shouldScroll ? null : availableWidth - 25.0,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.start,

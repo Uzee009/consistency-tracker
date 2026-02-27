@@ -343,7 +343,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return ValueListenableBuilder<VisualStyle>(
       valueListenable: styleNotifier,
       builder: (context, style, _) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Scaffold(
           appBar: AppBar(
             title: const Text('CONSISTENCY'),
