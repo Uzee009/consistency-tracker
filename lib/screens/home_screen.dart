@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
   Task? _focusedTask;
   AnalyticsResult _analytics = AnalyticsResult.empty();
-  String _heatmapRange = '1Y';
+  String _heatmapRange = '1M';
   List<MomentumPoint> _momentumData = [];
   List<VolumePoint> _volumeData = [];
 
