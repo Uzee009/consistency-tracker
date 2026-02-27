@@ -92,10 +92,10 @@ class AnalyticsKPIs extends StatelessWidget {
         separator,
         _buildKPIItem(
           context,
-          label: 'RECOVERY',
-          value: '${(analytics.recoveryRate * 100).toStringAsFixed(0)}%',
-          subtitle: 'RATE',
-          color: _getRecoveryColor(analytics.recoveryRate),
+          label: '7-DAY',
+          value: '${(analytics.momentum7Day * 100).toStringAsFixed(0)}%',
+          subtitle: 'MOMENTUM',
+          color: _getConsistencyColor(analytics.momentum7Day),
         ),
       ];
     }
@@ -158,11 +158,5 @@ class AnalyticsKPIs extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _getRecoveryColor(double rate) {
-    if (rate >= 0.8) return const Color(0xFF10B981); // Green
-    if (rate >= 0.5) return Colors.orange[400]!;     // Orange
-    return Colors.red[400]!;                         // Red
   }
 }

@@ -147,14 +147,8 @@ class ScoringService {
     int tempStreak = 0;
     int totalDailyCompleted = 0;
     int totalTempCompleted = 0;
-    int taskSuccessCount = 0;
     
-    // Recovery stats logic
-    int totalMisses = 0;
-    int successfulRecoveries = 0;
-    bool lastWasMiss = false;
-
-    // 2. Iterate through every single CALENDAR day to find gaps
+    // 2. Forward Pass: Global Totals and Longest Streak
     for (int i = 0; i <= totalDays; i++) {
       final date = startDate.add(Duration(days: i));
       final dateStr = date.toIso8601String().split('T')[0];
@@ -168,7 +162,6 @@ class ScoringService {
           isSuccess = record.completedTaskIds.contains(taskId);
         } else {
           isSuccess = record.completionScore >= 0.8;
-          // Count global totals only when record exists
           if (taskTypeMap != null) {
             for (var id in record.completedTaskIds) {
               if (taskTypeMap[id] == TaskType.daily) totalDailyCompleted++;
@@ -181,71 +174,73 @@ class ScoringService {
 
       if (isSuccess) {
         tempStreak++;
-        if (taskId != null) taskSuccessCount++;
         if (tempStreak > longestStreak) longestStreak = tempStreak;
-        
-        if (lastWasMiss) {
-          successfulRecoveries++;
-          lastWasMiss = false;
-        }
-      } else if (isCheat) {
-        // Cheat Day: Streak is preserved (tempStreak stays same)
-        lastWasMiss = false; 
-      } else {
-        // Real Miss (or missing data gap)
+      } else if (!isCheat) {
         tempStreak = 0;
-        totalMisses++;
-        lastWasMiss = true;
       }
     }
 
-    // 3. Current Streak (Count backwards from today)
-    currentStreak = 0;
+    // 3. Current Streak and At-Risk (Backward Pass)
     bool isAtRisk = false;
-    // For current streak, we only look at the tempStreak from the end of our loop 
-    // IF the loop reached today.
-    currentStreak = tempStreak;
+    bool hasFailedOnce = false;
+    bool foundLastActivity = false;
 
-    // Determine "At Risk" (Binary version): 
-    // If today is not done yet, but yesterday was, it's "At Risk"
-    final todayStr = endDate.toIso8601String().split('T')[0];
-    final todayRecord = recordMap[todayStr];
-    bool todayDone = false;
-    if (todayRecord != null) {
-      todayDone = taskId != null ? todayRecord.completedTaskIds.contains(taskId) : todayRecord.completionScore >= 0.8;
-    }
+    for (int i = totalDays; i >= 0; i--) {
+      final date = startDate.add(Duration(days: i));
+      final dateStr = date.toIso8601String().split('T')[0];
+      final record = recordMap[dateStr];
 
-    if (!todayDone) {
-      // If we haven't finished today, the currentStreak we have is actually from yesterday
-      // So we show it as "At Risk"
-      if (currentStreak > 0) {
-        isAtRisk = true;
+      bool isSuccess = false;
+      bool isCheat = false;
+      if (record != null) {
+        isSuccess = taskId != null ? record.completedTaskIds.contains(taskId) : record.completionScore >= 0.8;
+        isCheat = record.cheatUsed;
+      }
+
+      if (isSuccess) {
+        currentStreak++;
+        hasFailedOnce = false;
+        foundLastActivity = true;
+      } else if (isCheat) {
+        // Preserve
+      } else {
+        if (!foundLastActivity && i == totalDays) isAtRisk = true;
+        if (hasFailedOnce) break; 
+        else {
+          hasFailedOnce = true;
+          foundLastActivity = true;
+        }
       }
     }
 
-    double recoveryRate = totalMisses > 0 ? (successfulRecoveries / totalMisses) : 1.0;
-    
-    // 4. Rolling 30-Day Consistency Rate
+    // 4. Rolling Windows: 7-Day Momentum and 30-Day Consistency
+    int completionsInLast7 = 0;
     int completionsInLast30 = 0;
-    int daysToCheck = totalDays + 1 < 30 ? totalDays + 1 : 30;
     
-    for (int i = 0; i < daysToCheck; i++) {
+    for (int i = 0; i < 30; i++) {
       final date = endDate.subtract(Duration(days: i));
       final dateStr = date.toIso8601String().split('T')[0];
       final record = recordMap[dateStr];
+      
       if (record != null) {
         bool isSuccess = taskId != null 
             ? record.completedTaskIds.contains(taskId) 
             : record.completionScore >= 0.8;
-        if (isSuccess) completionsInLast30++;
+        
+        if (isSuccess) {
+          if (i < 7) completionsInLast7++;
+          completionsInLast30++;
+        }
       }
     }
-    double consistencyRate = completionsInLast30 / daysToCheck;
+
+    double momentum7Day = completionsInLast7 / 7.0;
+    double consistencyRate = completionsInLast30 / 30.0;
 
     return AnalyticsResult(
       currentStreak: currentStreak,
       longestStreak: longestStreak,
-      recoveryRate: recoveryRate,
+      momentum7Day: momentum7Day,
       isAtRisk: isAtRisk,
       totalDailyCompleted: totalDailyCompleted,
       totalTempCompleted: totalTempCompleted,
@@ -257,7 +252,7 @@ class ScoringService {
 class AnalyticsResult {
   final int currentStreak;
   final int longestStreak;
-  final double recoveryRate;
+  final double momentum7Day;
   final bool isAtRisk;
   final int totalDailyCompleted;
   final int totalTempCompleted;
@@ -266,7 +261,7 @@ class AnalyticsResult {
   AnalyticsResult({
     required this.currentStreak,
     required this.longestStreak,
-    required this.recoveryRate,
+    required this.momentum7Day,
     this.isAtRisk = false,
     this.totalDailyCompleted = 0,
     this.totalTempCompleted = 0,
@@ -276,7 +271,7 @@ class AnalyticsResult {
   factory AnalyticsResult.empty() => AnalyticsResult(
     currentStreak: 0,
     longestStreak: 0,
-    recoveryRate: 1.0,
+    momentum7Day: 0.0,
     isAtRisk: false,
   );
 }
