@@ -60,17 +60,20 @@ class _HomeScreenState extends State<HomeScreen> {
     // Fetch records for analytics and heatmap
     final allRecords = await DatabaseService.instance.getDayRecords(limit: 366);
     
+    // Build a map of Task IDs to types for global analytics
+    final allTasks = await DatabaseService.instance.getAllTasks();
+    final taskTypeMap = {for (var t in allTasks) t.id: t.type};
+
     // Determine Heatmap Data and Analytics: Global vs Focused Task
     Map<DateTime, int> heatmapData;
     AnalyticsResult analytics;
 
     if (_focusedTask != null) {
-      final taskHistory = await DatabaseService.instance.getTaskHistory(_focusedTask!.id);
-      heatmapData = ScoringService.mapTaskRecordsToHeatmapData(taskHistory);
-      analytics = ScoringService.calculateAnalytics(taskHistory, taskId: _focusedTask!.id);
+      heatmapData = ScoringService.mapTaskRecordsToHeatmapData(allRecords, _focusedTask!.id);
+      analytics = ScoringService.calculateAnalytics(allRecords, taskId: _focusedTask!.id);
     } else {
       heatmapData = ScoringService.mapRecordsToHeatmapData(allRecords);
-      analytics = ScoringService.calculateAnalytics(allRecords);
+      analytics = ScoringService.calculateAnalytics(allRecords, taskTypeMap: taskTypeMap);
     }
 
     final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
@@ -412,7 +415,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Expanded(
                             flex: 2, // 20% of this section
-                            child: AnalyticsKPIs(analytics: _analytics, isHorizontal: true),
+                            child: AnalyticsKPIs(
+                              analytics: _analytics, 
+                              isHorizontal: true,
+                              isFocused: _focusedTask != null,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Expanded(
