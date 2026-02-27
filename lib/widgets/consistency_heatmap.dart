@@ -9,10 +9,14 @@ class ConsistencyHeatmap extends StatefulWidget {
   final DateTime? selectedDate;
   final String? focusedTaskName;
   final VoidCallback? onClearFocus;
+  final String selectedRange;
+  final Function(String) onRangeChanged;
 
   const ConsistencyHeatmap({
     super.key,
     required this.heatmapData,
+    required this.selectedRange,
+    required this.onRangeChanged,
     this.onDateSelected,
     this.selectedDate,
     this.focusedTaskName,
@@ -26,7 +30,6 @@ class ConsistencyHeatmap extends StatefulWidget {
 class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   final ScrollController _heatmapScrollController = ScrollController();
   bool _hasInitialScrolled = false;
-  String _heatmapRange = '1Y';
   bool _isReportMode = false;
   DateTime _current1MDate = DateTime.now();
 
@@ -256,10 +259,10 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     ),
                     child: Row(
                       children: ['1M', '3M', '6M', '1Y'].map((range) {
-                        final isSelected = _heatmapRange == range;
+                        final isSelected = widget.selectedRange == range;
                         return GestureDetector(
                           onTap: () {
-                            setState(() => _heatmapRange = range);
+                            widget.onRangeChanged(range);
                             _scrollToCurrentMonth();
                           },
                           child: AnimatedContainer(
@@ -296,12 +299,12 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   Widget _buildHeatmapGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (_heatmapRange == '1M') {
+        if (widget.selectedRange == '1M') {
           return _build1MView(constraints);
-        } else if (_heatmapRange == '3M') {
+        } else if (widget.selectedRange == '3M') {
           return _buildGenericView(constraints, 3, is1M: true, showCurrentMonthHighlight: true);
         } else {
-          return _buildGenericView(constraints, _heatmapRange == '6M' ? 6 : 12);
+          return _buildGenericView(constraints, widget.selectedRange == '6M' ? 6 : 12);
         }
       },
     );
@@ -499,7 +502,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
       if (_isReportMode) {
         targetDate = DateTime(today.year, today.month - (monthsCount - 1 - i), 1);
       } else {
-        if (_heatmapRange == '1Y') {
+        if (widget.selectedRange == '1Y') {
           targetDate = DateTime(today.year, i + 1, 1);
         } else {
           targetDate = DateTime(today.year, today.month + i, 1);
@@ -554,7 +557,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
       if (_isReportMode) {
         targetDate = DateTime(today.year, today.month - (monthsCount - 1 - i), 1);
       } else {
-        if (_heatmapRange == '1Y') {
+        if (widget.selectedRange == '1Y') {
           targetDate = DateTime(today.year, i + 1, 1);
         } else {
           targetDate = DateTime(today.year, today.month + i, 1);

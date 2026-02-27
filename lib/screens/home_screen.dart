@@ -11,6 +11,7 @@ import 'package:consistency_tracker_v1/widgets/consistency_heatmap.dart';
 import 'package:consistency_tracker_v1/widgets/add_task_bottom_sheet.dart';
 import 'package:consistency_tracker_v1/widgets/task_section.dart';
 import 'package:consistency_tracker_v1/widgets/analytics_kpis.dart';
+import 'package:consistency_tracker_v1/widgets/analytics_carousel.dart';
 import 'package:consistency_tracker_v1/widgets/user_menu.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/main.dart';
@@ -34,6 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
   Task? _focusedTask;
   AnalyticsResult _analytics = AnalyticsResult.empty();
+  String _heatmapRange = '1Y';
+  List<MomentumPoint> _momentumData = [];
+  List<VolumePoint> _volumeData = [];
 
   @override
   void initState() {
@@ -76,6 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
       analytics = ScoringService.calculateAnalytics(allRecords, taskTypeMap: taskTypeMap);
     }
 
+    // Graph Data
+    final momentumData = ScoringService.calculateMomentumData(
+      allRecords, 
+      _heatmapRange, 
+      taskId: _focusedTask?.id
+    );
+    final volumeData = ScoringService.calculateVolumeData(
+      allRecords, 
+      _heatmapRange, 
+      taskTypeMap
+    );
+
     final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
 
     if (mounted) {
@@ -87,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _heatmapData = heatmapData;
         _todaysTasks = tasks;
         _analytics = analytics;
+        _momentumData = momentumData;
+        _volumeData = volumeData;
       });
     }
   }
@@ -407,6 +425,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         onDateSelected: _onDateSelected,
                         focusedTaskName: _focusedTask?.name,
                         onClearFocus: _onClearFocus,
+                        selectedRange: _heatmapRange,
+                        onRangeChanged: (range) {
+                          setState(() => _heatmapRange = range);
+                          _initializeData(_selectedDate);
+                        },
                       ),
                     ),
                     Expanded(
@@ -424,21 +447,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 8),
                           Expanded(
                             flex: 8, // 80% of this section
-                            child: Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                                ),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'GRAPH CAROUSEL PLACEHOLDER',
-                                  style: TextStyle(fontSize: 8, color: Colors.grey),
-                                ),
-                              ),
+                            child: AnalyticsCarousel(
+                              momentumData: _momentumData,
+                              volumeData: _volumeData,
+                              title: _heatmapRange,
+                              focusedTaskName: _focusedTask?.name,
                             ),
                           ),
                         ],

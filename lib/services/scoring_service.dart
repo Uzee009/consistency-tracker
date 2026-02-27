@@ -273,6 +273,152 @@ class ScoringService {
       consistencyRate: consistencyRate,
     );
   }
+
+  // --- Graph Data Generation ---
+
+  static List<MomentumPoint> calculateMomentumData(
+    List<DayRecord> records, 
+    String range, {
+    int? taskId,
+  }) {
+    if (records.isEmpty) return [];
+
+    final sortedRecords = List<DayRecord>.from(records)..sort((a, b) => a.date.compareTo(b.date));
+    final Map<String, DayRecord> recordMap = {for (var r in sortedRecords) r.date: r};
+    
+    final now = DateTime.now();
+    final todayMidnight = DateTime(now.year, now.month, now.day);
+    
+    int daysToFetch;
+    switch (range) {
+      case '1M': daysToFetch = 30; break;
+      case '3M': daysToFetch = 90; break;
+      case '6M': daysToFetch = 180; break;
+      case '1Y': daysToFetch = 365; break;
+      default: daysToFetch = 30;
+    }
+
+    final startDate = todayMidnight.subtract(Duration(days: daysToFetch));
+    List<MomentumPoint> rawPoints = [];
+    double currentMomentum = 0.0;
+    const double alpha = 0.15; // Smoothing factor
+
+    // Generate daily points with EMA from the very beginning of records to normalize
+    final DateTime firstEverDate = DateTime.parse(sortedRecords.first.date);
+    final int daysSinceBeginning = todayMidnight.difference(firstEverDate).inDays;
+
+    for (int i = 0; i <= daysSinceBeginning; i++) {
+      final date = firstEverDate.add(Duration(days: i));
+      final dateStr = date.toIso8601String().split('T')[0];
+      final record = recordMap[dateStr];
+
+      double dailyPerformance = 0.0;
+      if (record != null) {
+        if (taskId != null) {
+          dailyPerformance = record.completedTaskIds.contains(taskId) ? 1.0 : 0.0;
+        } else {
+          dailyPerformance = record.completionScore;
+        }
+        
+        // If cheat day, treat performance as current momentum (stays flat)
+        if (record.cheatUsed && dailyPerformance < currentMomentum) {
+          dailyPerformance = currentMomentum;
+        }
+      }
+
+      currentMomentum = currentMomentum + alpha * (dailyPerformance - currentMomentum);
+      
+      if (date.isAfter(startDate.subtract(const Duration(days: 1)))) {
+        rawPoints.add(MomentumPoint(date: date, value: currentMomentum));
+      }
+    }
+
+    return _bucketPoints(rawPoints, range);
+  }
+
+  static List<VolumePoint> calculateVolumeData(
+    List<DayRecord> records, 
+    String range,
+    Map<int, TaskType> taskTypeMap,
+  ) {
+    if (records.isEmpty) return [];
+
+    final sortedRecords = List<DayRecord>.from(records)..sort((a, b) => a.date.compareTo(b.date));
+    final Map<String, DayRecord> recordMap = {for (var r in sortedRecords) r.date: r};
+    
+    final now = DateTime.now();
+    final todayMidnight = DateTime(now.year, now.month, now.day);
+    
+    int daysToFetch;
+    switch (range) {
+      case '1M': daysToFetch = 30; break;
+      case '3M': daysToFetch = 90; break;
+      case '6M': daysToFetch = 180; break;
+      case '1Y': daysToFetch = 365; break;
+      default: daysToFetch = 30;
+    }
+
+    final startDate = todayMidnight.subtract(Duration(days: daysToFetch));
+    List<VolumePoint> rawPoints = [];
+
+    for (int i = 0; i <= daysToFetch; i++) {
+      final date = startDate.add(Duration(days: i));
+      final dateStr = date.toIso8601String().split('T')[0];
+      final record = recordMap[dateStr];
+
+      int tempCompleted = 0;
+      if (record != null) {
+        for (var id in record.completedTaskIds) {
+          if (taskTypeMap[id] == TaskType.temporary) tempCompleted++;
+        }
+      }
+      rawPoints.add(VolumePoint(date: date, count: tempCompleted));
+    }
+
+    return _bucketVolume(rawPoints, range);
+  }
+
+  static List<MomentumPoint> _bucketPoints(List<MomentumPoint> points, String range) {
+    if (range == '1M') return points;
+    
+    List<MomentumPoint> bucketed = [];
+    int bucketSize = (range == '1Y') ? 30 : 7; // Monthly for 1Y, Weekly for 3M/6M
+
+    for (int i = 0; i < points.length; i += bucketSize) {
+      int end = (i + bucketSize < points.length) ? i + bucketSize : points.length;
+      double avg = 0;
+      for (int j = i; j < end; j++) avg += points[j].value;
+      bucketed.add(MomentumPoint(date: points[i].date, value: avg / (end - i)));
+    }
+    return bucketed;
+  }
+
+  static List<VolumePoint> _bucketVolume(List<VolumePoint> points, String range) {
+    if (range == '1M') return points;
+    
+    List<VolumePoint> bucketed = [];
+    int bucketSize = (range == '1Y') ? 30 : 7;
+
+    for (int i = 0; i < points.length; i += bucketSize) {
+      int end = (i + bucketSize < points.length) ? i + bucketSize : points.length;
+      int total = 0;
+      for (int j = i; j < end; j++) total += points[j].count;
+      bucketed.add(VolumePoint(date: points[i].date, count: total));
+    }
+    return bucketed;
+  }
+}
+
+class MomentumPoint {
+  final DateTime date;
+  final double value;
+  MomentumPoint({required this.date, required this.value});
+}
+
+class VolumePoint {
+  final DateTime date;
+  final int count;
+  VolumePoint({required this.date, required this.count});
 }
 
 class AnalyticsResult {
