@@ -234,3 +234,19 @@
     *   Established "Consult" and "Dev" operational modes in `GEMINI.md`.
     *   Fixed heatmap scrolling for Windows/Linux desktop via `ScrollConfiguration`.
     *   Cleaned up unused `StreakBoard` references and ensured the project remains stable with `flutter analyze`.
+
+## Thursday, 26 February 2026 - Session 4 (Analytics Logic Refinement & Smart KPIs)
+
+**Summary:**
+*   **Logical Rebuild:**
+    *   Completely refactored the `ScoringService` analytics to be **Calendar-Aware**. It now correctly detects gaps in the database and treats them as streak resets.
+    *   Implemented the **"Two-Day Rule"** (Never miss twice) for streaks, providing a 1-day grace period with an **"At Risk"** visual warning.
+    *   Unified the data flow: individual task views now use the full record set, enabling accurate streak preservation across cheat days and skips.
+*   **Smart KPI Implementation:**
+    *   **Global View:** Displays lifetime completion totals for Habits and Temp Tasks, along with a rolling **7-Day Momentum** score.
+    *   **Individual View:** Transitions to show Current Streak, Longest Streak, and a rolling **30-Day Consistency** rate.
+    *   Implemented **"Neutral Skips" (Option B)**: Marking a task as skipped preserves the streak but correctly lowers the activity-based momentum/consistency scores.
+*   **UI/UX Improvements:**
+    *   Updated `AnalyticsKPIs` with a dynamic color scale (Green 80%, Orange 60%, Yellow 40%, Red <40%) for a more encouraging user experience.
+    *   Fixed a critical bug where future tasks were appearing in historical dates and skewing previous scores.
+    *   Cleaned up codebase deprecations by migrating to `.withValues()` for color opacity.
