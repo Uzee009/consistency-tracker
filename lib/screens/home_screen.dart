@@ -109,6 +109,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildHeaderIconButton(
+    BuildContext context, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required Color color,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.all(6.0),
+            child: Icon(icon, size: 16, color: color),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _onTaskFocusRequested(Task task) {
     setState(() {
       _focusedTask = task;
@@ -381,32 +405,179 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: <Widget>[
                     Expanded(
-                      child: TaskSection(
-                        title: 'DAILY',
-                        type: TaskType.daily,
-                        tasks: _todaysTasks,
-                        dayRecord: _todayRecord,
-                        onAddPressed: () => _showAddTaskSheet(type: TaskType.daily),
-                        onCheatPressed: _onDeclareCheatDayPressed,
-                        onToggleCompletion: _toggleTaskCompletion,
-                        onToggleSkip: _toggleTaskSkip,
-                        onEdit: _editTask,
-                        onDelete: _deleteTask,
-                        onTaskFocusRequested: _onTaskFocusRequested,
+                      child: Container(
+                        margin: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12.0),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: DefaultTabController(
+                          length: 2,
+                          child: Builder(
+                            builder: (context) {
+                              return Column(
+                                children: [
+                                  // Header: Tabs + Buttons
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+                                    child: Row(
+                                      children: [
+                                        // ShadCN-style Tabs (Reduced width ~20%)
+                                        Expanded(
+                                          flex: 2,
+                                          child: Container(
+                                            height: 32,
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: TabBar(
+                                              tabs: const [
+                                                Tab(text: 'Daily'),
+                                                Tab(text: 'Temp'),
+                                              ],
+                                              labelStyle: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                fontFamily: 'Inter', 
+                                              ),
+                                              unselectedLabelStyle: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              indicatorSize: TabBarIndicatorSize.tab,
+                                              indicator: BoxDecoration(
+                                                color: Theme.of(context).colorScheme.surface,
+                                                borderRadius: BorderRadius.circular(6),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withValues(alpha: 0.05),
+                                                    blurRadius: 2,
+                                                    offset: const Offset(0, 1),
+                                                  ),
+                                                ],
+                                              ),
+                                              dividerColor: Colors.transparent,
+                                              labelColor: Theme.of(context).colorScheme.onSurface,
+                                              unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                              splashFactory: NoSplash.splashFactory,
+                                              overlayColor: WidgetStateProperty.all(Colors.transparent),
+                                            ),
+                                          ),
+                                        ),
+                                        const Spacer(flex: 6),
+                                        // Action Buttons
+                                        Row(
+                                          children: [
+                                            if (_todayRecord.completedTaskIds.isNotEmpty)
+                                              Tooltip(
+                                                message: 'Cheat Day locked',
+                                                child: Icon(Icons.lock_outline, size: 14, color: Colors.orange.withValues(alpha: 0.5)),
+                                              )
+                                            else
+                                              _buildHeaderIconButton(
+                                                context,
+                                                icon: Icons.celebration_outlined,
+                                                tooltip: 'Declare Cheat Day',
+                                                onPressed: _onDeclareCheatDayPressed,
+                                                color: Colors.orange[400]!,
+                                              ),
+                                            const SizedBox(width: 8),
+                                            _buildHeaderIconButton(
+                                              context,
+                                              icon: Icons.add_rounded,
+                                              tooltip: 'Add Task',
+                                              onPressed: () {
+                                                final tabController = DefaultTabController.of(context);
+                                                if (tabController != null) {
+                                                  _showAddTaskSheet(
+                                                    type: tabController.index == 0 ? TaskType.daily : TaskType.temporary
+                                                  );
+                                                }
+                                              },
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Divider(height: 1),
+                                  // Task Lists
+                                  Expanded(
+                                    child: TabBarView(
+                                      children: [
+                                        TaskSection(
+                                          title: 'DAILY',
+                                          type: TaskType.daily,
+                                          tasks: _todaysTasks,
+                                          dayRecord: _todayRecord,
+                                          onAddPressed: () {}, 
+                                          onCheatPressed: null, 
+                                          onToggleCompletion: _toggleTaskCompletion,
+                                          onToggleSkip: _toggleTaskSkip,
+                                          onEdit: _editTask,
+                                          onDelete: _deleteTask,
+                                          onTaskFocusRequested: _onTaskFocusRequested,
+                                          showTitle: false,
+                                          isEmbedded: true,
+                                        ),
+                                        TaskSection(
+                                          title: 'TEMPORARY',
+                                          type: TaskType.temporary,
+                                          tasks: _todaysTasks,
+                                          dayRecord: _todayRecord,
+                                          onAddPressed: () {}, 
+                                          onCheatPressed: null, 
+                                          onToggleCompletion: _toggleTaskCompletion,
+                                          onToggleSkip: _toggleTaskSkip,
+                                          onEdit: _editTask,
+                                          onDelete: _deleteTask,
+                                          onTaskFocusRequested: _onTaskFocusRequested,
+                                          showTitle: false,
+                                          isEmbedded: true,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                          ),
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: TaskSection(
-                        title: 'TEMPORARY',
-                        type: TaskType.temporary,
-                        tasks: _todaysTasks,
-                        dayRecord: _todayRecord,
-                        onAddPressed: () => _showAddTaskSheet(type: TaskType.temporary),
-                        onToggleCompletion: _toggleTaskCompletion,
-                        onToggleSkip: _toggleTaskSkip,
-                        onEdit: _editTask,
-                        onDelete: _deleteTask,
-                        onTaskFocusRequested: _onTaskFocusRequested,
+                      child: Container(
+                        margin: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12.0),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'POMODORO TIMER',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],

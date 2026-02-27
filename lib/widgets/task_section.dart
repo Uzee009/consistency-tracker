@@ -17,6 +17,8 @@ class TaskSection extends StatelessWidget {
   final Function(Task) onEdit;
   final Function(Task) onDelete;
   final Function(Task) onTaskFocusRequested;
+  final bool showTitle;
+  final bool isEmbedded;
 
   const TaskSection({
     super.key,
@@ -31,6 +33,8 @@ class TaskSection extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onTaskFocusRequested,
+    this.showTitle = true,
+    this.isEmbedded = false,
   });
 
   @override
@@ -39,17 +43,21 @@ class TaskSection extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = styleNotifier.value;
 
-    final bgColor = type == TaskType.daily 
-        ? StyleService.getDailyTaskBg(style, isDark)
-        : StyleService.getTempTaskBg(style, isDark);
+    final bgColor = isEmbedded 
+        ? Colors.transparent 
+        : (type == TaskType.daily 
+            ? StyleService.getDailyTaskBg(style, isDark)
+            : StyleService.getTempTaskBg(style, isDark));
     
-    final borderColor = type == TaskType.daily
-        ? StyleService.getDailyTaskBorder(style, isDark)
-        : StyleService.getTempTaskBorder(style, isDark);
+    final borderColor = isEmbedded
+        ? Colors.transparent
+        : (type == TaskType.daily
+            ? StyleService.getDailyTaskBorder(style, isDark)
+            : StyleService.getTempTaskBorder(style, isDark));
 
     return Container(
-      margin: const EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
+      margin: isEmbedded ? EdgeInsets.zero : const EdgeInsets.all(8.0),
+      decoration: isEmbedded ? null : BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12.0),
         border: Border.all(color: borderColor, width: 1),
@@ -64,7 +72,8 @@ class TaskSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
+          if (showTitle)
+            Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -104,11 +113,12 @@ class TaskSection extends StatelessWidget {
                   ],
                 ),
               ],
-            ),
-          ),
-          const Divider(),
-          Expanded(
-            child: filteredTasks.isEmpty
+                          ),
+                        ),
+                      if (showTitle) const Divider(),
+                      Expanded(
+                        child: filteredTasks.isEmpty
+            
                 ? Center(
                     child: Text(
                       'No tasks yet',
