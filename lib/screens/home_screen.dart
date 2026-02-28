@@ -367,6 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ValueListenableBuilder<VisualStyle>(
       valueListenable: styleNotifier,
       builder: (context, style, _) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Scaffold(
           appBar: AppBar(
             title: const Text('CONSISTENCY'),
@@ -500,11 +501,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                               tooltip: 'Add Task',
                                               onPressed: () {
                                                 final tabController = DefaultTabController.of(context);
-                                                if (tabController != null) {
-                                                  _showAddTaskSheet(
-                                                    type: tabController.index == 0 ? TaskType.daily : TaskType.temporary
-                                                  );
-                                                }
+                                                _showAddTaskSheet(
+                                                  type: tabController.index == 0 ? TaskType.daily : TaskType.temporary
+                                                );
                                               },
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
@@ -604,27 +603,52 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     Expanded(
                       flex: 2,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            flex: 2, // 20% of this section
-                            child: AnalyticsKPIs(
-                              analytics: _analytics, 
-                              isHorizontal: true,
-                              isFocused: _focusedTask != null,
-                            ),
+                      child: Container(
+                        margin: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: StyleService.getHeatmapBg(style, isDark),
+                          borderRadius: BorderRadius.circular(16.0),
+                          border: Border.all(
+                            color: StyleService.getDailyTaskBorder(style, isDark),
+                            width: 1,
                           ),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            flex: 8, // 80% of this section
-                            child: AnalyticsCarousel(
-                              momentumData: _momentumData,
-                              volumeData: _volumeData,
-                              title: _heatmapRange,
-                              focusedTaskName: _focusedTask?.name,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              flex: 2, // 20% of this section
+                              child: AnalyticsKPIs(
+                                analytics: _analytics, 
+                                isHorizontal: true,
+                                isFocused: _focusedTask != null,
+                                isEmbedded: true,
+                              ),
+                            ),
+                            Divider(
+                              height: 1, 
+                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                              indent: 16,
+                              endIndent: 16,
+                            ),
+                            Expanded(
+                              flex: 8, // 80% of this section
+                              child: AnalyticsCarousel(
+                                momentumData: _momentumData,
+                                volumeData: _volumeData,
+                                title: _heatmapRange,
+                                focusedTaskName: _focusedTask?.name,
+                                isEmbedded: true,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

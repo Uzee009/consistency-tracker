@@ -5,17 +5,36 @@ class AnalyticsKPIs extends StatelessWidget {
   final AnalyticsResult analytics;
   final bool isHorizontal;
   final bool isFocused;
+  final bool isEmbedded;
 
   const AnalyticsKPIs({
     super.key,
     required this.analytics,
     this.isHorizontal = true,
     this.isFocused = false,
+    this.isEmbedded = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final content = isHorizontal 
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: _buildItems(context, isDark),
+          )
+        : Column(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: _buildItems(context, isDark),
+          );
+
+    if (isEmbedded) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: content,
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
@@ -26,15 +45,7 @@ class AnalyticsKPIs extends StatelessWidget {
           color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
         ),
       ),
-      child: isHorizontal 
-        ? Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _buildItems(context, isDark),
-          )
-        : Column(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _buildItems(context, isDark),
-          ),
+      child: content,
     );
   }
 

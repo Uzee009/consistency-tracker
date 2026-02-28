@@ -9,6 +9,7 @@ class AnalyticsCarousel extends StatefulWidget {
   final List<VolumePoint> volumeData;
   final String title;
   final String? focusedTaskName;
+  final bool isEmbedded;
 
   const AnalyticsCarousel({
     super.key,
@@ -16,6 +17,7 @@ class AnalyticsCarousel extends StatefulWidget {
     required this.volumeData,
     required this.title,
     this.focusedTaskName,
+    this.isEmbedded = false,
   });
 
   @override
@@ -32,6 +34,73 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     final style = styleNotifier.value;
     final containerBg = StyleService.getHeatmapBg(style, isDark);
 
+    final content = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    _currentPage == 0 
+                        ? (widget.focusedTaskName != null ? 'HABIT MASTERY' : 'DISCIPLINE INDEX')
+                        : 'OUTPUT VOLUME',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Tooltip(
+                    message: _getHelpText(),
+                    triggerMode: TooltipTriggerMode.tap,
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      size: 10,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  _buildNavButton(
+                    context, 
+                    Icons.chevron_left_rounded, 
+                    _currentPage > 0 ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
+                  ),
+                  const SizedBox(width: 4),
+                  _buildNavButton(
+                    context, 
+                    Icons.chevron_right_rounded, 
+                    _currentPage < 1 ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (i) => setState(() => _currentPage = i),
+            children: [
+              _buildMomentumChart(context, isDark),
+              _buildVolumeChart(context, isDark),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: containerBg,
@@ -41,68 +110,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
           width: 1,
         ),
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      _currentPage == 0 
-                          ? (widget.focusedTaskName != null ? 'HABIT MASTERY' : 'DISCIPLINE INDEX')
-                          : 'OUTPUT VOLUME',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Tooltip(
-                      message: _getHelpText(),
-                      triggerMode: TooltipTriggerMode.tap,
-                      child: Icon(
-                        Icons.info_outline_rounded,
-                        size: 10,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildNavButton(
-                      context, 
-                      Icons.chevron_left_rounded, 
-                      _currentPage > 0 ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
-                    ),
-                    const SizedBox(width: 4),
-                    _buildNavButton(
-                      context, 
-                      Icons.chevron_right_rounded, 
-                      _currentPage < 1 ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (i) => setState(() => _currentPage = i),
-              children: [
-                _buildMomentumChart(context, isDark),
-                _buildVolumeChart(context, isDark),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 
