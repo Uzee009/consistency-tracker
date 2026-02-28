@@ -43,11 +43,10 @@ class TaskSection extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = styleNotifier.value;
 
-    final bgColor = isEmbedded 
-        ? Colors.transparent 
-        : (type == TaskType.daily 
-            ? StyleService.getDailyTaskBg(style, isDark)
-            : StyleService.getTempTaskBg(style, isDark));
+    // Use StyleService backgrounds even if embedded to maintain visual identity
+    final bgColor = type == TaskType.daily 
+        ? StyleService.getDailyTaskBg(style, isDark)
+        : StyleService.getTempTaskBg(style, isDark);
     
     final borderColor = isEmbedded
         ? Colors.transparent
@@ -57,18 +56,20 @@ class TaskSection extends StatelessWidget {
 
     return Container(
       margin: isEmbedded ? EdgeInsets.zero : const EdgeInsets.all(8.0),
-      decoration: isEmbedded ? null : BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: borderColor, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+      decoration: isEmbedded 
+        ? BoxDecoration(color: bgColor) // Only color when embedded, no border/shadow
+        : BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12.0),
+            border: Border.all(color: borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

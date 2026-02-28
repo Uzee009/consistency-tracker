@@ -4,16 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/screens/task_form_screen.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/scoring_service.dart';
+import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/models/task_model.dart';
 import 'package:consistency_tracker_v1/models/day_record_model.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
-import 'package:consistency_tracker_v1/widgets/consistency_heatmap.dart';
-import 'package:consistency_tracker_v1/widgets/add_task_bottom_sheet.dart';
 import 'package:consistency_tracker_v1/widgets/task_section.dart';
+import 'package:consistency_tracker_v1/widgets/add_task_bottom_sheet.dart';
+import 'package:consistency_tracker_v1/widgets/consistency_heatmap.dart';
 import 'package:consistency_tracker_v1/widgets/analytics_kpis.dart';
 import 'package:consistency_tracker_v1/widgets/analytics_carousel.dart';
+import 'package:consistency_tracker_v1/widgets/pomodoro_timer.dart';
 import 'package:consistency_tracker_v1/widgets/user_menu.dart';
-import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/main.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,10 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<Task> _todaysTasks = [];
-  DayRecord _todayRecord = DayRecord(
-    date: DateTime.now().toIso8601String().split('T')[0],
-    completedTaskIds: [],
-  );
+  DayRecord _todayRecord = DayRecord(date: '', completedTaskIds: [], skippedTaskIds: []);
   User? _currentUser;
   int _cheatDaysUsed = 0;
   Map<DateTime, int> _heatmapData = {};
@@ -109,6 +107,214 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _onDateSelected(DateTime date) {
+    _initializeData(date);
+  }
+
+  Future<void> _refreshTodayRecord() async {
+    final dateFormatted =
+        "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    final record = await DatabaseService.instance.getDayRecord(dateFormatted);
+    if (record != null) {
+      setState(() {
+        _todayRecord = record;
+      });
+    }
+  }
+
+  void _toggleTaskCompletion(Task task, bool? completed) async {
+    List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
+    List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
+
+    if (completed == true) {
+      updatedCompletedIds.add(task.id);
+      updatedSkippedIds.remove(task.id);
+    } else {
+      updatedCompletedIds.remove(task.id);
+    }
+
+    await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds);
+    _initializeData(_selectedDate);
+  }
+
+  void _toggleTaskSkip(Task task) async {
+    List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
+    List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
+
+    if (updatedSkippedIds.contains(task.id)) {
+      updatedSkippedIds.remove(task.id);
+    } else {
+      updatedSkippedIds.add(task.id);
+      updatedCompletedIds.remove(task.id);
+    }
+
+    await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds);
+    _initializeData(_selectedDate);
+  }
+
+  Future<void> _updateDayRecordInDb(List<int> completedIds, List<int> skippedIds) async {
+    final activeTasks = await DatabaseService.instance.getActiveTasksForDate(_selectedDate);
+    
+    // Create a temporary record to calculate the score
+    final tempRecord = DayRecord(
+      date: _todayRecord.date,
+      completedTaskIds: completedIds,
+      skippedTaskIds: skippedIds,
+      cheatUsed: _todayRecord.cheatUsed,
+    );
+
+    final scoreResult = ScoringService.calculateDayScore(
+      allTasks: activeTasks, 
+      dayRecord: tempRecord,
+    );
+
+    final updatedRecord = DayRecord(
+      date: _todayRecord.date,
+      completedTaskIds: completedIds,
+      skippedTaskIds: skippedIds,
+      cheatUsed: _todayRecord.cheatUsed,
+      completionScore: scoreResult.completionScore,
+      visualState: _todayRecord.cheatUsed ? VisualState.cheat : scoreResult.visualState,
+    );
+
+    await DatabaseService.instance.createOrUpdateDayRecord(updatedRecord);
+  }
+
+  void _editTask(Task task) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskFormScreen(task: task),
+      ),
+    );
+    _initializeData(_selectedDate);
+  }
+
+  void _deleteTask(Task task) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Task?'),
+        content: Text('Are you sure you want to delete "${task.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DatabaseService.instance.deleteTask(task.id);
+      _initializeData(_selectedDate);
+    }
+  }
+
+  void _onDeclareCheatDayPressed() async {
+    if (_currentUser == null) return;
+    
+    if (_todayRecord.completedTaskIds.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot use Cheat Day after completing tasks!')),
+      );
+      return;
+    }
+
+    if (_cheatDaysUsed >= _currentUser!.monthlyCheatDays) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No Cheat Day tokens left for this month!')),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Use Cheat Day?'),
+        content: const Text('This will mark today as a "Cheat Day". It preserves your streak but provides no score. Use one token?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Use Token', style: TextStyle(color: Colors.orange))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final today = DateTime.now();
+      final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
+      await DatabaseService.instance.incrementCheatDaysUsed(yearMonth);
+      _updateTodayRecord(cheatUsed: true);
+    }
+  }
+
+  void _updateTodayRecord({required bool cheatUsed}) async {
+    final updatedRecord = DayRecord(
+      date: _todayRecord.date,
+      completedTaskIds: _todayRecord.completedTaskIds,
+      skippedTaskIds: _todayRecord.skippedTaskIds,
+      cheatUsed: cheatUsed,
+      completionScore: _todayRecord.completionScore,
+      visualState: cheatUsed ? VisualState.cheat : _todayRecord.visualState,
+    );
+    await DatabaseService.instance.createOrUpdateDayRecord(updatedRecord);
+    _initializeData(_selectedDate);
+  }
+
+  void _showAddTaskSheet({required TaskType type}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => AddTaskBottomSheet(
+        type: type,
+        onTaskAdded: () async {
+          await _refreshTodayRecord();
+          _initializeData(_selectedDate);
+        },
+      ),
+    );
+  }
+
+  Widget _buildInternalHeader(BuildContext context, String title, String helpText, {Widget? suffix}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: helpText,
+                triggerMode: TooltipTriggerMode.tap,
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  size: 11,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                ),
+              ),
+              if (suffix != null) ...[
+                const Spacer(),
+                suffix,
+              ],
+            ],
+          ),
+        ),
+        Divider(
+          height: 1, 
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeaderIconButton(
     BuildContext context, {
     required IconData icon,
@@ -146,221 +352,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _initializeData(_selectedDate);
   }
-
-  void _onDateSelected(DateTime date) {
-    if (date.isAfter(DateTime.now())) return; // Prevent selecting future dates
-    _initializeData(date);
-  }
-
-  void _toggleTaskCompletion(Task task, bool? isCompleted) async {
-    bool cheatUsed = _todayRecord.cheatUsed;
-
-    if (cheatUsed && isCompleted == true) {
-      final bool? cancelCheat = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Cancel Cheat Day?'),
-          content: const Text('You are starting to work! Would you like to cancel your Cheat Day and get your token back?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep Cheat'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Cancel Cheat & Refund', style: TextStyle(color: Colors.orange)),
-            ),
-          ],
-        ),
-      );
-
-      if (cancelCheat == true) {
-        final today = DateTime.now();
-        final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
-        await DatabaseService.instance.decrementCheatDaysUsed(yearMonth);
-        cheatUsed = false; // Update local variable to prevent further popups in this call
-        _updateTodayRecord(cheatUsed: false);
-      }
-    }
-
-    List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
-    List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
-
-    if (isCompleted == true) {
-      updatedCompletedIds.add(task.id);
-      updatedSkippedIds.remove(task.id);
-    } else {
-      updatedCompletedIds.remove(task.id);
-    }
-
-    _updateTodayRecord(
-      completedIds: updatedCompletedIds, 
-      skippedIds: updatedSkippedIds,
-      cheatUsed: cheatUsed, // Ensure we pass the updated state
-    );
-  }
-
-  void _toggleTaskSkip(Task task) async {
-    List<int> updatedCompletedIds = List.from(_todayRecord.completedTaskIds);
-    List<int> updatedSkippedIds = List.from(_todayRecord.skippedTaskIds);
-
-    if (updatedSkippedIds.contains(task.id)) {
-      updatedSkippedIds.remove(task.id);
-    } else {
-      updatedSkippedIds.add(task.id);
-      updatedCompletedIds.remove(task.id);
-    }
-
-    _updateTodayRecord(completedIds: updatedCompletedIds, skippedIds: updatedSkippedIds);
-  }
-
-  void _updateTodayRecord({
-    List<int>? completedIds,
-    List<int>? skippedIds,
-    bool? cheatUsed,
-  }) async {
-    final currentRecord = DayRecord(
-      date: _todayRecord.date,
-      completedTaskIds: completedIds ?? _todayRecord.completedTaskIds,
-      skippedTaskIds: skippedIds ?? _todayRecord.skippedTaskIds,
-      cheatUsed: cheatUsed ?? _todayRecord.cheatUsed,
-    );
-
-    final allActiveTasksForToday = await DatabaseService.instance.getActiveTasksForDate(DateTime.parse(currentRecord.date));
-
-    final scoreResult = ScoringService.calculateDayScore(
-      allTasks: allActiveTasksForToday,
-      dayRecord: currentRecord,
-    );
-
-    _todayRecord = DayRecord(
-      date: currentRecord.date,
-      completedTaskIds: currentRecord.completedTaskIds,
-      skippedTaskIds: currentRecord.skippedTaskIds,
-      cheatUsed: currentRecord.cheatUsed,
-      completionScore: scoreResult.completionScore,
-      visualState: scoreResult.visualState,
-    );
-
-    await DatabaseService.instance.createOrUpdateDayRecord(_todayRecord);
-    _initializeData(_selectedDate);
-  }
-
-  void _editTask(Task task) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TaskFormScreen(task: task)),
-    );
-    await _refreshTodayRecord();
-    _initializeData(_selectedDate);
-  }
-
-  void _deleteTask(Task task) async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: Text('Are you sure you want to delete "${task.name}"?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await DatabaseService.instance.deleteTask(task.id);
-      await _refreshTodayRecord();
-      _initializeData(_selectedDate);
-    }
-  }
-
-  Future<void> _refreshTodayRecord() async {
-    final allActiveTasksForToday = await DatabaseService.instance.getActiveTasksForDate(DateTime.parse(_todayRecord.date));
-
-    final scoreResult = ScoringService.calculateDayScore(
-      allTasks: allActiveTasksForToday,
-      dayRecord: _todayRecord,
-    );
-
-    _todayRecord = DayRecord(
-      date: _todayRecord.date,
-      completedTaskIds: _todayRecord.completedTaskIds,
-      skippedTaskIds: _todayRecord.skippedTaskIds,
-      cheatUsed: _todayRecord.cheatUsed,
-      completionScore: scoreResult.completionScore,
-      visualState: scoreResult.visualState,
-    );
-
-    await DatabaseService.instance.createOrUpdateDayRecord(_todayRecord);
-  }
-
-  void _onDeclareCheatDayPressed() async {
-    if (_currentUser == null) return;
-    
-    if (_todayRecord.completedTaskIds.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot declare a Cheat Day if you have already completed tasks!')),
-      );
-      return;
-    }
-
-    if (_todayRecord.cheatUsed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Today is already a Cheat Day!')));
-      return;
-    }
-
-    final tokensLeft = _currentUser!.monthlyCheatDays - _cheatDaysUsed;
-    if (tokensLeft <= 0) {
-      showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-                title: const Text('No Cheat Days Left'),
-                content: const Text('You have used all your cheat days for this month.'),
-                actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
-              ));
-      return;
-    }
-
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Declare Cheat Day?'),
-        content: Text('This will use one of your $tokensLeft remaining Cheat Day tokens. This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Confirm', style: TextStyle(color: Colors.orange))),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final today = DateTime.now();
-      final yearMonth = "${today.year}-${today.month.toString().padLeft(2, '0')}";
-      await DatabaseService.instance.incrementCheatDaysUsed(yearMonth);
-      _updateTodayRecord(cheatUsed: true);
-    }
-  }
-
-  void _showAddTaskSheet({required TaskType type}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => AddTaskBottomSheet(
-        type: type,
-        onTaskAdded: () async {
-          await _refreshTodayRecord();
-          _initializeData(_selectedDate);
-        },
-      ),
-    );
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -404,207 +395,164 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 flex: 1,
                 child: Row(
-                  children: <Widget>[
+                  children: [
+                    // LEFT: Tabbed Task Section
                     Expanded(
+                      flex: 1,
                       child: Container(
                         margin: const EdgeInsets.all(8.0),
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12.0),
+                          color: style == VisualStyle.vibrant 
+                              ? Colors.transparent 
+                              : Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16.0),
                           border: Border.all(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                            color: StyleService.getDailyTaskBorder(style, isDark),
+                            width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 10,
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                              blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: DefaultTabController(
-                          length: 2,
-                          child: Builder(
-                            builder: (context) {
-                              return Column(
-                                children: [
-                                  // Header: Tabs + Buttons
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
-                                    child: Row(
+                        child: Column(
+                          children: [
+                            _buildInternalHeader(
+                              context, 
+                              'TASKS', 
+                              'Manage your daily habits and one-off temporary goals here.'
+                            ),
+                            Expanded(
+                              child: DefaultTabController(
+                                length: 2,
+                                child: Builder(
+                                  builder: (context) {
+                                    return Column(
                                       children: [
-                                        // ShadCN-style Tabs (Reduced width ~20%)
-                                        Expanded(
-                                          flex: 2,
-                                          child: Container(
-                                            height: 32,
-                                            padding: const EdgeInsets.all(2),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: TabBar(
-                                              tabs: const [
-                                                Tab(text: 'Daily'),
-                                                Tab(text: 'Temp'),
-                                              ],
-                                              labelStyle: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w700,
-                                                fontFamily: 'Inter', 
+                                        // Header: Tabs + Buttons
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+                                          child: Row(
+                                            children: [
+                                              // ShadCN-style Tabs
+                                              Expanded(
+                                                flex: 2,
+                                                child: Container(
+                                                  height: 28,
+                                                  padding: const EdgeInsets.all(2),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: TabBar(
+                                                    tabs: const [
+                                                      Tab(text: 'Daily'),
+                                                      Tab(text: 'Temp'),
+                                                    ],
+                                                    labelStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+                                                    unselectedLabelStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
+                                                    indicatorSize: TabBarIndicatorSize.tab,
+                                                    indicator: BoxDecoration(
+                                                      color: Theme.of(context).colorScheme.surface,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    dividerColor: Colors.transparent,
+                                                    labelColor: Theme.of(context).colorScheme.onSurface,
+                                                    unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                                    splashFactory: NoSplash.splashFactory,
+                                                    overlayColor: WidgetStateProperty.all(Colors.transparent),
+                                                  ),
+                                                ),
                                               ),
-                                              unselectedLabelStyle: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              indicatorSize: TabBarIndicatorSize.tab,
-                                              indicator: BoxDecoration(
-                                                color: Theme.of(context).colorScheme.surface,
-                                                borderRadius: BorderRadius.circular(6),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black.withValues(alpha: 0.05),
-                                                    blurRadius: 2,
-                                                    offset: const Offset(0, 1),
+                                              const Spacer(flex: 6),
+                                              Row(
+                                                children: [
+                                                  if (_todayRecord.completedTaskIds.isNotEmpty)
+                                                    Icon(Icons.lock_outline, size: 12, color: Colors.orange.withValues(alpha: 0.5))
+                                                  else
+                                                    _buildHeaderIconButton(
+                                                      context,
+                                                      icon: Icons.celebration_outlined,
+                                                      tooltip: 'Declare Cheat Day',
+                                                      onPressed: _onDeclareCheatDayPressed,
+                                                      color: Colors.orange[400]!,
+                                                    ),
+                                                  const SizedBox(width: 8),
+                                                  _buildHeaderIconButton(
+                                                    context,
+                                                    icon: Icons.add_rounded,
+                                                    tooltip: 'Add Task',
+                                                    onPressed: () {
+                                                      final tabController = DefaultTabController.of(context);
+                                                      _showAddTaskSheet(
+                                                        type: tabController.index == 0 ? TaskType.daily : TaskType.temporary
+                                                      );
+                                                    },
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                   ),
                                                 ],
                                               ),
-                                              dividerColor: Colors.transparent,
-                                              labelColor: Theme.of(context).colorScheme.onSurface,
-                                              unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                              splashFactory: NoSplash.splashFactory,
-                                              overlayColor: WidgetStateProperty.all(Colors.transparent),
-                                            ),
+                                            ],
                                           ),
                                         ),
-                                        const Spacer(flex: 6),
-                                        // Action Buttons
-                                        Row(
-                                          children: [
-                                            if (_todayRecord.completedTaskIds.isNotEmpty)
-                                              Tooltip(
-                                                message: 'Cheat Day locked',
-                                                child: Icon(Icons.lock_outline, size: 14, color: Colors.orange.withValues(alpha: 0.5)),
-                                              )
-                                            else
-                                              _buildHeaderIconButton(
-                                                context,
-                                                icon: Icons.celebration_outlined,
-                                                tooltip: 'Declare Cheat Day',
-                                                onPressed: _onDeclareCheatDayPressed,
-                                                color: Colors.orange[400]!,
+                                        const Divider(height: 1),
+                                        Expanded(
+                                          child: TabBarView(
+                                            children: [
+                                              TaskSection(
+                                                title: 'DAILY',
+                                                type: TaskType.daily,
+                                                tasks: _todaysTasks,
+                                                dayRecord: _todayRecord,
+                                                onAddPressed: () {}, 
+                                                onCheatPressed: null, 
+                                                onToggleCompletion: _toggleTaskCompletion,
+                                                onToggleSkip: _toggleTaskSkip,
+                                                onEdit: (task) => _editTask(task),
+                                                onDelete: (task) => _deleteTask(task),
+                                                onTaskFocusRequested: _onTaskFocusRequested,
+                                                showTitle: false,
+                                                isEmbedded: true, 
                                               ),
-                                            const SizedBox(width: 8),
-                                            _buildHeaderIconButton(
-                                              context,
-                                              icon: Icons.add_rounded,
-                                              tooltip: 'Add Task',
-                                              onPressed: () {
-                                                final tabController = DefaultTabController.of(context);
-                                                _showAddTaskSheet(
-                                                  type: tabController.index == 0 ? TaskType.daily : TaskType.temporary
-                                                );
-                                              },
-                                              color: Theme.of(context).colorScheme.onSurface,
-                                            ),
-                                          ],
+                                              TaskSection(
+                                                title: 'TEMPORARY',
+                                                type: TaskType.temporary,
+                                                tasks: _todaysTasks,
+                                                dayRecord: _todayRecord,
+                                                onAddPressed: () {}, 
+                                                onCheatPressed: null, 
+                                                onToggleCompletion: _toggleTaskCompletion,
+                                                onToggleSkip: _toggleTaskSkip,
+                                                onEdit: (task) => _editTask(task),
+                                                onDelete: (task) => _deleteTask(task),
+                                                onTaskFocusRequested: _onTaskFocusRequested,
+                                                showTitle: false,
+                                                isEmbedded: true, 
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                  const Divider(height: 1),
-                                  // Task Lists
-                                  Expanded(
-                                    child: TabBarView(
-                                      children: [
-                                        TaskSection(
-                                          title: 'DAILY',
-                                          type: TaskType.daily,
-                                          tasks: _todaysTasks,
-                                          dayRecord: _todayRecord,
-                                          onAddPressed: () {}, 
-                                          onCheatPressed: null, 
-                                          onToggleCompletion: _toggleTaskCompletion,
-                                          onToggleSkip: _toggleTaskSkip,
-                                          onEdit: _editTask,
-                                          onDelete: _deleteTask,
-                                          onTaskFocusRequested: _onTaskFocusRequested,
-                                          showTitle: false,
-                                          isEmbedded: true,
-                                        ),
-                                        TaskSection(
-                                          title: 'TEMPORARY',
-                                          type: TaskType.temporary,
-                                          tasks: _todaysTasks,
-                                          dayRecord: _todayRecord,
-                                          onAddPressed: () {}, 
-                                          onCheatPressed: null, 
-                                          onToggleCompletion: _toggleTaskCompletion,
-                                          onToggleSkip: _toggleTaskSkip,
-                                          onEdit: _editTask,
-                                          onDelete: _deleteTask,
-                                          onTaskFocusRequested: _onTaskFocusRequested,
-                                          showTitle: false,
-                                          isEmbedded: true,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12.0),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'POMODORO TIMER',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                                    );
+                                  }
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Row(
-                  children: [
+                    
+                    // RIGHT: Pomodoro Timer Section
                     Expanded(
-                      flex: 3,
-                      child: ConsistencyHeatmap(
-                        heatmapData: _heatmapData,
-                        selectedDate: _selectedDate,
-                        onDateSelected: _onDateSelected,
-                        focusedTaskName: _focusedTask?.name,
-                        onClearFocus: _onClearFocus,
-                        selectedRange: _heatmapRange,
-                        onRangeChanged: (range) {
-                          setState(() => _heatmapRange = range);
-                          _initializeData(_selectedDate);
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
+                      flex: 1,
                       child: Container(
                         margin: const EdgeInsets.all(8.0),
+                        clipBehavior: Clip.antiAlias, // Added this
                         decoration: BoxDecoration(
                           color: StyleService.getHeatmapBg(style, isDark),
                           borderRadius: BorderRadius.circular(16.0),
@@ -622,29 +570,124 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: Column(
                           children: [
+                            _buildInternalHeader(
+                              context, 
+                              'FOCUS ZONE', 
+                              'Use the Pomodoro timer to maintain deep focus on your tasks.'
+                            ),
+                            const Expanded(child: PomodoroTimer()),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        margin: const EdgeInsets.all(8.0),
+                        clipBehavior: Clip.antiAlias, // Added this
+                        decoration: BoxDecoration(
+                          color: StyleService.getHeatmapBg(style, isDark),
+                          borderRadius: BorderRadius.circular(16.0),
+                          border: Border.all(
+                            color: StyleService.getDailyTaskBorder(style, isDark),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _buildInternalHeader(
+                              context, 
+                              'CONSISTENCY', 
+                              'Visual history of your daily discipline over time.'
+                            ),
                             Expanded(
-                              flex: 2, // 20% of this section
-                              child: AnalyticsKPIs(
-                                analytics: _analytics, 
-                                isHorizontal: true,
-                                isFocused: _focusedTask != null,
-                                isEmbedded: true,
+                              child: ConsistencyHeatmap(
+                                heatmapData: _heatmapData,
+                                selectedDate: _selectedDate,
+                                onDateSelected: _onDateSelected,
+                                focusedTaskName: _focusedTask?.name,
+                                onClearFocus: _onClearFocus,
+                                selectedRange: _heatmapRange,
+                                onRangeChanged: (range) {
+                                  setState(() => _heatmapRange = range);
+                                  _initializeData(_selectedDate);
+                                },
                               ),
                             ),
-                            Divider(
-                              height: 1, 
-                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                              indent: 16,
-                              endIndent: 16,
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        margin: const EdgeInsets.all(8.0),
+                        clipBehavior: Clip.antiAlias, // Added this
+                        decoration: BoxDecoration(
+                          color: StyleService.getHeatmapBg(style, isDark),
+                          borderRadius: BorderRadius.circular(16.0),
+                          border: Border.all(
+                            color: StyleService.getDailyTaskBorder(style, isDark),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _buildInternalHeader(
+                              context, 
+                              'PERFORMANCE', 
+                              'Quantified trends of your habit mastery and output volume.'
                             ),
                             Expanded(
-                              flex: 8, // 80% of this section
-                              child: AnalyticsCarousel(
-                                momentumData: _momentumData,
-                                volumeData: _volumeData,
-                                title: _heatmapRange,
-                                focusedTaskName: _focusedTask?.name,
-                                isEmbedded: true,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: AnalyticsKPIs(
+                                      analytics: _analytics, 
+                                      isHorizontal: true,
+                                      isFocused: _focusedTask != null,
+                                      isEmbedded: true,
+                                    ),
+                                  ),
+                                  Divider(
+                                    height: 1, 
+                                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                                    indent: 16,
+                                    endIndent: 16,
+                                  ),
+                                  Expanded(
+                                    flex: 8,
+                                    child: AnalyticsCarousel(
+                                      momentumData: _momentumData,
+                                      volumeData: _volumeData,
+                                      title: _heatmapRange,
+                                      focusedTaskName: _focusedTask?.name,
+                                      isEmbedded: true,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

@@ -85,7 +85,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = styleNotifier.value;
     final containerBg = StyleService.getHeatmapBg(style, isDark);
-    final borderColor = StyleService.getDailyTaskBorder(style, isDark);
 
     final today = DateTime.now();
     final bool isViewingToday = widget.selectedDate == null || 
@@ -98,18 +97,9 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: containerBg,
         borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: borderColor, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         children: [
