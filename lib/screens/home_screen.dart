@@ -315,6 +315,99 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHeatmapHeaderSuffix(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final today = DateTime.now();
+    final bool isViewingToday = _selectedDate.year == today.year && 
+         _selectedDate.month == today.month && 
+         _selectedDate.day == today.day;
+
+    final List<String> monthNamesShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    final String dateString = "${_selectedDate.day} ${monthNamesShort[_selectedDate.month - 1]} ${_selectedDate.year}";
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_focusedTask != null) ...[
+          Container(
+            padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _focusedTask!.name.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: _onClearFocus,
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+        ],
+        if (!isViewingToday) ...[
+          Text(
+            dateString,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: Theme.of(context).colorScheme.primary,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _onDateSelected(DateTime.now()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.today_rounded, 
+                    size: 10, 
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'TODAY',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildHeaderIconButton(
     BuildContext context, {
     required IconData icon,
@@ -612,7 +705,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             _buildInternalHeader(
                               context, 
                               'CONSISTENCY', 
-                              'Visual history of your daily discipline over time.'
+                              'Visual history of your daily discipline over time.',
+                              suffix: _buildHeatmapHeaderSuffix(context),
                             ),
                             Expanded(
                               child: ConsistencyHeatmap(

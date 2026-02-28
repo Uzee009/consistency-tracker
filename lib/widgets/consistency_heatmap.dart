@@ -86,15 +86,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final style = styleNotifier.value;
     final containerBg = StyleService.getHeatmapBg(style, isDark);
 
-    final today = DateTime.now();
-    final bool isViewingToday = widget.selectedDate == null || 
-        (widget.selectedDate!.year == today.year && 
-         widget.selectedDate!.month == today.month && 
-         widget.selectedDate!.day == today.day);
-
-    final List<String> monthNamesShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    final String dateString = widget.selectedDate == null ? "" : "${widget.selectedDate!.day} ${monthNamesShort[widget.selectedDate!.month - 1]} ${widget.selectedDate!.year}";
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -106,6 +97,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // LEFT: Legends (Keep here for now)
               Expanded(
                 child: Wrap(
                   spacing: 12,
@@ -132,97 +124,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                         ],
                       ],
                     ),
-                    if (widget.focusedTaskName != null) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              widget.focusedTaskName!.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: Theme.of(context).colorScheme.onSurface,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            GestureDetector(
-                              onTap: widget.onClearFocus,
-                              child: Icon(
-                                Icons.close_rounded,
-                                size: 14,
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (!isViewingToday) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        height: 20,
-                        width: 1,
-                        color: isDark ? Colors.white10 : Colors.black12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        dateString,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          color: Theme.of(context).colorScheme.primary,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () {
-                          if (widget.onDateSelected != null) {
-                            widget.onDateSelected!(DateTime.now());
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.today_rounded, 
-                                size: 12, 
-                                color: Theme.of(context).colorScheme.onPrimary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'TODAY',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 8),
+              // RIGHT: Range Controls
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
