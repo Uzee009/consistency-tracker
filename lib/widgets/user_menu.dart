@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/user_model.dart';
 import '../screens/settings_screen.dart';
+import '../screens/analytics_explorer_screen.dart';
+import '../screens/home_premium_mockup.dart';
 
 class UserMenu extends StatelessWidget {
   final User? currentUser;
@@ -37,6 +39,14 @@ class UserMenu extends StatelessWidget {
             Clipboard.setData(ClipboardData(text: currentUser!.id.toString()));
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('User ID copied to clipboard!')),
+            );
+          } else if (value == 'explorer') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AnalyticsExplorerScreen()),
+            );
+          } else if (value == 'mockup') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HomePremiumMockup()),
             );
           } else if (value == 'settings') {
             Navigator.of(context)
@@ -92,6 +102,16 @@ class UserMenu extends StatelessWidget {
             ),
           ),
           const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: 'mockup',
+            height: 40,
+            child: _buildMenuItem(context, Icons.dashboard_customize_outlined, 'Premium UI Mockup'),
+          ),
+          PopupMenuItem<String>(
+            value: 'explorer',
+            height: 40,
+            child: _buildMenuItem(context, Icons.explore_outlined, 'Data Explorer'),
+          ),
           PopupMenuItem<String>(
             value: 'settings',
             height: 40,
