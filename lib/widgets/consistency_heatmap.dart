@@ -6,11 +6,13 @@ import '../main.dart';
 class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
   final Function(DateTime)? onDateSelected;
+  final Function(DateTime)? onMonthChanged; // Added this
   final DateTime? selectedDate;
   final String? focusedTaskName;
   final VoidCallback? onClearFocus;
   final String selectedRange;
   final Function(String) onRangeChanged;
+  final bool hideControls;
 
   const ConsistencyHeatmap({
     super.key,
@@ -18,9 +20,11 @@ class ConsistencyHeatmap extends StatefulWidget {
     required this.selectedRange,
     required this.onRangeChanged,
     this.onDateSelected,
+    this.onMonthChanged,
     this.selectedDate,
     this.focusedTaskName,
     this.onClearFocus,
+    this.hideControls = false,
   });
 
   @override
@@ -47,6 +51,9 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     if (!_hasInitialScrolled && widget.heatmapData.isNotEmpty) {
       _scrollToCurrentMonth();
     }
+    
+    // REMOVED: Auto-resetting _current1MDate when selectedDate changes.
+    // The month view should only change when the user clicks chevrons or Reset View.
   }
 
   void _scrollToCurrentMonth() async {
@@ -94,98 +101,98 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // LEFT: Legends (Keep here for now)
-              Expanded(
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Wrap(
-                      spacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (widget.focusedTaskName == null) ...[
-                          _buildLegendItem(Colors.orange[400]!, 'Cheat'),
-                          _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                          _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
-                          const SizedBox(width: 2),
-                          _buildLegendItem(const Color(0xFFD1FAE5), ''),
-                          _buildLegendItem(const Color(0xFFA7F3D0), ''),
-                          _buildLegendItem(const Color(0xFF6EE7B7), ''),
-                          _buildLegendItem(const Color(0xFF34D399), ''),
-                          _buildLegendItem(const Color(0xFF10B981), ''),
-                        ] else ...[
-                          _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
-                          _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+          if (!widget.hideControls) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (widget.focusedTaskName == null) ...[
+                            _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                            _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
+                            _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
+                            const SizedBox(width: 2),
+                            _buildLegendItem(const Color(0xFFD1FAE5), ''),
+                            _buildLegendItem(const Color(0xFFA7F3D0), ''),
+                            _buildLegendItem(const Color(0xFF6EE7B7), ''),
+                            _buildLegendItem(const Color(0xFF34D399), ''),
+                            _buildLegendItem(const Color(0xFF10B981), ''),
+                          ] else ...[
+                            _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
+                            _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+                          ],
                         ],
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        setState(() => _isReportMode = !_isReportMode);
+                        _scrollToCurrentMonth();
+                      },
+                      icon: Icon(
+                        _isReportMode ? Icons.analytics : Icons.analytics_outlined,
+                        color: isDark ? Colors.white : Colors.black,
+                        size: 18,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Toggle Report Mode',
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: ['1M', '3M', '6M', '1Y'].map((range) {
+                          final isSelected = widget.selectedRange == range;
+                          return GestureDetector(
+                            onTap: () {
+                              widget.onRangeChanged(range);
+                              _scrollToCurrentMonth();
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                range,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                  color: isSelected ? (isDark ? Colors.white : Colors.black) : Colors.grey[500],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              // RIGHT: Range Controls
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      setState(() => _isReportMode = !_isReportMode);
-                      _scrollToCurrentMonth();
-                    },
-                    icon: Icon(
-                      _isReportMode ? Icons.analytics : Icons.analytics_outlined,
-                      color: isDark ? Colors.white : Colors.black,
-                      size: 18,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Toggle Report Mode',
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: ['1M', '3M', '6M', '1Y'].map((range) {
-                        final isSelected = widget.selectedRange == range;
-                        return GestureDetector(
-                          onTap: () {
-                            widget.onRangeChanged(range);
-                            _scrollToCurrentMonth();
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              range,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                color: isSelected ? (isDark ? Colors.white : Colors.black) : Colors.grey[500],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
           Expanded(child: _buildHeatmapGrid()),
         ],
       ),
@@ -230,8 +237,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         tempDay = tempDay.add(const Duration(days: 7));
     }
     
-    final double headerHeight = 40.0;
-    final double weekdayHeaderHeight = 25.0;
+    const double headerHeight = 40.0;
+    const double weekdayHeaderHeight = 25.0;
     final double contentHeight = availableHeight - headerHeight - weekdayHeaderHeight;
     
     final double cellWidth = (availableWidth - 2.0) / 7;
@@ -259,7 +266,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             final int intensity = widget.heatmapData[DateTime(dDate.year, dDate.month, dDate.day)] ?? 0;
             Color cellColor;
             
-            // This part was just for reference, fixing actual linting issues below
             if (intensity == -1) {
               cellColor = Colors.orange[400]!;
             } else if (intensity == -2) {
@@ -333,6 +339,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     setState(() {
                       _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
                     });
+                    if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
                   },
                 ),
                 Text(
@@ -350,6 +357,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     setState(() {
                       _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
                     });
+                    if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
                   },
                 ),
               ],
@@ -392,7 +400,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final double dynamicTotalCellHeight = (availableHeight - reservedHeight) / 7.0;
     
     double totalUnits = 0; 
-    List<int> monthWeeksCount = [];
     for (int i = 0; i < monthsCount; i++) {
       DateTime targetDate;
       if (_isReportMode) {
@@ -414,7 +421,6 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
         int startWeekday = tempDay.weekday % 7;
         tempDay = tempDay.add(Duration(days: 7 - startWeekday));
       }
-      monthWeeksCount.add(weeks);
       totalUnits += weeks;
       if (i < monthsCount - 1) totalUnits += 0.2;
     }
@@ -422,7 +428,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     double unitWidth;
     bool shouldScroll = false;
 
-    final double staticWidthTotal = (monthsCount * horizontalPaddingPerMonth) + 30.0;
+    const double staticWidthTotal = (12 * horizontalPaddingPerMonth) + 30.0;
     final double availableWidthForCells = availableWidth - staticWidthTotal;
 
     if (is1M) {
@@ -482,23 +488,24 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           final int intensity = widget.heatmapData[DateTime(day.year, day.month, day.day)] ?? 0;
           Color cellColor;
 
-                      if (intensity == -1) {
-                        cellColor = Colors.orange[400]!;
-                      } else if (intensity == -2) {
-                        cellColor = const Color(0xFF10B981);
-                      } else if (intensity == 1) {
-                        cellColor = const Color(0xFFD1FAE5);
-                      } else if (intensity == 2) {
-                        cellColor = const Color(0xFFA7F3D0);
-                      } else if (intensity == 3) {
-                        cellColor = const Color(0xFF6EE7B7);
-                      } else if (intensity == 4) {
-                        cellColor = const Color(0xFF34D399);
-                      } else if (intensity == 5) {
-                        cellColor = const Color(0xFF10B981);
-                      } else {
-                        cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
-                      }
+          if (intensity == -1) {
+            cellColor = Colors.orange[400]!;
+          } else if (intensity == -2) {
+            cellColor = const Color(0xFF10B981);
+          } else if (intensity == 1) {
+            cellColor = const Color(0xFFD1FAE5);
+          } else if (intensity == 2) {
+            cellColor = const Color(0xFFA7F3D0);
+          } else if (intensity == 3) {
+            cellColor = const Color(0xFF6EE7B7);
+          } else if (intensity == 4) {
+            cellColor = const Color(0xFF34D399);
+          } else if (intensity == 5) {
+            cellColor = const Color(0xFF10B981);
+          } else {
+            cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
+          }
+
           final bool isSelected = widget.selectedDate != null && 
               day.year == widget.selectedDate!.year && 
               day.month == widget.selectedDate!.month && 
@@ -621,13 +628,10 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 controller: _heatmapScrollController,
                 scrollDirection: Axis.horizontal,
                 physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
-                child: SizedBox(
-                  width: shouldScroll ? null : availableWidth - 25.0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: dynamicMonthWidgets,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: dynamicMonthWidgets,
                 ),
               ),
             ),
