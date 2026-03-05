@@ -43,8 +43,6 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
           } else {
             _timer?.cancel();
             _isRunning = false;
-            
-            // If focus mode finished, increment session
             if (_currentMode == TimerMode.focus) {
               _sessionsCompleted++;
               if (_sessionsCompleted > _sessionGoal) _sessionsCompleted = _sessionGoal;
@@ -151,116 +149,98 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
   @override
   Widget build(BuildContext context) {
     final accentColor = _getAccentColor(context);
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          // HEADER CONTROLS
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Left: Mode Selectors
-              Row(
-                children: [
-                  _buildModeButton('Focus', TimerMode.focus),
-                  const SizedBox(width: 4),
-                  _buildModeButton('Short', TimerMode.shortBreak),
-                  const SizedBox(width: 4),
-                  _buildModeButton('Long', TimerMode.longBreak),
-                ],
-              ),
-              // Right: Timer Controls
-              Row(
-                children: [
-                  _buildHeaderControl(
-                    icon: Icons.refresh_rounded,
-                    onPressed: _resetTimer,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                  const SizedBox(width: 4),
-                  _buildHeaderControl(
-                    icon: Icons.settings_outlined,
-                    onPressed: _showSettingsDialog,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          
-          const Spacer(),
-          
-          // Timer Display (Clickable with Overlay)
-          MouseRegion(
-            onEnter: (_) => setState(() => _isHovering = true),
-            onExit: (_) => setState(() => _isHovering = false),
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: _toggleTimer,
-              behavior: HitTestBehavior.opaque,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // The Timer Text
-                  Opacity(
-                    opacity: _isHovering ? 0.2 : 1.0,
-                    child: Text(
-                      _formatTime(_secondsRemaining),
-                      style: TextStyle(
-                        fontSize: 84,
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: -2,
-                        color: _isRunning 
-                            ? accentColor 
-                            : Theme.of(context).colorScheme.onSurface,
-                      ),
+    
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // HEADER CONTROLS
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    _buildModeButton('Focus', TimerMode.focus),
+                    const SizedBox(width: 4),
+                    _buildModeButton('Short', TimerMode.shortBreak),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _buildHeaderControl(
+                      icon: Icons.refresh_rounded,
+                      onPressed: _resetTimer,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                     ),
-                  ),
-                  
-                  // Hover Overlays (Unified)
-                  if (_isHovering)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-                        child: Icon(
-                          _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                          size: 64,
-                          color: accentColor.withValues(alpha: 0.8),
+                    const SizedBox(width: 4),
+                    _buildHeaderControl(
+                      icon: Icons.settings_outlined,
+                      onPressed: _showSettingsDialog,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Timer Display
+            MouseRegion(
+              onEnter: (_) => setState(() => _isHovering = true),
+              onExit: (_) => setState(() => _isHovering = false),
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: _toggleTimer,
+                behavior: HitTestBehavior.opaque,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Opacity(
+                      opacity: _isHovering ? 0.2 : 1.0,
+                      child: Text(
+                        _formatTime(_secondsRemaining),
+                        style: TextStyle(
+                          fontSize: 84,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: -2,
+                          color: _isRunning ? accentColor : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
-                ],
+                    if (_isHovering)
+                      Icon(
+                        _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        size: 64,
+                        color: accentColor.withValues(alpha: 0.8),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          
-          const Spacer(),
-          
-          // Session Progress Dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_sessionGoal, (index) {
-              final isDone = index < _sessionsCompleted;
-              return Container(
-                width: 6,
-                height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDone 
-                      ? accentColor 
-                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-                  border: isDone ? null : Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)),
-                ),
-              );
-            }),
-          ),
-          
-          const Spacer(),
-          const SizedBox(height: 12),
-        ],
+            
+            const SizedBox(height: 32),
+            
+            // Session Progress Dots
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_sessionGoal, (index) {
+                final isDone = index < _sessionsCompleted;
+                return Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDone ? accentColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -268,7 +248,6 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
   Widget _buildModeButton(String label, TimerMode mode) {
     final isSelected = _currentMode == mode;
     final accentColor = _getAccentColor(context);
-    
     return GestureDetector(
       onTap: () => _setMode(mode),
       child: AnimatedContainer(
@@ -277,9 +256,7 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
         decoration: BoxDecoration(
           color: isSelected ? accentColor.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected ? accentColor.withValues(alpha: 0.2) : Colors.transparent,
-          ),
+          border: Border.all(color: isSelected ? accentColor.withValues(alpha: 0.2) : Colors.transparent),
         ),
         child: Text(
           label.toUpperCase(),
@@ -294,21 +271,14 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
     );
   }
 
-  Widget _buildHeaderControl({
-    required IconData icon,
-    required VoidCallback onPressed,
-    required Color color,
-  }) {
+  Widget _buildHeaderControl({required IconData icon, required VoidCallback onPressed, required Color color}) {
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(6),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: Icon(icon, size: 16, color: color),
-        ),
+        child: Padding(padding: const EdgeInsets.all(4.0), child: Icon(icon, size: 16, color: color)),
       ),
     );
   }

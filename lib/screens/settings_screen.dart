@@ -30,7 +30,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (users.isNotEmpty) {
       final user = users.first;
       _nameController.text = user.name;
-      _monthlyCheatDays = user.monthlyCheatDays;
+      // Clamp to ensure it matches the 0-5 range of the items
+      _monthlyCheatDays = user.monthlyCheatDays.clamp(0, 5);
       return user;
     }
     return null;

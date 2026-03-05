@@ -240,32 +240,33 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     const double headerHeight = 40.0;
     const double weekdayHeaderHeight = 25.0;
     final double contentHeight = availableHeight - headerHeight - weekdayHeaderHeight;
-    
+
     final double cellWidth = (availableWidth - 2.0) / 7;
-    final double cellHeight = ((contentHeight - 2.0) / weeksInMonth);
-    
+    // V6: cellHeight = max(32px, calculatedHeight)
+    final double cellHeight = ((contentHeight - 2.0) / weeksInMonth).clamp(32.0, 60.0);
+
     final double totalGridWidth = cellWidth * 7;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = styleNotifier.value;
-    
+
     List<Widget> gridRows = [];
     DateTime iterDay = firstDayOfMonth;
-    
+
     while (iterDay.weekday != DateTime.sunday) {
       iterDay = iterDay.subtract(const Duration(days: 1));
     }
-    
+
     while (iterDay.isBefore(lastDayOfMonth.add(const Duration(days: 1))) || (iterDay.month == lastDayOfMonth.month && iterDay.day == lastDayOfMonth.day)) {
        List<Widget> weekRowCells = [];
        for(int d=0; d<7; d++) {
          DateTime dDate = iterDay.add(Duration(days: d));
-         
+
          if (dDate.month != month || dDate.year != year) {
            weekRowCells.add(SizedBox(width: cellWidth, height: cellHeight));
          } else {
             final int intensity = widget.heatmapData[DateTime(dDate.year, dDate.month, dDate.day)] ?? 0;
             Color cellColor;
-            
+
             if (intensity == -1) {
               cellColor = Colors.orange[400]!;
             } else if (intensity == -2) {
@@ -283,12 +284,12 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             } else {
               cellColor = StyleService.getHeatmapEmptyCell(style, isDark);
             }
-            
+
             final bool isSelected = widget.selectedDate != null && 
                 dDate.year == widget.selectedDate!.year && 
                 dDate.month == widget.selectedDate!.month && 
                 dDate.day == widget.selectedDate!.day;
-            
+
             weekRowCells.add(
               GestureDetector(
                 onTap: () {
@@ -310,8 +311,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     ),
                     child: Center(
                        child: intensity == -2
-                        ? Icon(Icons.star, size: cellHeight * 0.35, color: Colors.white)
-                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.3).clamp(12, 18), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500)),
+                        ? Icon(Icons.star, size: (cellHeight * 0.35).clamp(8, 20), color: Colors.white)
+                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.3).clamp(10, 18), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500)),
                     ),
                   ),
                 ),
@@ -324,64 +325,67 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
        if (iterDay.year > year || (iterDay.year == year && iterDay.month > month)) break;
     }
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            height: headerHeight,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 22),
-                  onPressed: () {
-                    setState(() {
-                      _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
-                    });
-                    if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
-                  },
-                ),
-                Text(
-                  '${monthNames[month - 1]} $year',
-                  style: TextStyle(
-                    fontSize: 14, 
-                    fontWeight: FontWeight.w900, 
-                    letterSpacing: 1,
-                    color: Theme.of(context).colorScheme.onSurface
+    return SingleChildScrollView(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: headerHeight,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 22),
+                    onPressed: () {
+                      setState(() {
+                        _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
+                      });
+                      if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
+                    },
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
-                  onPressed: () {
-                    setState(() {
-                      _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
-                    });
-                    if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
-                  },
-                ),
-              ],
+                  Text(
+                    '${monthNames[month - 1]} $year',
+                    style: TextStyle(
+                      fontSize: 14, 
+                      fontWeight: FontWeight.w900, 
+                      letterSpacing: 1,
+                      color: Theme.of(context).colorScheme.onSurface
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
+                    onPressed: () {
+                      setState(() {
+                        _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
+                      });
+                      if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          SizedBox(
-            width: totalGridWidth,
-            height: weekdayHeaderHeight,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ...weekdays.map((day) => SizedBox(
-                  width: cellWidth,
-                  child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5))),
-                )),
-              ],
+            SizedBox(
+              width: totalGridWidth,
+              height: weekdayHeaderHeight,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ...weekdays.map((day) => SizedBox(
+                    width: cellWidth,
+                    child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5))),
+                  )),
+                ],
+              ),
             ),
-          ),
-          Column(
-            children: gridRows,
-          ),
-        ],
+            Column(
+              children: gridRows,
+            ),
+          ],
+        ),
       ),
     );
+
   }
 
   Widget _buildGenericView(BoxConstraints constraints, int monthsCount, {bool is1M = false, bool showCurrentMonthHighlight = true}) {
