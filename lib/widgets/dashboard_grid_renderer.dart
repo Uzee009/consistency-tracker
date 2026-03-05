@@ -140,25 +140,43 @@ class DashboardGridRenderer extends StatelessWidget {
     final def = layoutController.getDefinition(panelId);
     if (def == null) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    
+    // V6: Dynamic drag pill colors
+    // We force absolute contrast in Dark Mode to avoid invisible text.
+    final Color bgColor = isDark ? const Color(0xFF18181B) : primary;
+    final Color contentColor = isDark ? Colors.white : (bgColor.computeLuminance() > 0.5 ? Colors.black : Colors.white);
+
     return Draggable<String>(
       data: panelId,
       maxSimultaneousDrags: layoutController.isEditMode ? 1 : 0,
       feedback: Material(
         elevation: 10,
         borderRadius: BorderRadius.circular(24),
+        color: Colors.transparent,
         child: Container(
           width: 300,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
+            color: bgColor,
             borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: isDark ? Colors.white24 : Colors.transparent),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(def.icon, color: Colors.white, size: 16),
+              Icon(def.icon, color: contentColor, size: 16),
               const SizedBox(width: 12),
-              Text(def.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              Text(
+                def.title, 
+                style: TextStyle(
+                  color: contentColor, 
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 12,
+                  decoration: TextDecoration.none, // V6: Fix for potential text styling leaks
+                ),
+              ),
             ],
           ),
         ),

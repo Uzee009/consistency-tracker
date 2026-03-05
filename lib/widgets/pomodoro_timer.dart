@@ -149,98 +149,106 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
   @override
   Widget build(BuildContext context) {
     final accentColor = _getAccentColor(context);
-    
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // HEADER CONTROLS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Stack(
+        children: [
+          // 1. MODE SELECTORS (Pinned Top Left)
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    _buildModeButton('Focus', TimerMode.focus),
-                    const SizedBox(width: 4),
-                    _buildModeButton('Short', TimerMode.shortBreak),
-                  ],
+                _buildModeButton('Focus', TimerMode.focus),
+                const SizedBox(width: 4),
+                _buildModeButton('Short', TimerMode.shortBreak),
+                const SizedBox(width: 4),
+                _buildModeButton('Long', TimerMode.longBreak),
+              ],
+            ),
+          ),
+
+          // 2. UTILITY CONTROLS (Pinned Top Right)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Row(
+              children: [
+                _buildHeaderControl(
+                  icon: Icons.refresh_rounded,
+                  onPressed: _resetTimer,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
-                Row(
-                  children: [
-                    _buildHeaderControl(
-                      icon: Icons.refresh_rounded,
-                      onPressed: _resetTimer,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(width: 4),
-                    _buildHeaderControl(
-                      icon: Icons.settings_outlined,
-                      onPressed: _showSettingsDialog,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                  ],
+                const SizedBox(width: 4),
+                _buildHeaderControl(
+                  icon: Icons.settings_outlined,
+                  onPressed: _showSettingsDialog,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ],
             ),
-            
-            const SizedBox(height: 32),
-            
-            // Timer Display
-            MouseRegion(
-              onEnter: (_) => setState(() => _isHovering = true),
-              onExit: (_) => setState(() => _isHovering = false),
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: _toggleTimer,
-                behavior: HitTestBehavior.opaque,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Opacity(
-                      opacity: _isHovering ? 0.2 : 1.0,
-                      child: Text(
-                        _formatTime(_secondsRemaining),
-                        style: TextStyle(
-                          fontSize: 84,
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: -2,
-                          color: _isRunning ? accentColor : Theme.of(context).colorScheme.onSurface,
+          ),
+
+          // 3. MAIN CENTERED CONTENT
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 24), // Offset for the pinned controls
+                MouseRegion(
+                  onEnter: (_) => setState(() => _isHovering = true),
+                  onExit: (_) => setState(() => _isHovering = false),
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: _toggleTimer,
+                    behavior: HitTestBehavior.opaque,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Opacity(
+                          opacity: _isHovering ? 0.2 : 1.0,
+                          child: Text(
+                            _formatTime(_secondsRemaining),
+                            style: TextStyle(
+                              fontSize: 84,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -2,
+                              color: _isRunning ? accentColor : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
                         ),
-                      ),
+                        if (_isHovering)
+                          Icon(
+                            _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            size: 64,
+                            color: accentColor.withValues(alpha: 0.8),
+                          ),
+                      ],
                     ),
-                    if (_isHovering)
-                      Icon(
-                        _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                        size: 64,
-                        color: accentColor.withValues(alpha: 0.8),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // Session Progress Dots
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_sessionGoal, (index) {
-                final isDone = index < _sessionsCompleted;
-                return Container(
-                  width: 6,
-                  height: 6,
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isDone ? accentColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                   ),
-                );
-              }),
+                ),
+                const SizedBox(height: 24),
+                // Session Progress Dots
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_sessionGoal, (index) {
+                    final isDone = index < _sessionsCompleted;
+                    return Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDone ? accentColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    );
+                  }),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

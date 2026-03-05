@@ -181,11 +181,6 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     return Scaffold(
       body: Column(
         children: [
-          _buildGlobalHeader(context),
-          Divider(
-            height: 1, 
-            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05)
-          ),
           Expanded(
             child: Row(
               children: [

@@ -47,12 +47,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
     
     return Column(
       children: [
-        // MANDATORY DATE HEADER (V6/V7)
-        _buildMandatoryDateHeader(),
-        
-        const SizedBox(height: 12), // Header to content gap
-
-        // TABS (Always visible)
+        // TABS (Always visible, moved to top now that internal date header is gone)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Container(
@@ -74,34 +69,6 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
               _buildTaskSection(TaskType.temporary),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMandatoryDateHeader() {
-    final date = widget.controller.selectedDate;
-    final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    final String dayName = weekdays[date.weekday - 1];
-    final String dayStr = date.day.toString().padLeft(2, '0');
-    final String monthStr = date.month.toString().padLeft(2, '0');
-    final String yearStr = date.year.toString();
-
-    return Row(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "SELECTED MISSION",
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.grey[500], letterSpacing: 1),
-            ),
-            Text(
-              "$dayName, $dayStr-$monthStr-$yearStr",
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-            ),
-          ],
         ),
       ],
     );
