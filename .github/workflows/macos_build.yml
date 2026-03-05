@@ -1,0 +1,30 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ master, feature/** ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Install Dependencies
+        run: flutter pub get
+        
+      - name: Build macOS
+        run: flutter build macos --release
+        
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: consistency-tracker-macos
+          path: build/macos/Build/Products/Release/consistency_tracker_v1.app
