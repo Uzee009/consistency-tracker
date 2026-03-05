@@ -91,107 +91,107 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = styleNotifier.value;
-    final containerBg = StyleService.getHeatmapBg(style, isDark);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: containerBg,
-        borderRadius: BorderRadius.circular(16.0),
+      padding: EdgeInsets.zero, // Remove internal padding, handled by shell
+      decoration: const BoxDecoration(
+        color: Colors.transparent, // V6 Seamless
       ),
       child: Column(
         children: [
           if (!widget.hideControls) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Wrap(
-                        spacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (widget.focusedTaskName == null) ...[
-                            _buildLegendItem(Colors.orange[400]!, 'Cheat'),
-                            _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                            _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
-                            const SizedBox(width: 2),
-                            _buildLegendItem(const Color(0xFFD1FAE5), ''),
-                            _buildLegendItem(const Color(0xFFA7F3D0), ''),
-                            _buildLegendItem(const Color(0xFF6EE7B7), ''),
-                            _buildLegendItem(const Color(0xFF34D399), ''),
-                            _buildLegendItem(const Color(0xFF10B981), ''),
-                          ] else ...[
-                            _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
-                            _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (widget.focusedTaskName == null) ...[
+                              _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                              _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
+                              _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
+                              const SizedBox(width: 2),
+                              _buildLegendItem(const Color(0xFFD1FAE5), ''),
+                              _buildLegendItem(const Color(0xFFA7F3D0), ''),
+                              _buildLegendItem(const Color(0xFF6EE7B7), ''),
+                              _buildLegendItem(const Color(0xFF34D399), ''),
+                              _buildLegendItem(const Color(0xFF10B981), ''),
+                            ] else ...[
+                              _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
+                              _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+                            ],
                           ],
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          setState(() => _isReportMode = !_isReportMode);
+                          _scrollToCurrentMonth();
+                        },
+                        icon: Icon(
+                          _isReportMode ? Icons.analytics : Icons.analytics_outlined,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          size: 18,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Toggle Report Mode',
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: ['1M', '3M', '6M', '1Y'].map((range) {
+                            final isSelected = widget.selectedRange == range;
+                            return GestureDetector(
+                              onTap: () {
+                                widget.onRangeChanged(range);
+                                _scrollToCurrentMonth();
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  range,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                    color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        setState(() => _isReportMode = !_isReportMode);
-                        _scrollToCurrentMonth();
-                      },
-                      icon: Icon(
-                        _isReportMode ? Icons.analytics : Icons.analytics_outlined,
-                        color: isDark ? Colors.white : Colors.black,
-                        size: 18,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Toggle Report Mode',
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: ['1M', '3M', '6M', '1Y'].map((range) {
-                          final isSelected = widget.selectedRange == range;
-                          return GestureDetector(
-                            onTap: () {
-                              widget.onRangeChanged(range);
-                              _scrollToCurrentMonth();
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                range,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                  color: isSelected ? (isDark ? Colors.white : Colors.black) : Colors.grey[500],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
           ],
           Expanded(child: _buildHeatmapGrid()),
         ],

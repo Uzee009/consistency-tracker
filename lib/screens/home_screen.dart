@@ -6,6 +6,7 @@ import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
 import '../widgets/user_menu.dart';
 import '../screens/analytics_explorer_screen.dart';
+import '../screens/settings_screen.dart';
 import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final DashboardController _dataController = DashboardController();
   final DashboardLayoutController _layoutController = DashboardLayoutController();
-  int _activeTabIndex = 0; // 0: Dashboard, 1: Explorer, 2: History
+  int _activeTabIndex = 0; // 0: Dashboard, 1: Explorer, 2: Profile
 
   @override
   void initState() {
@@ -75,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildActiveView() {
     if (_activeTabIndex == 1) {
       return const AnalyticsExplorerScreen();
+    } else if (_activeTabIndex == 2) {
+      return const SettingsScreen(isEmbedded: true);
     }
     
     // DEFAULT: DASHBOARD
@@ -89,10 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildGlobalHeader(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final now = DateTime.now();
+    final date = _dataController.selectedDate;
     final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    final dayName = weekdays[now.weekday - 1];
-    final dateStr = "${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}";
+    final dayName = weekdays[date.weekday - 1];
+    final dateStr = "${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20), // Increased vertical space
@@ -145,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildNavTab('DASHBOARD', Icons.dashboard_rounded, _activeTabIndex == 0, () => setState(() => _activeTabIndex = 0)),
           _buildNavTab('EXPLORER', Icons.explore_rounded, _activeTabIndex == 1, () => setState(() => _activeTabIndex = 1)),
-          _buildNavTab('HISTORY', Icons.history_rounded, _activeTabIndex == 2, () => setState(() => _activeTabIndex = 2)),
+          _buildNavTab('PROFILE', Icons.person_rounded, _activeTabIndex == 2, () => setState(() => _activeTabIndex = 2)),
         ],
       ),
     );

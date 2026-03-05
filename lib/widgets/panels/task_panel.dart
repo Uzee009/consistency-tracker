@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../controllers/dashboard_controller.dart';
+import '../../controllers/dashboard_layout_controller.dart';
 import '../../models/task_model.dart';
 import '../../widgets/task_section.dart';
 import '../../widgets/add_task_bottom_sheet.dart';
@@ -9,9 +10,15 @@ import '../../screens/task_form_screen.dart';
 
 class TaskPanel extends StatefulWidget {
   final DashboardController controller;
+  final DashboardLayoutController layoutController;
   final BoxConstraints constraints;
   
-  const TaskPanel({super.key, required this.controller, required this.constraints});
+  const TaskPanel({
+    super.key, 
+    required this.controller, 
+    required this.layoutController,
+    required this.constraints
+  });
 
   static List<Widget> getActions(BuildContext context, DashboardController controller) {
     return [
@@ -32,7 +39,13 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+    _tabController.index = widget.layoutController.taskTabIndex;
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        widget.layoutController.setTaskTabIndex(_tabController.index);
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -44,21 +57,51 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
+    final date = widget.controller.selectedDate;
+    final now = DateTime.now();
+    final isToday = date.day == now.day && date.month == now.month && date.year == now.year;
+
+    final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final String dayName = weekdays[date.weekday - 1];
+    final String dateStr = "${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
+
     return Column(
       children: [
-        // TABS (Always visible, moved to top now that internal date header is gone)
+        // INTEGRATED DATE INDICATOR
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(children: [_buildInnerPillTab('Habits', 0), _buildInnerPillTab('Temporary', 1)]),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: Row(
+            children: [
+              Text(
+                "$dayName, $dateStr",
+                style: TextStyle(
+                  fontSize: 13, 
+                  fontWeight: FontWeight.w900, 
+                  color: isToday ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.primary,
+                  letterSpacing: -0.2
+                ),
+              ),
+              if (!isToday) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    "HISTORY", 
+                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary, letterSpacing: 0.5)
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
+
+        // TABS
+
 
         // LIST
         Expanded(

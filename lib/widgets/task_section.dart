@@ -57,7 +57,7 @@ class TaskSection extends StatelessWidget {
     return Container(
       margin: isEmbedded ? EdgeInsets.zero : const EdgeInsets.all(8.0),
       decoration: isEmbedded 
-        ? BoxDecoration(color: bgColor) // Only color when embedded, no border/shadow
+        ? const BoxDecoration(color: Colors.transparent) // V6 Seamless
         : BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(12.0),

@@ -17,6 +17,14 @@ class DashboardLayoutController extends ChangeNotifier {
 
   bool isEditMode = false;
   DashboardSlot? hoverSlot;
+  int taskTabIndex = 0; // V6: Track tab for shell coloring
+
+  void setTaskTabIndex(int index) {
+    if (taskTabIndex != index) {
+      taskTabIndex = index;
+      notifyListeners();
+    }
+  }
 
   Map<DashboardSlot, String?> _panelPositions = {
     DashboardSlot.topLeft: 'tasks',
@@ -43,8 +51,8 @@ class DashboardLayoutController extends ChangeNotifier {
   void _registerPanels() {
     _panelRegistry['tasks'] = PanelDefinition(
       id: 'tasks', title: 'Habit Mastery', icon: Icons.check_circle_outline_rounded, description: 'Your daily and temporary habits.',
-      minWidth: 420, minHeight: 400, // V7: 400px min height
-      contentBuilder: (context, controller, constraints) => TaskPanel(controller: controller, constraints: constraints),
+      minWidth: 420, minHeight: 400,
+      contentBuilder: (context, controller, constraints) => TaskPanel(controller: controller, layoutController: this, constraints: constraints),
       actionsBuilder: (context, controller) => TaskPanel.getActions(context, controller),
     );
     _panelRegistry['calendar'] = PanelDefinition(

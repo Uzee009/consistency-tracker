@@ -98,7 +98,10 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     );
 
     if (widget.isEmbedded) {
-      return content;
+      return Padding(
+        padding: EdgeInsets.zero, // Shell handles padding
+        child: content,
+      );
     }
 
     return Container(

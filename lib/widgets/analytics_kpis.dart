@@ -31,7 +31,7 @@ class AnalyticsKPIs extends StatelessWidget {
 
     if (isEmbedded) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: EdgeInsets.zero, // Shell handles padding
         child: content,
       );
     }

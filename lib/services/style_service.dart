@@ -77,4 +77,18 @@ class StyleService {
     }
     return Colors.white;
   }
+
+  // --- PANEL SHELL BASE COLORS (V6 SEAMLESS) ---
+  static Color getPanelBaseBg(String id, VisualStyle style, bool isDark, {int taskTabIndex = 0}) {
+    if (id == 'tasks') {
+      return taskTabIndex == 0 
+          ? getDailyTaskBg(style, isDark) 
+          : getTempTaskBg(style, isDark);
+    }
+    if (id == 'calendar' || id == 'graph') {
+      return getHeatmapBg(style, isDark);
+    }
+    // Default surface
+    return isDark ? const Color(0xFF18181B) : Colors.white;
+  }
 }

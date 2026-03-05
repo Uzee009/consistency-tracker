@@ -7,6 +7,8 @@ import '../models/dashboard_slot.dart';
 import '../models/panel_definition.dart';
 import '../widgets/panels/add_panel_placeholder.dart';
 import '../widgets/panel_picker.dart';
+import '../services/style_service.dart';
+import '../main.dart';
 
 class DashboardGridRenderer extends StatelessWidget {
   final DashboardLayoutController layoutController;
@@ -192,11 +194,20 @@ class DashboardGridRenderer extends StatelessWidget {
   Widget _buildPanelShell(BuildContext context, PanelDefinition def, {bool isFeedback = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEdit = layoutController.isEditMode;
+    final style = styleNotifier.value;
+
+    // V6: Seamless base color
+    final bgColor = StyleService.getPanelBaseBg(
+      def.id, 
+      style, 
+      isDark, 
+      taskTabIndex: layoutController.taskTabIndex
+    );
 
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
+        color: bgColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
       ),
@@ -205,16 +216,16 @@ class DashboardGridRenderer extends StatelessWidget {
           // PANEL HEADER
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.grey[50],
+            color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02),
             child: Row(
               children: [
                 if (isEdit) ...[
                   const Icon(Icons.drag_indicator_rounded, size: 16, color: Colors.grey),
                   const SizedBox(width: 8),
                 ],
-                Icon(def.icon, size: 14, color: Colors.grey[600]),
+                Icon(def.icon, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                 const SizedBox(width: 12),
-                Text(def.title.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                Text(def.title.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                 const Spacer(),
                 ...layoutController.getHeaderActionsForId(def.id, dataController, context),
                 if (isEdit) ...[
@@ -231,7 +242,7 @@ class DashboardGridRenderer extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
           // ADAPTIVE CONTENT
           Expanded(
             child: Padding(
