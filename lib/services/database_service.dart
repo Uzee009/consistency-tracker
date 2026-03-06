@@ -163,12 +163,21 @@ class DatabaseService {
     );
   }
 
-  Future<List<Task>> getActiveTasksForDate(DateTime date) async {
+  Future<List<Task>> getActiveTasksForDate(DateTime date, {bool includeArchived = false}) async {
     Database db = await instance.database;
+    
+    String whereClause = 'is_active = ?';
+    List<dynamic> whereArgs = [1];
+    
+    if (includeArchived) {
+      whereClause = '1 = 1'; // Get all tasks
+      whereArgs = [];
+    }
+
     List<Map<String, dynamic>> maps = await db.query(
       tasksTable,
-      where: 'is_active = ?',
-      whereArgs: [1],
+      where: whereClause,
+      whereArgs: whereArgs,
     );
 
     List<Task> allTasks = List.generate(maps.length, (i) => Task.fromMap(maps[i]));

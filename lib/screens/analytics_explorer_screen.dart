@@ -121,7 +121,8 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     final dateFormatted = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     final record = await DatabaseService.instance.getDayRecord(dateFormatted) ?? 
         DayRecord(date: dateFormatted, completedTaskIds: [], skippedTaskIds: []);
-    final tasks = await DatabaseService.instance.getActiveTasksForDate(date);
+    // Include archived tasks in the inspector so history remains accurate
+    final tasks = await DatabaseService.instance.getActiveTasksForDate(date, includeArchived: true);
 
     if (mounted) {
       setState(() {
@@ -151,6 +152,25 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     await _refreshAnalytics();
   }
 
+  void _toggleTaskSkip(Task task) async {
+    if (_inspectedRecord == null) return;
+
+    List<int> updatedCompletedIds = List.from(_inspectedRecord!.completedTaskIds);
+    List<int> updatedSkippedIds = List.from(_inspectedRecord!.skippedTaskIds);
+
+    if (updatedSkippedIds.contains(task.id)) {
+      updatedSkippedIds.remove(task.id);
+    } else {
+      updatedSkippedIds.add(task.id);
+      updatedCompletedIds.remove(task.id);
+    }
+
+    await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds);
+    
+    await _fetchInspectedDayData(_inspectedDate!);
+    await _refreshAnalytics();
+  }
+
   Future<void> _updateDayRecordInDb(List<int> completedIds, List<int> skippedIds) async {
     final scoreResult = ScoringService.calculateDayScore(
       allTasks: _inspectedTasks, 
@@ -167,7 +187,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
       completedTaskIds: completedIds,
       skippedTaskIds: skippedIds,
       cheatUsed: _inspectedRecord!.cheatUsed,
-      completionScore: scoreResult.completionScore,
+      completionScore: _inspectedRecord!.cheatUsed ? 0.0 : scoreResult.completionScore,
       visualState: _inspectedRecord!.cheatUsed ? VisualState.cheat : scoreResult.visualState,
     );
 
@@ -179,8 +199,10 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF09090B) : Colors.white,
       body: Column(
         children: [
+          _buildGlobalHeader(context),
           Expanded(
             child: Row(
               children: [
@@ -328,9 +350,16 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     final List<String> months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      color: isDark ? const Color(0xFF09090B) : Colors.white,
+      height: 64, // Standardized height
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF09090B) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+          ),
+        ),
+      ),
       child: Row(
         children: [
           Container(
@@ -344,7 +373,10 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
               children: [
                 _buildTopTab(context, 'Dashboard', Icons.dashboard_rounded, false, () => Navigator.pop(context)),
                 _buildTopTab(context, 'Explorer', Icons.explore_rounded, true, () {}),
-                _buildTopTab(context, 'Settings', Icons.settings_rounded, false, () {}),
+                _buildTopTab(context, 'Profile', Icons.person_rounded, false, () {
+                   Navigator.pop(context); // Go back to home
+                   // User will need to click Profile there, or we could pass a tab index
+                }),
               ],
             ),
           ),
@@ -358,16 +390,10 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
               Text(
-                'Consistency Tracker v1.0',
-                style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w500),
+                'Data Explorer Mode',
+                style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700),
               ),
             ],
-          ),
-          const SizedBox(width: 16),
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-            child: Icon(Icons.person_outline_rounded, size: 16, color: Theme.of(context).colorScheme.onSurface),
           ),
         ],
       ),
@@ -379,7 +405,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
@@ -583,17 +609,23 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
             padding: const EdgeInsets.all(20),
             child: Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1))),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.05), 
+                borderRadius: BorderRadius.circular(12), 
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1))
+              ),
               child: Row(children: [
                 Stack(alignment: Alignment.center, children: [
                   SizedBox(width: 40, height: 40, child: CircularProgressIndicator(value: _inspectedRecord?.completionScore ?? 0, strokeWidth: 4, backgroundColor: Colors.grey.withValues(alpha: 0.1))),
                   Text('${((_inspectedRecord?.completionScore ?? 0) * 100).toInt()}%', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                 ]),
                 const SizedBox(width: 16),
-                const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Daily Score', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text('Completion rate', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ]),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_inspectedRecord?.cheatUsed == true ? 'Cheat Day Used' : 'Daily Score', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(_inspectedRecord?.cheatUsed == true ? 'Streak protected' : 'Completion rate', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ]),
+                ),
               ]),
             ),
           ),
@@ -601,11 +633,12 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
-                _buildInspectorSubHeader('TASKS PERFORMED'),
+                _buildInspectorSubHeader('TASKS MANAGEMENT'),
                 if (_inspectedTasks.isNotEmpty)
                   ..._inspectedTasks.map((t) {
                     final isCompleted = _inspectedRecord?.completedTaskIds.contains(t.id) ?? false;
-                    return _buildInspectorTaskTile(t, isCompleted);
+                    final isSkipped = _inspectedRecord?.skippedTaskIds.contains(t.id) ?? false;
+                    return _buildInspectorTaskTile(t, isCompleted, isSkipped);
                   })
                 else
                   _buildEmptyState('No active tasks for this day'),
@@ -621,20 +654,45 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     return Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(title, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.grey[500])));
   }
 
-  Widget _buildInspectorTaskTile(Task task, bool completed) {
+  Widget _buildInspectorTaskTile(Task task, bool completed, bool skipped) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: InkWell(
-        onTap: () => _toggleTaskCompletion(task, !completed),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-          child: Row(children: [
-            SizedBox(width: 24, height: 24, child: Checkbox(value: completed, onChanged: (v) => _toggleTaskCompletion(task, v ?? false), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), activeColor: Colors.green)),
-            const SizedBox(width: 8),
-            Expanded(child: Text(task.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: completed ? null : Colors.grey[500]))),
-          ]),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)),
         ),
+        child: Row(children: [
+          Checkbox(
+            value: completed, 
+            onChanged: (v) => _toggleTaskCompletion(task, v ?? false), 
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), 
+            activeColor: Colors.green
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              task.name, 
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w500, 
+                color: completed ? null : (skipped ? Colors.grey[400] : null),
+                decoration: completed ? TextDecoration.lineThrough : null,
+              )
+            )
+          ),
+          IconButton(
+            onPressed: () => _toggleTaskSkip(task),
+            icon: Icon(
+              skipped ? Icons.block_flipped : Icons.block,
+              size: 16,
+              color: skipped ? Colors.orange : Colors.grey[400],
+            ),
+            tooltip: 'Skip Task',
+          ),
+        ]),
       ),
     );
   }
