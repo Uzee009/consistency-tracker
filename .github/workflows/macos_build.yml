@@ -27,4 +27,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: consistency-tracker-macos
-          path: build/macos/Build/Products/Release/consistency_tracker_v1.app
+          path: build/macos/Build/Products/Release/*.app
