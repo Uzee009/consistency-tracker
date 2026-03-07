@@ -135,37 +135,42 @@ class AnalyticsKPIs extends StatelessWidget {
           Text(
             isWarning ? label : "$label $subtitle",
             maxLines: 1,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: isWarning ? 6 : 7,
+              fontSize: 12, // Increased from 10
               fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
+              letterSpacing: 1.5, // Increased spacing
               color: isWarning ? Colors.orange[700] : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
           ),
+          const SizedBox(height: 8), // Added spacing
           Flexible(
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 value,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 32, // Increased from 18
                   fontWeight: FontWeight.w900,
                   color: color,
                   height: 1.1,
+                  letterSpacing: -1,
                 ),
               ),
             ),
           ),
-          if (isWarning)
+          if (isWarning) ...[
+            const SizedBox(height: 4),
             Text(
               subtitle,
               maxLines: 1,
               style: TextStyle(
-                fontSize: 6,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
                 color: Colors.orange[700],
               ),
             ),
+          ],
         ],
       ),
     );

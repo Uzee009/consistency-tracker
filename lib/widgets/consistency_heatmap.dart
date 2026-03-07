@@ -93,107 +93,112 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final style = styleNotifier.value;
 
     return Container(
-      padding: EdgeInsets.zero, // Remove internal padding, handled by shell
-      decoration: const BoxDecoration(
-        color: Colors.transparent, // V6 Seamless
-      ),
+      padding: const EdgeInsets.all(24), // Restored padding
       child: Column(
         children: [
           if (!widget.hideControls) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+              padding: const EdgeInsets.only(bottom: 24),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Wrap(
-                          spacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (widget.focusedTaskName == null) ...[
-                              _buildLegendItem(Colors.orange[400]!, 'Cheat'),
-                              _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                              _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
-                              const SizedBox(width: 2),
-                              _buildLegendItem(const Color(0xFFD1FAE5), ''),
-                              _buildLegendItem(const Color(0xFFA7F3D0), ''),
-                              _buildLegendItem(const Color(0xFF6EE7B7), ''),
-                              _buildLegendItem(const Color(0xFF34D399), ''),
-                              _buildLegendItem(const Color(0xFF10B981), ''),
-                            ] else ...[
-                              _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
-                              _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
-                            ],
-                          ],
-                        ),
-                      ],
+                  // Range Selector
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: ['1M', '3M', '6M', '1Y'].map((range) {
+                        final isSelected = widget.selectedRange == range;
+                        return GestureDetector(
+                          onTap: () {
+                            widget.onRangeChanged(range);
+                            _scrollToCurrentMonth();
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              range,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const Spacer(),
+                  // TODAY Button
+                  TextButton.icon(
+                    onPressed: () {
+                      final now = DateTime.now();
+                      setState(() {
+                        _current1MDate = DateTime(now.year, now.month, 1);
+                      });
+                      if (widget.onDateSelected != null) {
+                        widget.onDateSelected!(now);
+                      }
+                      _scrollToCurrentMonth();
+                    }, 
+                    icon: const Icon(Icons.today_rounded, size: 16),
+                    label: const Text('JUMP TO TODAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          setState(() => _isReportMode = !_isReportMode);
-                          _scrollToCurrentMonth();
-                        },
-                        icon: Icon(
-                          _isReportMode ? Icons.analytics : Icons.analytics_outlined,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                          size: 18,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Toggle Report Mode',
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: ['1M', '3M', '6M', '1Y'].map((range) {
-                            final isSelected = widget.selectedRange == range;
-                            return GestureDetector(
-                              onTap: () {
-                                widget.onRangeChanged(range);
-                                _scrollToCurrentMonth();
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  range,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
+                  IconButton(
+                    onPressed: () {
+                      setState(() => _isReportMode = !_isReportMode);
+                      _scrollToCurrentMonth();
+                    },
+                    icon: Icon(
+                      _isReportMode ? Icons.analytics : Icons.analytics_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                    tooltip: 'Toggle View Mode',
                   ),
                 ],
               ),
             ),
           ],
           Expanded(child: _buildHeatmapGrid()),
+          if (!widget.hideControls) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (widget.focusedTaskName == null) ...[
+                  _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                  const SizedBox(width: 12),
+                  _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
+                  const SizedBox(width: 12),
+                  _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
+                  const SizedBox(width: 8),
+                  _buildLegendItem(const Color(0xFFD1FAE5), ''),
+                  _buildLegendItem(const Color(0xFFA7F3D0), ''),
+                  _buildLegendItem(const Color(0xFF6EE7B7), ''),
+                  _buildLegendItem(const Color(0xFF34D399), ''),
+                  _buildLegendItem(const Color(0xFF10B981), 'Success'),
+                ] else ...[
+                  _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+                ],
+              ],
+            ),
+          ],
         ],
       ),
     );

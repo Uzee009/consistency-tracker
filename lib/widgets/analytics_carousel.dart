@@ -10,6 +10,7 @@ class AnalyticsCarousel extends StatefulWidget {
   final String title;
   final String? focusedTaskName;
   final bool isEmbedded;
+  final Function(DateTime)? onDateSelected;
 
   const AnalyticsCarousel({
     super.key,
@@ -18,6 +19,7 @@ class AnalyticsCarousel extends StatefulWidget {
     required this.title,
     this.focusedTaskName,
     this.isEmbedded = false,
+    this.onDateSelected,
   });
 
   @override
@@ -37,7 +39,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     final content = Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
+          padding: const EdgeInsets.fromLTRB(24, 20, 20, 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -48,19 +50,19 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                         ? (widget.focusedTaskName != null ? 'HABIT MASTERY' : 'DISCIPLINE INDEX')
                         : 'OUTPUT VOLUME',
                     style: TextStyle(
-                      fontSize: 8,
+                      fontSize: 10,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
+                      letterSpacing: 1.5,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   Tooltip(
                     message: _getHelpText(),
                     triggerMode: TooltipTriggerMode.tap,
                     child: Icon(
                       Icons.info_outline_rounded,
-                      size: 10,
+                      size: 14,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
                     ),
                   ),
@@ -73,7 +75,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                     Icons.chevron_left_rounded, 
                     _currentPage > 0 ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   _buildNavButton(
                     context, 
                     Icons.chevron_right_rounded, 
@@ -99,19 +101,14 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
 
     if (widget.isEmbedded) {
       return Padding(
-        padding: EdgeInsets.zero, // Shell handles padding
+        padding: EdgeInsets.zero,
         child: content,
       );
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: containerBg,
-        borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(
-          color: StyleService.getDailyTaskBorder(style, isDark),
-          width: 1,
-        ),
+      decoration: const BoxDecoration(
+        color: Colors.transparent, // Removed internal border/bg to blend with section shell
       ),
       child: content,
     );
@@ -132,14 +129,14 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Icon(
           icon, 
-          size: 14, 
+          size: 18, 
           color: onPressed != null 
               ? Theme.of(context).colorScheme.onSurface 
               : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)
@@ -155,21 +152,46 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     final spots = widget.momentumData.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value)).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 32, 32, 24),
       child: LineChart(
         LineChartData(
           lineTouchData: LineTouchData(
+            handleBuiltInTouches: true, // Enable built-in hover handling
+            touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
+              if (event is FlTapUpEvent && response != null && response.lineBarSpots != null && response.lineBarSpots!.isNotEmpty) {
+                final index = response.lineBarSpots!.first.spotIndex;
+                if (widget.onDateSelected != null) {
+                  widget.onDateSelected!(widget.momentumData[index].date);
+                }
+              }
+            },
             touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (touchedSpot) => isDark ? Colors.grey[900]! : Colors.white,
+              getTooltipColor: (touchedSpot) => isDark ? const Color(0xFF18181B) : Colors.white,
+              tooltipBorder: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
               getTooltipItems: (List<LineBarSpot> touchedSpots) {
                 return touchedSpots.map((LineBarSpot touchedSpot) {
+                  final date = widget.momentumData[touchedSpot.spotIndex].date;
+                  String dateLabel = widget.title == '1Y' 
+                    ? _getMonthName(date.month) 
+                    : "${date.day} ${_getMonthName(date.month)}";
+                    
                   return LineTooltipItem(
-                    '${(touchedSpot.y * 100).toStringAsFixed(0)}%',
+                    '$dateLabel\n',
                     TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: Colors.grey[500],
+                      fontSize: 8,
                       fontWeight: FontWeight.bold,
-                      fontSize: 10,
                     ),
+                    children: [
+                      TextSpan(
+                        text: '${(touchedSpot.y * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   );
                 }).toList();
               },
@@ -191,8 +213,8 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 20,
-                interval: (spots.length / 4).clamp(1, 999).toDouble(),
+                reservedSize: 24,
+                interval: (spots.length / 5).clamp(1, 999).toDouble(),
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index >= 0 && index < widget.momentumData.length) {
@@ -209,7 +231,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
               sideTitles: SideTitles(
                 showTitles: true,
                 interval: 0.5,
-                reservedSize: 28,
+                reservedSize: 32,
                 getTitlesWidget: (value, meta) {
                   if (value == 0) return _buildAxisLabel('0%');
                   if (value == 0.5) return _buildAxisLabel('50%');
@@ -225,9 +247,16 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
               spots: spots,
               isCurved: true,
               color: accentColor,
-              barWidth: 2.0,
+              barWidth: 3.0,
               isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                  radius: 0,
+                  color: accentColor,
+                  strokeWidth: 0,
+                ),
+              ),
               belowBarData: BarAreaData(
                 show: true,
                 gradient: LinearGradient(
@@ -261,10 +290,10 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
           BarChartRodData(
             toY: e.value.count.toDouble(),
             color: accentColor,
-            width: widget.volumeData.length > 30 ? 2 : 6,
+            width: widget.volumeData.length > 30 ? 4 : 12,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(2),
-              topRight: Radius.circular(2),
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
             ),
           ),
         ],
@@ -275,20 +304,45 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     if (maxY < 5) maxY = 5;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
       child: BarChart(
         BarChartData(
           barTouchData: BarTouchData(
+            handleBuiltInTouches: true,
+            touchCallback: (FlTouchEvent event, BarTouchResponse? response) {
+              if (event is FlTapUpEvent && response != null && response.spot != null) {
+                final index = response.spot!.touchedBarGroupIndex;
+                if (widget.onDateSelected != null) {
+                  widget.onDateSelected!(widget.volumeData[index].date);
+                }
+              }
+            },
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (group) => isDark ? Colors.grey[900]! : Colors.white,
+              getTooltipColor: (group) => isDark ? const Color(0xFF18181B) : Colors.white,
+              tooltipBorder: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                final date = widget.volumeData[groupIndex].date;
+                String dateLabel = widget.title == '1Y' 
+                  ? _getMonthName(date.month) 
+                  : "${date.day} ${_getMonthName(date.month)}";
+                  
                 return BarTooltipItem(
-                  rod.toY.toInt().toString(),
+                  '$dateLabel\n',
                   TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: Colors.grey[500],
+                    fontSize: 8,
                     fontWeight: FontWeight.bold,
-                    fontSize: 10,
                   ),
+                  children: [
+                    TextSpan(
+                      text: rod.toY.toInt().toString(),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -301,8 +355,8 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 20,
-                interval: (widget.volumeData.length / 4).clamp(1, 999).toDouble(),
+                reservedSize: 24,
+                interval: (widget.volumeData.length / 5).clamp(1, 999).toDouble(),
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index >= 0 && index < widget.volumeData.length) {
@@ -318,7 +372,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 28,
+                reservedSize: 32,
                 getTitlesWidget: (value, meta) {
                   if (value == 0 || value == maxY.floor() || value == (maxY / 2).floor()) {
                     return _buildAxisLabel(value.toInt().toString());
@@ -339,12 +393,12 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
 
   Widget _buildAxisLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.only(top: 8),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 7, 
-          fontWeight: FontWeight.bold, 
+          fontSize: 8, 
+          fontWeight: FontWeight.w900, 
           color: Colors.grey[500],
         ),
       ),
