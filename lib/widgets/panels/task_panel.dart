@@ -101,9 +101,23 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
         ),
 
         // TABS
-
-
-        // LIST
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                _buildInnerPillTab('DAILY', 0),
+                _buildInnerPillTab('TEMPORARY', 1),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -139,7 +153,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
 
   void _editTask(Task task) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskFormScreen(task: task)));
-    widget.controller.initialize(widget.controller.selectedDate);
+    widget.controller.initialize(widget.controller.selectedDate, showLoading: false);
   }
 
   Widget _buildInnerPillTab(String label, int index) {
@@ -162,7 +176,7 @@ class _TaskAddAction extends StatelessWidget {
         color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          onTap: () => showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => AddTaskBottomSheet(type: TaskType.daily, onTaskAdded: () => controller.initialize(controller.selectedDate))),
+          onTap: () => showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => AddTaskBottomSheet(type: TaskType.daily, onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false))),
           borderRadius: BorderRadius.circular(8),
           child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.add_rounded, size: 16, color: Colors.grey)),
         ),

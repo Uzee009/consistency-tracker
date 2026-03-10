@@ -25,18 +25,15 @@ class _CalendarPanelState extends State<CalendarPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: ConsistencyHeatmap(
-        key: _heatmapKey,
-        heatmapData: widget.controller.heatmapData,
-        selectedDate: widget.controller.selectedDate,
-        onDateSelected: (date) => widget.controller.setSelectedDate(date, showLoading: false),
-        onMonthChanged: (m) => setState(() => _viewedMonth = m),
-        selectedRange: '1M', 
-        onRangeChanged: (_) {},
-        hideControls: true,
-      ),
+    return ConsistencyHeatmap(
+      key: _heatmapKey,
+      heatmapData: widget.controller.heatmapData,
+      selectedDate: widget.controller.selectedDate,
+      onDateSelected: (date) => widget.controller.setSelectedDate(date, showLoading: false),
+      onMonthChanged: (m) => setState(() => _viewedMonth = m),
+      selectedRange: '1M', 
+      onRangeChanged: (_) {},
+      hideControls: true,
     );
   }
 }

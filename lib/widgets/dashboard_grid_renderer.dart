@@ -246,7 +246,7 @@ class DashboardGridRenderer extends StatelessWidget {
           // ADAPTIVE CONTENT
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(8.0), // Reduced from 16.0
               child: ClipRect(
                 child: LayoutBuilder(
                   builder: (context, constraints) {

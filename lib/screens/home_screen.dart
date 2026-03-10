@@ -127,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.centerRight,
               child: UserMenu(
                 currentUser: _dataController.currentUser,
-                onSettingsReturn: () => _dataController.initialize(_dataController.selectedDate),
+                onSettingsReturn: () => _dataController.initialize(_dataController.selectedDate, showLoading: false),
               ),
             ),
           ),

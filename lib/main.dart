@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/screens/first_run_setup_screen.dart';
@@ -85,6 +86,7 @@ class _MyAppState extends State<MyApp> {
               title: 'Consistency Tracker',
               themeMode: mode,
               theme: ThemeData(
+                textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
                 colorScheme: ColorScheme.fromSeed(
                   seedColor: Colors.grey,
                   primary: primaryColor,
@@ -98,10 +100,10 @@ class _MyAppState extends State<MyApp> {
                   foregroundColor: const Color(0xFF09090B),
                   elevation: 0,
                   centerTitle: true,
-                  titleTextStyle: TextStyle(
+                  titleTextStyle: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF09090B),
+                    color: Color(0xFF09090B),
                     letterSpacing: 2,
                   ),
                 ),
@@ -130,7 +132,7 @@ class _MyAppState extends State<MyApp> {
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
                   ),
                 ),
                 dividerTheme: const DividerThemeData(
@@ -140,6 +142,7 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
               darkTheme: ThemeData(
+                textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
                 colorScheme: ColorScheme.fromSeed(
                   seedColor: Colors.grey,
                   brightness: Brightness.dark,
@@ -149,12 +152,12 @@ class _MyAppState extends State<MyApp> {
                 ),
                 useMaterial3: true,
                 scaffoldBackgroundColor: const Color(0xFF09090B),
-                appBarTheme: const AppBarTheme(
-                  backgroundColor: Color(0xFF09090B),
+                appBarTheme: AppBarTheme(
+                  backgroundColor: const Color(0xFF09090B),
                   foregroundColor: Colors.white,
                   elevation: 0,
                   centerTitle: true,
-                  titleTextStyle: TextStyle(
+                  titleTextStyle: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -186,7 +189,7 @@ class _MyAppState extends State<MyApp> {
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
                   ),
                 ),
                 dividerTheme: const DividerThemeData(

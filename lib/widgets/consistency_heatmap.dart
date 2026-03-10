@@ -52,8 +52,16 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
       _scrollToCurrentMonth();
     }
     
-    // REMOVED: Auto-resetting _current1MDate when selectedDate changes.
-    // The month view should only change when the user clicks chevrons or Reset View.
+    // Sync viewed month with selectedDate if it changes externally (e.g., Today button)
+    if (widget.selectedDate != null && oldWidget.selectedDate != widget.selectedDate) {
+      final newDate = widget.selectedDate!;
+      if (newDate.month != _current1MDate.month || newDate.year != _current1MDate.year) {
+        setState(() {
+          _current1MDate = DateTime(newDate.year, newDate.month, 1);
+        });
+        _scrollToCurrentMonth();
+      }
+    }
   }
 
   void _scrollToCurrentMonth() async {
@@ -89,116 +97,116 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.hideControls) {
+      return _buildHeatmapGrid();
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = styleNotifier.value;
 
     return Container(
-      padding: const EdgeInsets.all(24), // Restored padding
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
-          if (!widget.hideControls) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Row(
-                children: [
-                  // Range Selector
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: ['1M', '3M', '6M', '1Y'].map((range) {
-                        final isSelected = widget.selectedRange == range;
-                        return GestureDetector(
-                          onTap: () {
-                            widget.onRangeChanged(range);
-                            _scrollToCurrentMonth();
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              range,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500],
-                              ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Row(
+              children: [
+                // Range Selector
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: ['1M', '3M', '6M', '1Y'].map((range) {
+                      final isSelected = widget.selectedRange == range;
+                      return GestureDetector(
+                        onTap: () {
+                          widget.onRangeChanged(range);
+                          _scrollToCurrentMonth();
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            range,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                              color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500],
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  const Spacer(),
-                  // TODAY Button
-                  TextButton.icon(
-                    onPressed: () {
-                      final now = DateTime.now();
-                      setState(() {
-                        _current1MDate = DateTime(now.year, now.month, 1);
-                      });
-                      if (widget.onDateSelected != null) {
-                        widget.onDateSelected!(now);
-                      }
-                      _scrollToCurrentMonth();
-                    }, 
-                    icon: const Icon(Icons.today_rounded, size: 16),
-                    label: const Text('JUMP TO TODAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
+                ),
+                const Spacer(),
+                // TODAY Button
+                TextButton.icon(
+                  onPressed: () {
+                    final now = DateTime.now();
+                    setState(() {
+                      _current1MDate = DateTime(now.year, now.month, 1);
+                    });
+                    if (widget.onDateSelected != null) {
+                      widget.onDateSelected!(now);
+                    }
+                    _scrollToCurrentMonth();
+                  }, 
+                  icon: const Icon(Icons.today_rounded, size: 16),
+                  label: const Text('JUMP TO TODAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () {
-                      setState(() => _isReportMode = !_isReportMode);
-                      _scrollToCurrentMonth();
-                    },
-                    icon: Icon(
-                      _isReportMode ? Icons.analytics : Icons.analytics_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
-                    ),
-                    tooltip: 'Toggle View Mode',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    setState(() => _isReportMode = !_isReportMode);
+                    _scrollToCurrentMonth();
+                  },
+                  icon: Icon(
+                    _isReportMode ? Icons.analytics : Icons.analytics_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
                   ),
-                ],
-              ),
-            ),
-          ],
-          Expanded(child: _buildHeatmapGrid()),
-          if (!widget.hideControls) ...[
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (widget.focusedTaskName == null) ...[
-                  _buildLegendItem(Colors.orange[400]!, 'Cheat'),
-                  const SizedBox(width: 12),
-                  _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
-                  const SizedBox(width: 12),
-                  _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
-                  const SizedBox(width: 8),
-                  _buildLegendItem(const Color(0xFFD1FAE5), ''),
-                  _buildLegendItem(const Color(0xFFA7F3D0), ''),
-                  _buildLegendItem(const Color(0xFF6EE7B7), ''),
-                  _buildLegendItem(const Color(0xFF34D399), ''),
-                  _buildLegendItem(const Color(0xFF10B981), 'Success'),
-                ] else ...[
-                  _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
-                  const SizedBox(width: 16),
-                  _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
-                ],
+                  tooltip: 'Toggle View Mode',
+                ),
               ],
             ),
-          ],
+          ),
+          Expanded(child: _buildHeatmapGrid()),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.focusedTaskName == null) ...[
+                _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                const SizedBox(width: 12),
+                _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
+                const SizedBox(width: 12),
+                _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'None'),
+                const SizedBox(width: 8),
+                _buildLegendItem(const Color(0xFFD1FAE5), ''),
+                _buildLegendItem(const Color(0xFFA7F3D0), ''),
+                _buildLegendItem(const Color(0xFF6EE7B7), ''),
+                _buildLegendItem(const Color(0xFF34D399), ''),
+                _buildLegendItem(const Color(0xFF10B981), 'Success'),
+              ] else ...[
+                _buildLegendItem(StyleService.getHeatmapEmptyCell(style, isDark), 'Missed'),
+                const SizedBox(width: 16),
+                _buildLegendItem(const Color(0xFF10B981), 'Achieved'),
+              ],
+            ],
+          ),
         ],
       ),
     );
@@ -247,8 +255,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final double contentHeight = availableHeight - headerHeight - weekdayHeaderHeight;
 
     final double cellWidth = (availableWidth - 2.0) / 7;
-    // V6: cellHeight = max(32px, calculatedHeight)
-    final double cellHeight = ((contentHeight - 2.0) / weeksInMonth).clamp(32.0, 60.0);
+    // Responsive height: use available height but keep cells square-ish or at least substantial
+    final double cellHeight = ((contentHeight - 2.0) / weeksInMonth).clamp(32.0, 120.0);
 
     final double totalGridWidth = cellWidth * 7;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -309,15 +317,15 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: cellColor,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8), // Increased radius
                       border: isSelected 
                           ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
                           : null,
                     ),
                     child: Center(
                        child: intensity == -2
-                        ? Icon(Icons.star, size: (cellHeight * 0.35).clamp(8, 20), color: Colors.white)
-                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.3).clamp(10, 18), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500)),
+                        ? Icon(Icons.star, size: (cellHeight * 0.45).clamp(8, 32), color: Colors.white)
+                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.35).clamp(10, 24), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600)),
                     ),
                   ),
                 ),
@@ -330,65 +338,63 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
        if (iterDay.year > year || (iterDay.year == year && iterDay.month > month)) break;
     }
 
-    return SingleChildScrollView(
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: headerHeight,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 22),
-                    onPressed: () {
-                      setState(() {
-                        _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
-                      });
-                      if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
-                    },
-                  ),
-                  Text(
-                    '${monthNames[month - 1]} $year',
-                    style: TextStyle(
-                      fontSize: 14, 
-                      fontWeight: FontWeight.w900, 
-                      letterSpacing: 1,
-                      color: Theme.of(context).colorScheme.onSurface
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
-                    onPressed: () {
-                      setState(() {
-                        _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
-                      });
-                      if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
-                    },
-                  ),
-                ],
+    return Column(
+      children: [
+        SizedBox(
+          height: headerHeight,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 22),
+                onPressed: () {
+                  setState(() {
+                    _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
+                  });
+                  if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
+                },
               ),
-            ),
-            SizedBox(
-              width: totalGridWidth,
-              height: weekdayHeaderHeight,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ...weekdays.map((day) => SizedBox(
-                    width: cellWidth,
-                    child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5))),
-                  )),
-                ],
+              Text(
+                '${monthNames[month - 1]} $year',
+                style: TextStyle(
+                  fontSize: 14, 
+                  fontWeight: FontWeight.w900, 
+                  letterSpacing: 1,
+                  color: Theme.of(context).colorScheme.onSurface
+                ),
               ),
-            ),
-            Column(
-              children: gridRows,
-            ),
-          ],
+              IconButton(
+                icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
+                onPressed: () {
+                  setState(() {
+                    _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
+                  });
+                  if (widget.onMonthChanged != null) widget.onMonthChanged!(_current1MDate);
+                },
+              ),
+            ],
+          ),
         ),
-      ),
+        SizedBox(
+          width: totalGridWidth,
+          height: weekdayHeaderHeight,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ...weekdays.map((day) => SizedBox(
+                width: cellWidth,
+                child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5))),
+              )),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute weeks vertically
+            children: gridRows,
+          ),
+        ),
+      ],
     );
 
   }
