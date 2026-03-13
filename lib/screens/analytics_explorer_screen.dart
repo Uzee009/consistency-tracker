@@ -1,5 +1,6 @@
 // lib/screens/analytics_explorer_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
@@ -22,10 +23,14 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
   // 1. Data Notifiers (The "Brains" that trigger specific rebuilds)
   final ValueNotifier<Task?> _selectedTaskNotifier = ValueNotifier(null);
   final ValueNotifier<bool> _isLoadingNotifier = ValueNotifier(true);
+  final ValueNotifier<DateTime?> _visibleMonthNotifier = ValueNotifier(null); 
+  final ValueNotifier<DateTimeRange?> _streakInspectionNotifier = ValueNotifier(null);
   
-  List<Task> _allTasks = [];
+  List<Task> _primaryCache = [];
+  List<Task> _secondaryCache = [];
+  List<DayRecord> _allRecordsForCache = [];
   
-  // Analytics State (Only updated when task selection changes)
+  // Analytics State
   Map<DateTime, int> _heatmapData = {};
   AnalyticsResult _analytics = AnalyticsResult.empty();
   String _heatmapRange = '3M';
@@ -42,33 +47,61 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     super.initState();
     _selectedTaskNotifier.value = widget.initialSelectedTask;
     _loadInitialData();
-    
-    // Listen for selection changes to refresh heavy analytics
-    _selectedTaskNotifier.addListener(_refreshAnalytics);
+    _selectedTaskNotifier.addListener(_onTaskSelectionChanged);
   }
 
   @override
   void dispose() {
-    _selectedTaskNotifier.removeListener(_refreshAnalytics);
+    _selectedTaskNotifier.removeListener(_onTaskSelectionChanged);
     _selectedTaskNotifier.dispose();
     _isLoadingNotifier.dispose();
     _inspectedDateNotifier.dispose();
+    _visibleMonthNotifier.dispose();
+    _streakInspectionNotifier.dispose();
     super.dispose();
+  }
+
+  void _onTaskSelectionChanged() {
+    final selected = _selectedTaskNotifier.value;
+    _streakInspectionNotifier.value = null; // Reset streak view
+    
+    if (selected != null && !selected.isActive) {
+      _visibleMonthNotifier.value = selected.createdAt;
+    } else {
+      _visibleMonthNotifier.value = DateTime.now();
+    }
+    _refreshAnalytics();
   }
 
   Future<void> _loadInitialData() async {
     _isLoadingNotifier.value = true;
-    final tasks = await DatabaseService.instance.getAllTasks();
-    if (mounted) {
-      setState(() => _allTasks = tasks);
-      _refreshAnalytics();
+    final allTasks = await DatabaseService.instance.getAllTasks();
+    _allRecordsForCache = await DatabaseService.instance.getDayRecords(limit: 5000); 
+    
+    final now = DateTime.now();
+    final oneYearAgo = now.subtract(const Duration(days: 365));
+
+    _primaryCache = [];
+    _secondaryCache = [];
+
+    for (var task in allTasks) {
+      bool isRecent = task.isActive || task.createdAt.isAfter(oneYearAgo);
+      if (!isRecent) {
+        final recentActivity = _allRecordsForCache.where((r) {
+          final d = DateTime.tryParse(r.date) ?? DateTime(2000);
+          return d.isAfter(oneYearAgo) && r.completedTaskIds.contains(task.id);
+        });
+        if (recentActivity.isNotEmpty) isRecent = true;
+      }
+      if (isRecent) { _primaryCache.add(task); } else { _secondaryCache.add(task); }
     }
+
+    if (mounted) { _refreshAnalytics(); }
   }
 
   Future<void> _refreshAnalytics() async {
-    // Note: Don't set global isLoading to true for every minor shift to avoid flicker
     final selected = _selectedTaskNotifier.value;
-    final allRecords = await DatabaseService.instance.getDayRecords(limit: 366);
+    final allRecords = await DatabaseService.instance.getDayRecords(limit: 5000);
     final allTasks = await DatabaseService.instance.getAllTasks();
     final taskTypeMap = {for (var t in allTasks) t.id: t.type};
 
@@ -102,13 +135,14 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
     final record = await DatabaseService.instance.getDayRecord(dateFormatted) ?? DayRecord(date: dateFormatted, completedTaskIds: [], skippedTaskIds: []);
     final tasks = await DatabaseService.instance.getActiveTasksForDate(date, includeArchived: true);
     if (mounted) {
-      _inspectedRecord = record;
-      _inspectedTasks = tasks;
-      _inspectedDateNotifier.value = date;
+      setState(() {
+        _inspectedRecord = record;
+        _inspectedTasks = tasks;
+        _inspectedDateNotifier.value = date;
+      });
     }
   }
 
-  // Action Handlers
   void _handleTaskToggle(Task t, bool comp) async {
     if (_inspectedRecord == null) return;
     List<int> cIds = List.from(_inspectedRecord!.completedTaskIds);
@@ -135,13 +169,11 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Row(
       children: [
-        // ZONE 1: THE SEARCH SIDEBAR (Lightning fast because it only rebuilds itself)
         _SearchSidebar(
-          allTasks: _allTasks,
+          primaryCache: _primaryCache,
+          secondaryCache: _secondaryCache,
           selectedTaskNotifier: _selectedTaskNotifier,
           onToggleArchive: (task) async {
             final updated = Task(id: task.id, name: task.name, type: task.type, durationDays: task.durationDays, isPerpetual: task.isPerpetual, createdAt: task.createdAt, isActive: !task.isActive);
@@ -149,14 +181,11 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
             _loadInitialData();
           },
         ),
-
-        // ZONE 2: THE DATA WORKSPACE (Only rebuilds when selection changes)
         Expanded(
           child: ValueListenableBuilder<bool>(
             valueListenable: _isLoadingNotifier,
             builder: (context, loading, _) {
               if (loading) return const Center(child: CircularProgressIndicator());
-              
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(32),
                 child: Column(
@@ -164,16 +193,37 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
                   children: [
                     _buildHeader(),
                     const SizedBox(height: 32),
-                    SizedBox(height: 120, child: AnalyticsKPIs(analytics: _analytics, isFocused: _selectedTaskNotifier.value != null)),
+                    SizedBox(
+                      height: 120, 
+                      child: AnalyticsKPIs(
+                        analytics: _analytics, 
+                        isFocused: _selectedTaskNotifier.value != null,
+                        onJump: (targetDate) {
+                          _visibleMonthNotifier.value = targetDate;
+                          _fetchInspectedDayData(targetDate);
+                          // If it was a streak jump, set the metadata
+                          if (targetDate == _analytics.longestStreakStart) {
+                            _streakInspectionNotifier.value = DateTimeRange(start: _analytics.longestStreakStart!, end: _analytics.longestStreakEnd!);
+                          }
+                        },
+                      )
+                    ),
                     const SizedBox(height: 32),
                     _section(context, 'CONSISTENCY HEATMAP', 'Click to inspect.', 
-                      SizedBox(height: 420, child: ConsistencyHeatmap(
-                        heatmapData: _heatmapData, 
-                        selectedDate: _inspectedDateNotifier.value, 
-                        onDateSelected: _fetchInspectedDayData, 
-                        selectedRange: _heatmapRange, 
-                        focusedTaskName: _selectedTaskNotifier.value?.name, 
-                        onRangeChanged: (r) { setState(() => _heatmapRange = r); _refreshAnalytics(); }
+                      SizedBox(height: 420, child: ValueListenableBuilder<DateTime?>(
+                        valueListenable: _visibleMonthNotifier,
+                        builder: (context, vMonth, _) {
+                          return ConsistencyHeatmap(
+                            key: ValueKey(_selectedTaskNotifier.value?.id ?? -1),
+                            heatmapData: _heatmapData, 
+                            selectedDate: _inspectedDateNotifier.value, 
+                            visibleMonth: vMonth,
+                            onDateSelected: _fetchInspectedDayData, 
+                            selectedRange: _heatmapRange, 
+                            focusedTaskName: _selectedTaskNotifier.value?.name, 
+                            onRangeChanged: (r) { setState(() => _heatmapRange = r); _refreshAnalytics(); }
+                          );
+                        }
                       ))
                     ),
                     const SizedBox(height: 32),
@@ -192,8 +242,6 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
             },
           ),
         ),
-
-        // ZONE 3: THE INSPECTOR
         ValueListenableBuilder<DateTime?>(
           valueListenable: _inspectedDateNotifier,
           builder: (context, date, _) {
@@ -213,11 +261,29 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
   }
 
   Widget _buildHeader() {
-    final sel = _selectedTaskNotifier.value;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(sel?.name.toUpperCase() ?? 'GLOBAL PERFORMANCE', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-      Text(sel == null ? 'Aggregated metrics for all habits.' : 'Analysis for ${sel.name}.', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
-    ]);
+    return ValueListenableBuilder<DateTimeRange?>(
+      valueListenable: _streakInspectionNotifier,
+      builder: (context, streakRange, _) {
+        final sel = _selectedTaskNotifier.value;
+        final String mainTitle = sel?.name.toUpperCase() ?? 'GLOBAL PERFORMANCE';
+        
+        String subTitle = sel == null ? 'Aggregated metrics for all habits.' : 'Analysis for ${sel.name}.';
+        
+        if (streakRange != null) {
+          final s = streakRange.start;
+          final e = streakRange.end;
+          subTitle = "Streak Started: ${s.day}/${s.month}/${s.year} • Ended: ${e.day}/${e.month}/${e.year}";
+        } else if (sel != null) {
+          final start = sel.createdAt;
+          subTitle = "Habit Start Date: ${start.day.toString().padLeft(2,'0')}/${start.month.toString().padLeft(2,'0')}/${start.year}";
+        }
+
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(mainTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+          Text(subTitle, style: TextStyle(fontSize: 14, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+        ]);
+      }
+    );
   }
 
   Widget _section(BuildContext context, String title, String help, Widget child) {
@@ -239,11 +305,12 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
 // --- LIGHTWEIGHT SIDEBAR ---
 class _SearchSidebar extends StatefulWidget {
-  final List<Task> allTasks;
+  final List<Task> primaryCache;
+  final List<Task> secondaryCache;
   final ValueNotifier<Task?> selectedTaskNotifier;
   final Function(Task) onToggleArchive;
 
-  const _SearchSidebar({required this.allTasks, required this.selectedTaskNotifier, required this.onToggleArchive});
+  const _SearchSidebar({required this.primaryCache, required this.secondaryCache, required this.selectedTaskNotifier, required this.onToggleArchive});
 
   @override
   State<_SearchSidebar> createState() => _SearchSidebarState();
@@ -252,37 +319,64 @@ class _SearchSidebar extends StatefulWidget {
 class _SearchSidebarState extends State<_SearchSidebar> {
   final TextEditingController _ctrl = TextEditingController();
   int _cat = 0;
+  Timer? _debounce;
+  List<Task> _filtered = [];
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void initState() { super.initState(); _applyFilter(); }
+
+  @override
+  void didUpdateWidget(_SearchSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.primaryCache != widget.primaryCache) _applyFilter();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); _debounce?.cancel(); super.dispose(); }
+
+  void _onSearchChanged(String v) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), _applyFilter);
+    if (v.isEmpty) setState(() {}); 
+  }
+
+  void _applyFilter() {
+    final query = _ctrl.text.toLowerCase().trim();
+    final allTasks = [...widget.primaryCache, ...widget.secondaryCache];
+    final result = allTasks.where((t) {
+      final nameMatch = t.name.toLowerCase().contains(query);
+      if (!nameMatch) return false;
+      if (_cat == 0) return t.isActive && t.type == TaskType.daily;
+      if (_cat == 1) return t.isActive && t.type == TaskType.temporary;
+      return !t.isActive;
+    }).toList();
+    result.sort((a, b) {
+      final aP = widget.primaryCache.any((p) => p.id == a.id);
+      final bP = widget.primaryCache.any((p) => p.id == b.id);
+      if (aP && !bP) return -1;
+      if (!aP && bP) return 1;
+      return a.name.compareTo(b.name);
+    });
+    if (mounted) setState(() => _filtered = result);
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final query = _ctrl.text.toLowerCase();
-    
-    final filtered = widget.allTasks.where((t) {
-      final m = t.name.toLowerCase().contains(query);
-      if (_cat == 0) return m && t.isActive && t.type == TaskType.daily;
-      if (_cat == 1) return m && t.isActive && t.type == TaskType.temporary;
-      return m && !t.isActive;
-    }).toList();
-
     return Container(
       width: 280,
       decoration: BoxDecoration(color: isDark ? Colors.black.withValues(alpha: 0.1) : Colors.white, border: Border(right: BorderSide(color: isDark ? Colors.white10 : Colors.black12))),
       child: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 20, 16, 12), child: TextField(
-          controller: _ctrl,
-          onChanged: (v) => setState(() {}), // ONLY rebuilds this sidebar
-          decoration: InputDecoration(hintText: 'Search habits...', prefixIcon: const Icon(Icons.search, size: 16), suffixIcon: _ctrl.text.isNotEmpty ? IconButton(onPressed: () { _ctrl.clear(); setState(() {}); }, icon: const Icon(Icons.close, size: 14)) : null, contentPadding: EdgeInsets.zero),
+          controller: _ctrl, onChanged: _onSearchChanged,
+          decoration: InputDecoration(hintText: 'Search habits...', prefixIcon: const Icon(Icons.search, size: 16), suffixIcon: _ctrl.text.isNotEmpty ? IconButton(onPressed: () { _ctrl.clear(); _applyFilter(); }, icon: const Icon(Icons.close, size: 14)) : null, contentPadding: EdgeInsets.zero),
           style: const TextStyle(fontSize: 13),
         )),
         _tile(null),
         const Divider(height: 16, indent: 16, endIndent: 16),
         _tabs(isDark),
         const SizedBox(height: 8),
-        Expanded(child: ListView.builder(itemCount: filtered.length, itemBuilder: (c, i) => _tile(filtered[i]))),
+        Expanded(child: ListView.builder(itemCount: _filtered.length, itemBuilder: (c, i) => _tile(_filtered[i]))),
       ]),
     );
   }
@@ -295,7 +389,7 @@ class _SearchSidebarState extends State<_SearchSidebar> {
 
   Widget _t(int i, String l) {
     final s = _cat == i;
-    return Expanded(child: GestureDetector(onTap: () => setState(() => _cat = i), child: Container(padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: s ? (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(6)), child: Text(l, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: s ? FontWeight.w700 : FontWeight.w500)))));
+    return Expanded(child: GestureDetector(onTap: () { setState(() => _cat = i); _applyFilter(); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: s ? (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(6)), child: Text(l, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: s ? FontWeight.w700 : FontWeight.w500)))));
   }
 
   Widget _tile(Task? t) {
@@ -304,15 +398,25 @@ class _SearchSidebarState extends State<_SearchSidebar> {
       builder: (context, current, _) {
         final isG = t == null;
         final sel = isG ? current == null : current?.id == t.id;
+        final isPrimary = !isG && widget.primaryCache.any((p) => p.id == t.id);
+        final String displayName = isG ? 'GLOBAL PERFORMANCE' : t.name.split(' ').map((str) => str.isNotEmpty ? '${str[0].toUpperCase()}${str.substring(1).toLowerCase()}' : '').join(' ');
+
         return Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2), child: InkWell(
           onTap: () => widget.selectedTaskNotifier.value = t,
           borderRadius: BorderRadius.circular(8),
-          child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3) : Colors.transparent)), child: Row(children: [
-            Icon(isG ? Icons.insights_rounded : (t.type == TaskType.daily ? Icons.cached : Icons.bolt), size: 16, color: sel ? Theme.of(context).colorScheme.primary : Colors.grey),
-            const SizedBox(width: 12),
-            Expanded(child: Text(isG ? 'GLOBAL PERFORMANCE' : t.name, style: TextStyle(fontSize: 12, fontWeight: sel ? FontWeight.w900 : FontWeight.w600, color: sel ? Theme.of(context).colorScheme.primary : null))),
-            if (!isG) IconButton(onPressed: () => widget.onToggleArchive(t), icon: Icon(t.isActive ? Icons.archive_outlined : Icons.unarchive_outlined, size: 14), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-          ])),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), 
+            decoration: BoxDecoration(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3) : Colors.transparent)), 
+            child: Row(children: [
+              Icon(
+                isG ? Icons.insights_rounded : (t.isPerpetual ? Icons.cached : Icons.timer_outlined), 
+                size: 16, color: sel ? Theme.of(context).colorScheme.primary : (isPrimary ? Colors.grey : Colors.grey.withValues(alpha: 0.5))
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(displayName, style: TextStyle(fontSize: 12, fontWeight: sel ? FontWeight.w900 : FontWeight.w600, color: sel ? Theme.of(context).colorScheme.primary : (isPrimary ? null : Colors.grey)))),
+              if (!isG) IconButton(onPressed: () => widget.onToggleArchive(t), icon: Icon(t.isActive ? Icons.archive_outlined : Icons.unarchive_outlined, size: 14), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+            ])
+          ),
         ));
       }
     );

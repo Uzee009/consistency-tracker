@@ -6,8 +6,9 @@ import '../main.dart';
 class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
   final Function(DateTime)? onDateSelected;
-  final Function(DateTime)? onMonthChanged; // Added this
+  final Function(DateTime)? onMonthChanged;
   final DateTime? selectedDate;
+  final DateTime? visibleMonth; // New property for Time Travel
   final String? focusedTaskName;
   final VoidCallback? onClearFocus;
   final String selectedRange;
@@ -22,6 +23,7 @@ class ConsistencyHeatmap extends StatefulWidget {
     this.onDateSelected,
     this.onMonthChanged,
     this.selectedDate,
+    this.visibleMonth,
     this.focusedTaskName,
     this.onClearFocus,
     this.hideControls = false,
@@ -40,6 +42,9 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   @override
   void initState() {
     super.initState();
+    if (widget.visibleMonth != null) {
+      _current1MDate = DateTime(widget.visibleMonth!.year, widget.visibleMonth!.month, 1);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToCurrentMonth();
     });
@@ -49,6 +54,21 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   void didUpdateWidget(ConsistencyHeatmap oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_hasInitialScrolled && widget.heatmapData.isNotEmpty) {
+      _scrollToCurrentMonth();
+    }
+
+    // Sync with visibleMonth if provided (Time Travel)
+    if (widget.visibleMonth != null && (oldWidget.visibleMonth == null || !widget.visibleMonth!.isAtSameMomentAs(oldWidget.visibleMonth!))) {
+      final now = DateTime.now();
+      // JUMP LOGIC: Enable Report Mode if jumping to previous year/months
+      final isPast = widget.visibleMonth!.isBefore(DateTime(now.year, now.month, 1));
+      
+      setState(() {
+        _current1MDate = DateTime(widget.visibleMonth!.year, widget.visibleMonth!.month, 1);
+        if (isPast && !_isReportMode) {
+          _isReportMode = true;
+        }
+      });
       _scrollToCurrentMonth();
     }
     
@@ -68,12 +88,51 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     await Future.delayed(const Duration(milliseconds: 150));
     if (!_heatmapScrollController.hasClients) return;
 
+    if (widget.selectedRange != '1M' && widget.visibleMonth != null) {
+      _jumpToDateMultiMonth(widget.visibleMonth!);
+      return;
+    }
+
     if (_isReportMode) {
         _heatmapScrollController.jumpTo(_heatmapScrollController.position.maxScrollExtent);
     } else {
         _heatmapScrollController.jumpTo(0);
     }
     _hasInitialScrolled = true;
+  }
+
+  void _jumpToDateMultiMonth(DateTime date) {
+    if (!_heatmapScrollController.hasClients) return;
+    
+    final now = DateTime.now();
+    int monthsCount;
+    switch (widget.selectedRange) {
+      case '3M': monthsCount = 3; break;
+      case '6M': monthsCount = 6; break;
+      case '1Y': monthsCount = 12; break;
+      default: monthsCount = 3;
+    }
+
+    int targetMonthIndex = -1;
+    if (_isReportMode) {
+      int monthDiff = (now.year - date.year) * 12 + now.month - date.month;
+      targetMonthIndex = monthsCount - 1 - monthDiff;
+    } else if (widget.selectedRange == '1Y') {
+      targetMonthIndex = date.month - 1;
+    } else {
+      int monthDiff = (date.year - now.year) * 12 + date.month - now.month;
+      targetMonthIndex = monthDiff;
+    }
+
+    if (targetMonthIndex >= 0 && targetMonthIndex < monthsCount) {
+      // Approximate month width in multi-month views
+      double offset = targetMonthIndex * (120.0); 
+      _heatmapScrollController.animateTo(
+        offset.clamp(0, _heatmapScrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Widget _buildLegendItem(Color color, String text, {bool hasStar = false}) {
@@ -178,7 +237,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     color: Theme.of(context).colorScheme.primary,
                     size: 20,
                   ),
-                  tooltip: 'Toggle View Mode',
+                  tooltip: 'Toggle Historical Data',
                 ),
               ],
             ),

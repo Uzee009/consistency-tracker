@@ -216,6 +216,16 @@ class DatabaseService {
     });
   }
 
+  Future<Task?> findDuplicateTask(String name) async {
+    final all = await getAllTasks();
+    final searchName = name.toLowerCase().trim();
+    try {
+      return all.firstWhere((t) => t.name.toLowerCase().trim() == searchName);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // --- DayRecord Management ---
   Future<int> createOrUpdateDayRecord(DayRecord record) async {
     Database db = await instance.database;

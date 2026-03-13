@@ -144,7 +144,11 @@ class ScoringService {
 
     int currentStreak = 0;
     int longestStreak = 0;
+    DateTime? longestStreakStart;
+    DateTime? longestStreakEnd;
+    DateTime? lastActivityDate;
     int tempStreak = 0;
+    DateTime? tempStreakStart;
     int totalDailyCompleted = 0;
     int totalTempCompleted = 0;
     
@@ -179,8 +183,14 @@ class ScoringService {
       }
 
       if (isSuccess) {
+        if (tempStreak == 0) tempStreakStart = date;
         tempStreak++;
-        if (tempStreak > longestStreak) longestStreak = tempStreak;
+        lastActivityDate = date;
+        if (tempStreak > longestStreak) {
+          longestStreak = tempStreak;
+          longestStreakStart = tempStreakStart;
+          longestStreakEnd = date;
+        }
       } else if (isCheat || isSkipped) {
         // Neutral: Streak is preserved (tempStreak stays same), does not reset
       } else {
@@ -272,6 +282,9 @@ class ScoringService {
     return AnalyticsResult(
       currentStreak: currentStreak,
       longestStreak: longestStreak,
+      longestStreakStart: longestStreakStart,
+      longestStreakEnd: longestStreakEnd,
+      lastActivityDate: lastActivityDate,
       momentum7Day: momentum7Day,
       isAtRisk: isAtRisk,
       totalDailyCompleted: totalDailyCompleted,
@@ -436,6 +449,9 @@ class VolumePoint {
 class AnalyticsResult {
   final int currentStreak;
   final int longestStreak;
+  final DateTime? longestStreakStart;
+  final DateTime? longestStreakEnd;
+  final DateTime? lastActivityDate;
   final double momentum7Day;
   final bool isAtRisk;
   final int totalDailyCompleted;
@@ -445,6 +461,9 @@ class AnalyticsResult {
   AnalyticsResult({
     required this.currentStreak,
     required this.longestStreak,
+    this.longestStreakStart,
+    this.longestStreakEnd,
+    this.lastActivityDate,
     required this.momentum7Day,
     this.isAtRisk = false,
     this.totalDailyCompleted = 0,

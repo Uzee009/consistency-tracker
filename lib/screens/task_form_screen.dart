@@ -42,21 +42,83 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       final int duration = int.tryParse(_durationController.text) ?? 0;
 
       if (taskName.isNotEmpty) {
-        final Task updatedTask = Task(
-          id: widget.task!.id,
-          name: taskName,
-          type: widget.task!.type, // Type cannot be changed when editing
-          durationDays: _isPerpetual ? 0 : duration,
-          isPerpetual: _isPerpetual,
-          createdAt: widget.task!.createdAt,
-          isActive: widget.task!.isActive,
-        );
-        await DatabaseService.instance.updateTask(updatedTask);
+        // --- NEW TASK: HABIT REVIVAL CHECK ---
+        if (widget.task == null) {
+          final existing = await DatabaseService.instance.findDuplicateTask(taskName);
+          if (existing != null && mounted) {
+            final action = await showDialog<String>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Habit Already Exists', style: TextStyle(fontWeight: FontWeight.w900)),
+                content: Text('You have a history with "${existing.name}". Would you like to revive your old progress or start fresh?'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('CANCEL')),
+                  TextButton(onPressed: () => Navigator.pop(ctx, 'restart'), child: const Text('RESTART FRESH', style: TextStyle(color: Colors.red))),
+                  ElevatedButton(onPressed: () => Navigator.pop(ctx, 'revive'), child: const Text('REVIVE PROGRESS')),
+                ],
+              ),
+            );
+
+            if (action == null || action == 'cancel') return;
+
+            if (action == 'revive') {
+              final revived = Task(
+                id: existing.id,
+                name: existing.name,
+                type: existing.type,
+                durationDays: existing.durationDays,
+                isPerpetual: existing.isPerpetual,
+                createdAt: existing.createdAt,
+                isActive: true,
+              );
+              await DatabaseService.instance.updateTask(revived);
+              if (mounted) Navigator.of(context).pop();
+              return;
+            }
+
+            if (action == 'restart') {
+              final dateStr = DateTime.now().toIso8601String().split('T')[0];
+              final archived = Task(
+                id: existing.id,
+                name: "${existing.name} (Archived $dateStr)",
+                type: existing.type,
+                durationDays: existing.durationDays,
+                isPerpetual: existing.isPerpetual,
+                createdAt: existing.createdAt,
+                isActive: false,
+              );
+              await DatabaseService.instance.updateTask(archived);
+            }
+          }
+        }
+
+        // --- ACTUAL SAVE/UPDATE ---
+        if (widget.task != null) {
+          // Editing existing
+          final Task updatedTask = Task(
+            id: widget.task!.id,
+            name: taskName,
+            type: widget.task!.type,
+            durationDays: _isPerpetual ? 0 : duration,
+            isPerpetual: _isPerpetual,
+            createdAt: widget.task!.createdAt,
+            isActive: widget.task!.isActive,
+          );
+          await DatabaseService.instance.updateTask(updatedTask);
+        } else {
+          // Creating new
+          final newTask = Task(
+            id: DateTime.now().millisecondsSinceEpoch,
+            name: taskName,
+            type: _taskType,
+            isPerpetual: _isPerpetual,
+            durationDays: _isPerpetual ? 0 : duration,
+            createdAt: DateTime.now(),
+          );
+          await DatabaseService.instance.addTask(newTask);
+        }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Task "$taskName" updated!')),
-          );
           Navigator.of(context).pop();
         }
       }

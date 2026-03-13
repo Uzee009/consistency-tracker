@@ -6,6 +6,7 @@ class AnalyticsKPIs extends StatelessWidget {
   final bool isHorizontal;
   final bool isFocused;
   final bool isEmbedded;
+  final Function(DateTime)? onJump;
 
   const AnalyticsKPIs({
     super.key,
@@ -13,6 +14,7 @@ class AnalyticsKPIs extends StatelessWidget {
     this.isHorizontal = true,
     this.isFocused = false,
     this.isEmbedded = false,
+    this.onJump,
   });
 
   @override
@@ -72,6 +74,8 @@ class AnalyticsKPIs extends StatelessWidget {
           value: analytics.longestStreak.toString(),
           subtitle: 'STREAK',
           color: Colors.orange[400]!,
+          isClickable: analytics.longestStreakStart != null,
+          onTap: analytics.longestStreakStart != null ? () => onJump?.call(analytics.longestStreakStart!) : null,
         ),
         separator,
         _buildKPIItem(
@@ -126,52 +130,67 @@ class AnalyticsKPIs extends StatelessWidget {
     required String subtitle,
     required Color color,
     bool isWarning = false,
+    bool isClickable = false,
+    VoidCallback? onTap,
   }) {
     return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            isWarning ? label : "$label $subtitle",
-            maxLines: 1,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12, // Increased from 10
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5, // Increased spacing
-              color: isWarning ? Colors.orange[700] : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  isWarning ? label : "$label $subtitle",
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                    color: isWarning ? Colors.orange[700] : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+                if (isClickable) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.north_east_rounded, size: 10, color: Colors.grey),
+                ]
+              ],
             ),
-          ),
-          const SizedBox(height: 8), // Added spacing
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 32, // Increased from 18
-                  fontWeight: FontWeight.w900,
-                  color: color,
-                  height: 1.1,
-                  letterSpacing: -1,
+            const SizedBox(height: 8),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    height: 1.1,
+                    letterSpacing: -1,
+                  ),
                 ),
               ),
             ),
-          ),
-          if (isWarning) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: Colors.orange[700],
+            if (isWarning) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.orange[700],
+                ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

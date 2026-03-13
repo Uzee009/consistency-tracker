@@ -158,6 +158,70 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     final String taskName = _nameController.text.trim();
     if (taskName.isEmpty) return;
 
+    // --- HABIT REVIVAL CHECK ---
+    final existing = await DatabaseService.instance.findDuplicateTask(taskName);
+    
+    if (existing != null) {
+      if (mounted) {
+        final action = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Habit Already Exists', style: TextStyle(fontWeight: FontWeight.w900)),
+            content: Text('You have a history with "${existing.name}". Would you like to revive your old progress or start fresh?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'cancel'),
+                child: const Text('CANCEL'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'restart'),
+                child: const Text('RESTART FRESH', style: TextStyle(color: Colors.red)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, 'revive'),
+                child: const Text('REVIVE PROGRESS'),
+              ),
+            ],
+          ),
+        );
+
+        if (action == null || action == 'cancel') return;
+
+        if (action == 'revive') {
+          // Revival: Just reactivate the existing task
+          final revived = Task(
+            id: existing.id,
+            name: existing.name,
+            type: existing.type,
+            durationDays: existing.durationDays,
+            isPerpetual: existing.isPerpetual,
+            createdAt: existing.createdAt, // Keep original start date
+            isActive: true,
+          );
+          await DatabaseService.instance.updateTask(revived);
+          widget.onTaskAdded();
+          if (mounted) Navigator.pop(context);
+          return;
+        }
+
+        if (action == 'restart') {
+          // Restart: Rename the old one to avoid naming conflict
+          final dateStr = DateTime.now().toIso8601String().split('T')[0];
+          final archived = Task(
+            id: existing.id,
+            name: "${existing.name} (Archived $dateStr)",
+            type: existing.type,
+            durationDays: existing.durationDays,
+            isPerpetual: existing.isPerpetual,
+            createdAt: existing.createdAt,
+            isActive: false,
+          );
+          await DatabaseService.instance.updateTask(archived);
+          // Continue to create new one below...
+        }
+      }
+    }
+
     final newTask = Task(
       id: DateTime.now().millisecondsSinceEpoch,
       name: taskName,
