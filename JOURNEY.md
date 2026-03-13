@@ -35,3 +35,18 @@ We've engineered a sophisticated dual-path scoring system:
 This balance makes the app an honest mirror of your life without being a source of anxiety. It's about building a **Habit IDE** that actually helps you stay consistent for decades, not just weeks.
 
 *Documented as a core project USP in GEMINI.md.*
+
+## 13 March 2026: More than an App—A Brain Hack
+
+Today, we looked under the hood of the human brain to define why the Consistency Tracker actually works. We aren't just building a CRUD app; we're building a **Cognitive Offloader.**
+
+### Saving the Pre-Frontal Cortex
+Every decision we make—'What should I do today? When should I work out?'—consumes limited energy from the pre-frontal cortex. By defining goals once and letting the app handle the routine, we free our users to spend their mental energy on *doing*, not *planning*.
+
+### The 'Visual Itch'
+We've all heard 'Don't break the chain.' By projecting a high-contrast heatmap onto the user's desktop wallpaper, we turn consistency into an unavoidable visual itch. Once a streak starts, the brain's natural aversion to breaking that green grid becomes a more powerful motivator than willpower alone.
+
+### Serving Delayed Dopamine
+Most apps give you instant, cheap dopamine. We're playing the long game. The satisfying green grid of a successful month is 'delayed dopamine'—the reward for real, sustained effort. 
+
+This is our core philosophy: **Structure the routine, visualize the momentum, and protect the brain.**
