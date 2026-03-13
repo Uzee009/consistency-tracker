@@ -378,3 +378,12 @@
     *   Introduced unique icons to distinguish between Perpetual (🔄) and Timed (⏱️) habits.
     *   Applied Title Case capitalization to habit names in the sidebar for a professional aesthetic.
 *   **Stability:** Fixed a critical 'Incorrect use of ParentDataWidget' crash related to KPI interactivity and resolved several state-reset bugs in the heatmap.
+
+## Friday, 13 March 2026 - Session 2 (Final Polishes & Documentation)
+
+**Summary:**
+*   **Documentation Infrastructure:** Established the 'legacy/v1-baseline' branch to freeze master's starting point and the 'story' branch for journey documentation. Updated GEMINI.md with a permanent mandate for session-based storytelling.
+*   **Psychological Core:** Formally codified the 'Consistency Tracker' philosophy into GEMINI.md, focusing on 'Cognitive Offloading' (pre-frontal cortex load reduction) and 'Visual Momentum' (exploiting the itch to not break streaks).
+*   **UI Typography:** Applied Title Case consistently across the dashboard. Habit names (e.g., 'Gym', 'Daily Meditation'), Dashboard titles ('Global Performance'), and Task Panel tabs are now elegant and professional.
+*   **Enhanced Navigation:** Refined the header links; Habit Start Dates and Streak periods are now interactive 'Time Travel' links that jump the heatmap to the relevant historical period.
+*   **Git Lifecycle:** Successfully merged all 'fix/data-explorer-restore' progress into master and pushed to remote.
