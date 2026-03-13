@@ -1,12 +1,29 @@
+# Product Philosophy & USPs
+
+1.  **Cognitive Offloading (The "Pre-Frontal Cortex" Saver):**
+    *   **Goal:** We define daily goals *once* to eliminate the burden of daily decision-making. The app provides the structure so the user's brain doesn't have to rebuild it every morning.
+    *   **Result:** Frictionless entry into "Doing Mode" vs. "Planning Mode."
+
+2.  **Visual Momentum (The "Don't Break the Chain" Itch):**
+    *   **Satisfaction:** The Green Grid provides an immediate, dopamine-rich reward for completion.
+    *   **Aversion:** The fear of breaking the chain—or leaving a "Scar" (Orange Cheat/Gray Miss)—exploits the brain's natural desire for visual continuity.
+    *   **Ubiquity:** By projecting this grid onto the desktop wallpaper, we create an unavoidable feedback loop. The user's progress (or lack thereof) is always visible, serving as a constant, passive accountability partner.
+
+3.  **Forgiveness Over Punishment (The "Anti-Burnout" Engine):**
+    *   **Streak Logic:** Skips and Cheat Days **PRESERVE** streaks. We never reset a user's momentum for taking a planned or emergency break.
+    *   **Data Integrity:** While streaks are preserved, the **Consistency Rate (%)** still reflects the miss. This ensures the dashboard remains an honest reflection of reality while the "Streak" remains a psychological motivator.
+    *   **Visual State:** Cheat days and Skips have distinct visual markers (Orange/Icons) to differentiate "Planned Rest" from "Unplanned Failure."
+
 # Operational Mandates
 
 1.  **Operational Modes:**
     *   **Consult Mode (Default/Inquiry):** Focused on analysis, strategy, and brainstorming. You MUST NOT modify any files (except logs during conclusion) or run implementation commands.
     *   **Dev Mode (Directive):** Focused on implementation and execution.
     *   **Switching:** You will stay in the current mode unless specifically asked to switch. If the mode is ambiguous or not specified at the start of a task, you MUST ask: "Which mode are we using: Dev or Consult?"
-2.  **Session Logging:**
+2.  **Session Logging & Storytelling:**
     *   Do NOT log changes after every tool call or task.
     *   You will ONLY append entries to `Prj_Progress.md` when the user says "conclude session here".
+    *   **LinkedIn/Journey Documentation:** At the end of every session, you must switch to the `story` branch and append a narrative-driven "Founder's Story" to `JOURNEY.md`. This story should translate technical tasks into a journey of building, highlighting challenges, architectural wins, and the evolving vision. Use a tone suitable for LinkedIn. Once written, commit and push to the `story` branch and return to the active development branch.
 3.  **Source Control:**
     *   NEVER commit changes or merge branches (e.g., merging to `master`) unless explicitly and specifically instructed to do so for that specific action.
 
