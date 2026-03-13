@@ -21,3 +21,17 @@ We aren't just managing rows in a database; we're managing human motivation. Tod
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## 13 March 2026: The Anti-Burnout Engine
+
+Most productivity apps are built like drill sergeants: 'Miss one day, and your streak of 365 goes to zero.' We decided that's not how human growth works. 
+
+Today, we solidified our core product philosophy: **Forgiveness Over Punishment.**
+
+We've engineered a sophisticated dual-path scoring system:
+1.  **The Streak (Psychology):** Skips and Cheat Days preserve your momentum. We don't reset your hard-earned streak for taking a rest day.
+2.  **The Consistency Rate (Integrity):** While your streak stays alive, your 30-day percentage still reflects the reality. If you didn't do the work, the math shows it.
+
+This balance makes the app an honest mirror of your life without being a source of anxiety. It's about building a **Habit IDE** that actually helps you stay consistent for decades, not just weeks.
+
+*Documented as a core project USP in GEMINI.md.*
