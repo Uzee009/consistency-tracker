@@ -46,9 +46,10 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
               Row(
                 children: [
                   Text(
-                    _currentPage == 0 
-                        ? (widget.focusedTaskName != null ? 'HABIT MASTERY' : 'DISCIPLINE INDEX')
-                        : 'OUTPUT VOLUME',
+                    _currentPage == 0
+                        ? (widget.focusedTaskName != null ? 'Habit Mastery' : 'Discipline Index')
+                        : 'Output Volume',
+
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,

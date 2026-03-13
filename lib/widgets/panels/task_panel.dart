@@ -91,7 +91,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    "HISTORY", 
+                    "History", 
                     style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary, letterSpacing: 0.5)
                   ),
                 ),
@@ -111,8 +111,8 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
             ),
             child: Row(
               children: [
-                _buildInnerPillTab('DAILY', 0),
-                _buildInnerPillTab('TEMPORARY', 1),
+                _buildInnerPillTab('Daily', 0),
+                _buildInnerPillTab('Temporary', 1),
               ],
             ),
           ),
@@ -204,7 +204,7 @@ class _TaskCheatAction extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(isCheatUsed ? Icons.celebration_rounded : Icons.celebration_outlined, size: 12, color: isCheatUsed ? Colors.white : mainColor),
           const SizedBox(width: 6),
-          Text(isCheatUsed ? 'USED' : 'CHEAT ($tokens)', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: isCheatUsed ? Colors.white : mainColor, letterSpacing: 0.5)),
+          Text(isCheatUsed ? 'Used' : 'Cheat ($tokens)', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: isCheatUsed ? Colors.white : mainColor, letterSpacing: 0.5)),
         ]),
       ),
     );

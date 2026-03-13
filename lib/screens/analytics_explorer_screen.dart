@@ -20,7 +20,7 @@ class AnalyticsExplorerScreen extends StatefulWidget {
 }
 
 class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
-  // 1. Data Notifiers (The "Brains" that trigger specific rebuilds)
+  // 1. Data Notifiers
   final ValueNotifier<Task?> _selectedTaskNotifier = ValueNotifier(null);
   final ValueNotifier<bool> _isLoadingNotifier = ValueNotifier(true);
   final ValueNotifier<DateTime?> _visibleMonthNotifier = ValueNotifier(null); 
@@ -63,7 +63,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
   void _onTaskSelectionChanged() {
     final selected = _selectedTaskNotifier.value;
-    _streakInspectionNotifier.value = null; // Reset streak view
+    _streakInspectionNotifier.value = null; 
     
     if (selected != null && !selected.isActive) {
       _visibleMonthNotifier.value = selected.createdAt;
@@ -201,7 +201,6 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
                         onJump: (targetDate) {
                           _visibleMonthNotifier.value = targetDate;
                           _fetchInspectedDayData(targetDate);
-                          // If it was a streak jump, set the metadata
                           if (targetDate == _analytics.longestStreakStart) {
                             _streakInspectionNotifier.value = DateTimeRange(start: _analytics.longestStreakStart!, end: _analytics.longestStreakEnd!);
                           }
@@ -265,25 +264,67 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
       valueListenable: _streakInspectionNotifier,
       builder: (context, streakRange, _) {
         final sel = _selectedTaskNotifier.value;
-        final String mainTitle = sel?.name.toUpperCase() ?? 'GLOBAL PERFORMANCE';
+        final String mainTitle = sel == null ? 'Global Performance' : _toTitleCase(sel.name);
         
-        String subTitle = sel == null ? 'Aggregated metrics for all habits.' : 'Analysis for ${sel.name}.';
-        
-        if (streakRange != null) {
-          final s = streakRange.start;
-          final e = streakRange.end;
-          subTitle = "Streak Started: ${s.day}/${s.month}/${s.year} • Ended: ${e.day}/${e.month}/${e.year}";
-        } else if (sel != null) {
-          final start = sel.createdAt;
-          subTitle = "Habit Start Date: ${start.day.toString().padLeft(2,'0')}/${start.month.toString().padLeft(2,'0')}/${start.year}";
-        }
-
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(mainTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-          Text(subTitle, style: TextStyle(fontSize: 14, color: Colors.grey[500], fontWeight: FontWeight.w600)),
-        ]);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start, 
+          children: [
+            Text(mainTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+            const SizedBox(height: 4),
+            if (streakRange != null) 
+              Row(
+                children: [
+                  Text("Streak Started: ", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                  _clickableDate(streakRange.start),
+                  Text(" • Ended: ", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                  _clickableDate(streakRange.end),
+                ],
+              )
+            else if (sel != null)
+              Row(
+                children: [
+                  Text("Habit Start Date: ", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                  _clickableDate(sel.createdAt),
+                ],
+              )
+            else
+              Text('Aggregated metrics for all habits.', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+          ]
+        );
       }
     );
+  }
+
+  Widget _clickableDate(DateTime date) {
+    final dateStr = "${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year}";
+    return InkWell(
+      onTap: () {
+        _visibleMonthNotifier.value = date;
+        _fetchInspectedDayData(date);
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Text(
+          dateStr, 
+          style: TextStyle(
+            fontSize: 13, 
+            color: Theme.of(context).colorScheme.primary, 
+            fontWeight: FontWeight.w800,
+            decoration: TextDecoration.underline,
+            decorationStyle: TextDecorationStyle.dashed,
+          )
+        ),
+      ),
+    );
+  }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((str) {
+      if (str.isEmpty) return str;
+      return '${str[0].toUpperCase()}${str.substring(1).toLowerCase()}';
+    }).join(' ');
   }
 
   Widget _section(BuildContext context, String title, String help, Widget child) {
@@ -303,7 +344,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
   }
 }
 
-// --- LIGHTWEIGHT SIDEBAR ---
+// --- SIDEBAR ---
 class _SearchSidebar extends StatefulWidget {
   final List<Task> primaryCache;
   final List<Task> secondaryCache;
@@ -399,7 +440,7 @@ class _SearchSidebarState extends State<_SearchSidebar> {
         final isG = t == null;
         final sel = isG ? current == null : current?.id == t.id;
         final isPrimary = !isG && widget.primaryCache.any((p) => p.id == t.id);
-        final String displayName = isG ? 'GLOBAL PERFORMANCE' : t.name.split(' ').map((str) => str.isNotEmpty ? '${str[0].toUpperCase()}${str.substring(1).toLowerCase()}' : '').join(' ');
+        final String displayName = isG ? 'Global Performance' : _toTitleCase(t.name);
 
         return Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2), child: InkWell(
           onTap: () => widget.selectedTaskNotifier.value = t,
@@ -421,9 +462,17 @@ class _SearchSidebarState extends State<_SearchSidebar> {
       }
     );
   }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((str) {
+      if (str.isEmpty) return str;
+      return '${str[0].toUpperCase()}${str.substring(1).toLowerCase()}';
+    }).join(' ');
+  }
 }
 
-// --- LIGHTWEIGHT INSPECTOR ---
+// --- INSPECTOR ---
 class _Inspector extends StatelessWidget {
   final DateTime date;
   final DayRecord? record;

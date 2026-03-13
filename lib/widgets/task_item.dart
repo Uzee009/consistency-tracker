@@ -73,7 +73,7 @@ class TaskItem extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      task.name,
+                      _toTitleCase(task.name),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: (isCompleted || isSkipped) ? FontWeight.w400 : FontWeight.w600,
@@ -147,5 +147,13 @@ class TaskItem extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((str) {
+      if (str.isEmpty) return str;
+      return '${str[0].toUpperCase()}${str.substring(1).toLowerCase()}';
+    }).join(' ');
   }
 }
