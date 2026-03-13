@@ -164,7 +164,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     final style = styleNotifier.value;
 
     return Container(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           Padding(
