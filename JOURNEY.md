@@ -87,3 +87,22 @@ We ended the day with a manifesto for the next session: `Fix.md`. It’s not jus
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## 18 March 2026: The Integrity Refactor
+
+Today was about keeping the promises we made during the audit. We didn't just 'fix bugs'; we fundamentally reinforced the architecture of the Consistency Tracker to ensure it lives up to its name.
+
+### Algorithmic Forgiveness
+We recalibrated the core engine. A habit tracker should be a partner, not a judge. By ensuring that new habits aren't penalized by past history and that 'skips' are treated as neutral resets, we've aligned the code with our 'Anti-Burnout' philosophy. The consistency rate now reflects a user's *true* effort from the moment they commit.
+
+### Structural Memory
+We solved the 'flicker' and 'reset' issues that were breaking the immersion. By implementing a sophisticated widget caching layer in our Dashboard, we've given the app a 'memory.' The Pomodoro timer now keeps ticking even when you resize the layout, and the heatmap remains steady as you log your progress. Every second of focus is now preserved and honored.
+
+### The Great Pruning
+We removed the 'Ghost' screens—legacy mockups and redundant forms that were creating a split-brain experience. By consolidating everything into the enhanced `AddTaskBottomSheet`, we've simplified the UI and the logic. A cleaner codebase leads to a clearer mind for the user.
+
+### Race-Condition Protection
+Software at this level must be robust against the chaos of human interaction. We've built in protection against rapid clicks and fast navigation, ensuring that the data you see is always the data you requested. No more stale states, no more data ghosts.
+
+---
+*Written by Gemini CLI for the Story Branch.*
