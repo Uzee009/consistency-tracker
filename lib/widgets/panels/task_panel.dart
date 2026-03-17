@@ -6,7 +6,6 @@ import '../../controllers/dashboard_layout_controller.dart';
 import '../../models/task_model.dart';
 import '../../widgets/task_section.dart';
 import '../../widgets/add_task_bottom_sheet.dart';
-import '../../screens/task_form_screen.dart';
 
 class TaskPanel extends StatefulWidget {
   final DashboardController controller;
@@ -152,8 +151,15 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
   }
 
   void _editTask(Task task) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskFormScreen(task: task)));
-    widget.controller.initialize(widget.controller.selectedDate, showLoading: false);
+    showModalBottomSheet(
+      context: context, 
+      isScrollControlled: true, 
+      builder: (_) => AddTaskBottomSheet(
+        type: task.type, 
+        task: task, // V8: Pass the task to edit
+        onTaskAdded: () => widget.controller.initialize(widget.controller.selectedDate, showLoading: false)
+      )
+    );
   }
 
   Widget _buildInnerPillTab(String label, int index) {

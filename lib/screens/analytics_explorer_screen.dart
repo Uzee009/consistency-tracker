@@ -101,7 +101,8 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
   Future<void> _refreshAnalytics() async {
     final selected = _selectedTaskNotifier.value;
-    final allRecords = await DatabaseService.instance.getDayRecords(limit: 5000);
+    // V8 FIX: Use the primary records cache instead of re-fetching 5000 rows
+    final allRecords = _allRecordsForCache;
     final allTasks = await DatabaseService.instance.getAllTasks();
     final taskTypeMap = {for (var t in allTasks) t.id: t.type};
 
@@ -110,7 +111,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
     if (selected != null) {
       hData = ScoringService.mapTaskRecordsToHeatmapData(allRecords, selected.id);
-      res = ScoringService.calculateAnalytics(allRecords, taskId: selected.id);
+      res = ScoringService.calculateAnalytics(allRecords, taskId: selected.id, taskCreatedAt: selected.createdAt);
     } else {
       hData = ScoringService.mapRecordsToHeatmapData(allRecords);
       res = ScoringService.calculateAnalytics(allRecords, taskTypeMap: taskTypeMap);

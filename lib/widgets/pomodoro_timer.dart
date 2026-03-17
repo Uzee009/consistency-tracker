@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import 'package:consistency_tracker_v1/controllers/dashboard_controller.dart';
+
 class PomodoroTimer extends StatefulWidget {
-  const PomodoroTimer({super.key});
+  final DashboardController controller;
+  const PomodoroTimer({super.key, required this.controller});
 
   @override
   State<PomodoroTimer> createState() => _PomodoroTimerState();
@@ -22,14 +25,28 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
   late int _secondsRemaining;
   bool _isRunning = false;
   bool _isHovering = false;
-  int _sessionGoal = 4;
-  int _sessionsCompleted = 0;
+  late int _sessionGoal;
+  late int _sessionsCompleted;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _secondsRemaining = _durations[TimerMode.focus]!;
+    _sessionsCompleted = widget.controller.todayRecord.pomodoroSessionsCompleted;
+    _sessionGoal = widget.controller.todayRecord.pomodoroGoal;
+  }
+
+  @override
+  void didUpdateWidget(covariant PomodoroTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the date changed or someone updated the stats elsewhere, sync back
+    if (widget.controller.todayRecord.pomodoroSessionsCompleted != _sessionsCompleted) {
+      setState(() => _sessionsCompleted = widget.controller.todayRecord.pomodoroSessionsCompleted);
+    }
+    if (widget.controller.todayRecord.pomodoroGoal != _sessionGoal) {
+      setState(() => _sessionGoal = widget.controller.todayRecord.pomodoroGoal);
+    }
   }
 
   void _toggleTimer() {
@@ -46,6 +63,8 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
             if (_currentMode == TimerMode.focus) {
               _sessionsCompleted++;
               if (_sessionsCompleted > _sessionGoal) _sessionsCompleted = _sessionGoal;
+              // V8: Persist to DB
+              widget.controller.updatePomodoroStats(_sessionsCompleted, _sessionGoal);
             }
           }
         });
@@ -99,6 +118,8 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
                 _durations[TimerMode.shortBreak] = (int.tryParse(shortController.text) ?? 5) * 60;
                 _durations[TimerMode.longBreak] = (int.tryParse(longController.text) ?? 15) * 60;
                 _sessionGoal = int.tryParse(goalController.text) ?? 4;
+                // V8: Persist goal to DB
+                widget.controller.updatePomodoroStats(_sessionsCompleted, _sessionGoal);
                 _resetTimer();
               });
               Navigator.pop(context);

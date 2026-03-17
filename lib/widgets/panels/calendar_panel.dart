@@ -21,12 +21,11 @@ class CalendarPanel extends StatefulWidget {
 
 class _CalendarPanelState extends State<CalendarPanel> {
   DateTime _viewedMonth = DateTime.now();
-  Key _heatmapKey = UniqueKey();
 
   @override
   Widget build(BuildContext context) {
     return ConsistencyHeatmap(
-      key: _heatmapKey,
+      key: const ValueKey('calendar_heatmap_stable'), // V8: Stable key to prevent resets
       heatmapData: widget.controller.heatmapData,
       selectedDate: widget.controller.selectedDate,
       onDateSelected: (date) => widget.controller.setSelectedDate(date, showLoading: false),

@@ -30,9 +30,20 @@ class ScoringService {
     final completedTempTasks = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
     final skippedDailyTasks = dailyTasks.where((t) => dayRecord.skippedTaskIds.contains(t.id)).length;
 
-    // A skip is an "excuse", so we remove it from the required daily benchmark
-    // However, we ensure we don't divide by zero
-    final dailyBenchmark = (dailyTasks.length - skippedDailyTasks).clamp(1, 999);
+    // A skip is an "excuse", so we remove it from the required daily benchmark.
+    final activeDailyCount = dailyTasks.length - skippedDailyTasks;
+    
+    // V8 FIX: If all daily tasks were skipped AND no tasks were done, it's an "Excused/Empty" day, not a failure.
+    if (activeDailyCount <= 0 && completedDailyTasks == 0 && completedTempTasks == 0) {
+      return ScoreResult(
+        completionScore: 0,
+        visualState: dayRecord.cheatUsed ? VisualState.cheat : VisualState.empty,
+      );
+    }
+
+    // However, we ensure we don't divide by zero if some tasks WERE completed despite all being "skipped" 
+    // (though logically unlikely, we clamp to 1 for safety).
+    final dailyBenchmark = activeDailyCount.clamp(1, 999);
     
     // Effective completed score
     final effectiveCompleted = completedDailyTasks + completedTempTasks;
@@ -131,14 +142,21 @@ class ScoringService {
     return data;
   }
 
-  static AnalyticsResult calculateAnalytics(List<DayRecord> records, {int? taskId, Map<int, TaskType>? taskTypeMap}) {
+  static AnalyticsResult calculateAnalytics(List<DayRecord> records, {int? taskId, Map<int, TaskType>? taskTypeMap, DateTime? taskCreatedAt}) {
     if (records.isEmpty) return AnalyticsResult.empty();
 
     // 1. Sort and find the date range
     final sortedRecords = List<DayRecord>.from(records)..sort((a, b) => a.date.compareTo(b.date));
     final Map<String, DayRecord> recordMap = {for (var r in sortedRecords) r.date: r};
     
-    final DateTime startDate = DateTime.parse(sortedRecords.first.date);
+    // START DATE: If taskCreatedAt is provided, use it as the baseline for this specific habit.
+    // Otherwise, use the earliest record date.
+    DateTime startDate = DateTime.parse(sortedRecords.first.date);
+    if (taskCreatedAt != null) {
+      // Normalize to midnight
+      startDate = DateTime(taskCreatedAt.year, taskCreatedAt.month, taskCreatedAt.day);
+    }
+    
     final DateTime endDate = DateTime.now(); // Calculate up to today
     final int totalDays = endDate.difference(startDate).inDays;
 
@@ -218,6 +236,9 @@ class ScoringService {
           isSkipped = record.skippedTaskIds.contains(taskId);
         } else {
           isSuccess = record.completionScore >= 0.8;
+          // GLOBAL SKIP: If ANY task was skipped today, treat the day as neutrally skipped globally
+          // to preserve the global streak (consistent with the 'Anti-Burnout' philosophy).
+          isSkipped = record.skippedTaskIds.isNotEmpty;
         }
         isCheat = record.cheatUsed;
       }
@@ -244,40 +265,54 @@ class ScoringService {
     // 4. Rolling Windows: 7-Day Momentum and 30-Day Consistency
     int completionsInLast7 = 0;
     int completionsInLast30 = 0;
+    int validDaysInLast7 = 0;
+    int validDaysInLast30 = 0;
     
     // Normalize endDate to today at midnight for accurate rolling window
     final now = DateTime.now();
     final todayMidnight = DateTime(now.year, now.month, now.day);
     
-    // Use the smaller of 30 or days since start for a fair consistency rate
-    int daysSinceStart = todayMidnight.difference(startDate).inDays + 1;
-    int consistencyDenominator = daysSinceStart < 30 ? daysSinceStart : 30;
-    int momentumDenominator = daysSinceStart < 7 ? daysSinceStart : 7;
-
+    // We will calculate a dynamic denominator for the last 30/7 days 
+    // that respects the task start date AND ignores skipped/neutral days.
+    
     for (int i = 0; i < 30; i++) {
       final date = todayMidnight.subtract(Duration(days: i));
+      if (date.isBefore(startDate)) break; // Don't count days before the habit existed
+
       final dateStr = date.toIso8601String().split('T')[0];
       final record = recordMap[dateStr];
       
+      bool isSuccess = false;
+      bool isNeutral = false;
+
       if (record != null) {
-        bool isSuccess;
         if (taskId != null) {
-          // Individual: Must be completed, NOT skipped
           isSuccess = record.completedTaskIds.contains(taskId);
+          isNeutral = record.skippedTaskIds.contains(taskId) || record.cheatUsed;
         } else {
-          // Global: Score >= 80% AND no tasks were skipped (Option B)
-          isSuccess = record.completionScore >= 0.8 && record.skippedTaskIds.isEmpty;
+          isSuccess = record.completionScore >= 0.8;
+          isNeutral = record.skippedTaskIds.isNotEmpty || record.cheatUsed;
         }
-        
-        if (isSuccess) {
-          if (i < 7) completionsInLast7++;
-          if (i < 30) completionsInLast30++;
+      } else {
+        // If no record exists for a date within the habit's lifetime, it's a "Miss" (not neutral)
+        isSuccess = false;
+        isNeutral = false;
+      }
+      
+      if (!isNeutral) {
+        if (i < 7) {
+          validDaysInLast7++;
+          if (isSuccess) completionsInLast7++;
+        }
+        if (i < 30) {
+          validDaysInLast30++;
+          if (isSuccess) completionsInLast30++;
         }
       }
     }
 
-    double momentum7Day = momentumDenominator > 0 ? (completionsInLast7 / momentumDenominator) : 0.0;
-    double consistencyRate = consistencyDenominator > 0 ? (completionsInLast30 / consistencyDenominator) : 0.0;
+    double momentum7Day = validDaysInLast7 > 0 ? (completionsInLast7 / validDaysInLast7) : 0.0;
+    double consistencyRate = validDaysInLast30 > 0 ? (completionsInLast30 / validDaysInLast30) : 0.0;
 
     return AnalyticsResult(
       currentStreak: currentStreak,

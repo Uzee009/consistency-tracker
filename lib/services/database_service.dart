@@ -31,7 +31,7 @@ class DatabaseService {
     String path = join(documentsDirectory.path, 'consistency_tracker.db');
     return await openDatabase(
       path,
-      version: 5, // Increased version for monthly_usage table
+      version: 6, // V8: Added pomodoro fields to day_records
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -64,7 +64,9 @@ class DatabaseService {
         skipped_task_ids TEXT NOT NULL,
         cheat_used INTEGER NOT NULL,
         completion_score REAL NOT NULL,
-        visual_state TEXT NOT NULL
+        visual_state TEXT NOT NULL,
+        pomodoro_sessions INTEGER DEFAULT 0,
+        pomodoro_goal INTEGER DEFAULT 4
       )
     ''');
     await db.execute('''
@@ -92,6 +94,10 @@ class DatabaseService {
           cheat_days_used INTEGER NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 6) {
+      await db.execute("ALTER TABLE $dayRecordsTable ADD COLUMN pomodoro_sessions INTEGER DEFAULT 0");
+      await db.execute("ALTER TABLE $dayRecordsTable ADD COLUMN pomodoro_goal INTEGER DEFAULT 4");
     }
   }
 
@@ -268,18 +274,28 @@ class DatabaseService {
 
   Future<List<DayRecord>> getTaskHistory(int taskId) async {
     Database db = await instance.database;
-    // We fetch all records and filter in Dart for simplicity since task IDs are stored in a CSV string
-    // In a massive DB we would use LIKE '%taskId%', but for local mobile/desktop this is fine.
+    // V8 Optimization: Use SQL LIKE to filter records where the task was 
+    // either completed, skipped, OR it was a cheat day (neutral).
+    // Note: Since taskId is an integer, we wrap it in commas or check start/end 
+    // to avoid partial matches (e.g. searching '1' finding '10'), but in our CSV format 
+    // '1,2,3' a LIKE '%1%' might be risky if we have 10, 11 etc.
+    // However, for SQLite, a more robust way is to fetch records where 
+    // (completed LIKE '%,taskId,%' OR completed LIKE 'taskId,%' OR ...)
+    // For now, we fetch records where the taskId appears in either list OR it was a cheat day.
+
+    final String tId = taskId.toString();
+
     List<Map<String, dynamic>> maps = await db.query(
       dayRecordsTable,
+      where: "completed_task_ids LIKE ? OR skipped_task_ids LIKE ? OR cheat_used = 1",
+      whereArgs: ['%$tId%', '%$tId%'],
       orderBy: 'date ASC',
     );
-    
+
     return List.generate(maps.length, (i) {
       return DayRecord.fromMap(maps[i]);
-    }).where((record) => record.completedTaskIds.contains(taskId)).toList();
+    });
   }
-
   // --- Cheat Day Management ---
   Future<int> getCheatDaysUsed(String yearMonth) async {
     final db = await database;

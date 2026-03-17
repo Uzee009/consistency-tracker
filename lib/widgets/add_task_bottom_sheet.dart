@@ -5,11 +5,13 @@ import '../services/database_service.dart';
 class AddTaskBottomSheet extends StatefulWidget {
   final TaskType type;
   final VoidCallback onTaskAdded;
+  final Task? task; // V8: Optional task for editing
 
   const AddTaskBottomSheet({
     super.key,
     required this.type,
     required this.onTaskAdded,
+    this.task,
   });
 
   @override
@@ -17,9 +19,17 @@ class AddTaskBottomSheet extends StatefulWidget {
 }
 
 class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
-  final _nameController = TextEditingController();
-  final _durationController = TextEditingController(text: '30');
-  bool _isPerpetual = false;
+  late final TextEditingController _nameController;
+  late final TextEditingController _durationController;
+  late bool _isPerpetual;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.task?.name ?? '');
+    _durationController = TextEditingController(text: widget.task?.durationDays.toString() ?? '30');
+    _isPerpetual = widget.task?.isPerpetual ?? false;
+  }
 
   @override
   void dispose() {
@@ -59,7 +69,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             ),
           ),
           Text(
-            'Add ${widget.type == TaskType.daily ? 'Daily' : 'Temporary'} Task',
+            widget.task == null ? 'Add ${widget.type == TaskType.daily ? 'Daily' : 'Temporary'} Task' : 'Edit Task',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -144,7 +154,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: _saveTask,
-                  child: const Text('Save Task'),
+                  child: Text(widget.task == null ? 'Save Task' : 'Update Task'),
                 ),
               ),
             ],
@@ -158,7 +168,26 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     final String taskName = _nameController.text.trim();
     if (taskName.isEmpty) return;
 
-    // --- HABIT REVIVAL CHECK ---
+    if (widget.task != null) {
+      // V8 UPDATE: Simple update logic for existing tasks
+      final updated = Task(
+        id: widget.task!.id,
+        name: taskName,
+        type: widget.task!.type,
+        isPerpetual: widget.task!.type == TaskType.daily ? _isPerpetual : false,
+        durationDays: widget.task!.type == TaskType.daily && !_isPerpetual
+            ? (int.tryParse(_durationController.text) ?? 30)
+            : 0,
+        createdAt: widget.task!.createdAt,
+        isActive: widget.task!.isActive,
+      );
+      await DatabaseService.instance.updateTask(updated);
+      widget.onTaskAdded();
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
+    // --- HABIT REVIVAL CHECK (Only for new tasks) ---
     final existing = await DatabaseService.instance.findDuplicateTask(taskName);
     
     if (existing != null) {

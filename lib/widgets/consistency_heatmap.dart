@@ -36,7 +36,7 @@ class ConsistencyHeatmap extends StatefulWidget {
 class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
   final ScrollController _heatmapScrollController = ScrollController();
   bool _hasInitialScrolled = false;
-  bool _isReportMode = false;
+  bool _isReportMode = true; // V8: Default to history for multi-month views
   DateTime _current1MDate = DateTime.now();
 
   @override
@@ -125,10 +125,36 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     }
 
     if (targetMonthIndex >= 0 && targetMonthIndex < monthsCount) {
-      // Approximate month width in multi-month views
-      double offset = targetMonthIndex * (120.0); 
+      // V8 FIX: Accurate week-based offset instead of 120.0
+      double estimatedCellWidth = 22.0; 
+      double totalOffset = 0;
+      
+      for (int i = 0; i < targetMonthIndex; i++) {
+        DateTime targetDate;
+        if (_isReportMode) {
+          targetDate = DateTime(now.year, now.month - (monthsCount - 1 - i), 1);
+        } else {
+          if (widget.selectedRange == '1Y') {
+            targetDate = DateTime(now.year, i + 1, 1);
+          } else {
+            targetDate = DateTime(now.year, now.month + i, 1);
+          }
+        }
+        
+        final firstDay = DateTime(targetDate.year, targetDate.month, 1);
+        final lastDay = DateTime(targetDate.year, targetDate.month + 1, 0);
+        int weeks = 0;
+        DateTime tempDay = firstDay;
+        while (tempDay.isBefore(lastDay.add(const Duration(days: 1)))) {
+          weeks++;
+          int startWeekday = tempDay.weekday % 7;
+          tempDay = tempDay.add(Duration(days: 7 - startWeekday));
+        }
+        totalOffset += (weeks * estimatedCellWidth) + 16.0 + (estimatedCellWidth * 0.1);
+      }
+
       _heatmapScrollController.animateTo(
-        offset.clamp(0, _heatmapScrollController.position.maxScrollExtent),
+        totalOffset.clamp(0, _heatmapScrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );

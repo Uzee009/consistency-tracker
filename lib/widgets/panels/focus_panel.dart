@@ -18,8 +18,8 @@ class FocusPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: PomodoroTimer(),
+    return Center(
+      child: PomodoroTimer(controller: controller),
     );
   }
 }

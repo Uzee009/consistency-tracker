@@ -42,6 +42,11 @@ class DashboardLayoutController extends ChangeNotifier {
   double rvRatio = 0.5;
 
   final Map<String, PanelDefinition> _panelRegistry = {};
+  
+  // CACHE: Store built widgets to preserve state (e.g. Pomodoro timer)
+  final Map<String, Widget> _widgetCache = {};
+  // CONSTRAINTS: Notify cached widgets of their new size without rebuild
+  final Map<String, ValueNotifier<BoxConstraints>> _constraintNotifiers = {};
 
   DashboardLayoutController() {
     _registerPanels();
@@ -115,7 +120,30 @@ class DashboardLayoutController extends ChangeNotifier {
   }
 
   Widget getWidgetForId(String id, DashboardController dataController, BuildContext context, BoxConstraints constraints) {
-    return _panelRegistry[id]?.contentBuilder(context, dataController, constraints) ?? const Center(child: Text("Unknown Panel"));
+    // 1. Update the constraints notifier if it exists
+    if (_constraintNotifiers.containsKey(id)) {
+      _constraintNotifiers[id]!.value = constraints;
+    } else {
+      _constraintNotifiers[id] = ValueNotifier(constraints);
+    }
+
+    // 2. Return from cache or build new
+    if (!_widgetCache.containsKey(id)) {
+      final def = _panelRegistry[id];
+      if (def == null) return const Center(child: Text("Unknown Panel"));
+      
+      // We wrap the content in a ValueListenableBuilder so it can respond to 
+      // size changes WITHOUT the entire widget being re-instantiated.
+      _widgetCache[id] = ValueListenableBuilder<BoxConstraints>(
+        key: ValueKey('panel_$id'), // V8: Stable key for state preservation
+        valueListenable: _constraintNotifiers[id]!,
+        builder: (context, latestConstraints, child) {
+          return def.contentBuilder(context, dataController, latestConstraints);
+        },
+      );
+    }
+
+    return _widgetCache[id]!;
   }
 
   List<Widget> getHeaderActionsForId(String id, DashboardController dataController, BuildContext context) {
