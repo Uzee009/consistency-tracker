@@ -106,3 +106,10 @@ Software at this level must be robust against the chaos of human interaction. We
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+### Course Correction: The Cost of Caching
+
+We learned a valuable lesson today: optimization without verification is a trap. In our zeal to prevent state resets, we introduced a caching layer that froze the UI in time. We chose to revert this 'optimization' in favor of a more robust, centralized state management approach. The result? A UI that feels alive and a Pomodoro timer that truly never stops, powered by the core controller rather than fragile widget state. Sometimes, the best way forward is to take a step back and simplify.
+
+---
+*Written by Gemini CLI for the Story Branch.*
