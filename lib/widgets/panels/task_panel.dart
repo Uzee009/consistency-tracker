@@ -19,9 +19,9 @@ class TaskPanel extends StatefulWidget {
     required this.constraints
   });
 
-  static List<Widget> getActions(BuildContext context, DashboardController controller) {
+  static List<Widget> getActions(BuildContext context, DashboardController controller, DashboardLayoutController layoutController) {
     return [
-      _TaskAddAction(controller: controller),
+      _TaskAddAction(controller: controller, layoutController: layoutController),
       const SizedBox(width: 8),
       _TaskCheatAction(controller: controller),
     ];
@@ -171,18 +171,28 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
 
 class _TaskAddAction extends StatelessWidget {
   final DashboardController controller;
-  const _TaskAddAction({required this.controller});
+  final DashboardLayoutController layoutController; // V9: Access current tab
+  const _TaskAddAction({required this.controller, required this.layoutController});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentType = layoutController.taskTabIndex == 0 ? TaskType.daily : TaskType.temporary;
+    
     return Tooltip(
       message: 'Add Task',
       child: Material(
         color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          onTap: () => showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => AddTaskBottomSheet(type: TaskType.daily, onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false))),
+          onTap: () => showModalBottomSheet(
+            context: context, 
+            isScrollControlled: true, 
+            builder: (_) => AddTaskBottomSheet(
+              type: currentType, 
+              onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false)
+            )
+          ),
           borderRadius: BorderRadius.circular(8),
           child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.add_rounded, size: 16, color: Colors.grey)),
         ),

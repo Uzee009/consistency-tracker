@@ -1,5 +1,6 @@
 // lib/controllers/dashboard_controller.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
@@ -22,6 +23,17 @@ class DashboardController extends ChangeNotifier {
   List<VolumePoint> volumeData = [];
   bool isLoading = true;
   int _lastRequestId = 0; // V8: Protect against race conditions
+
+  // --- POMODORO STATE (V9) ---
+  int timerSecondsRemaining = 25 * 60;
+  bool isTimerRunning = false;
+  String timerMode = 'focus'; // 'focus', 'shortBreak', 'longBreak'
+  Map<String, int> timerDurations = {
+    'focus': 25 * 60,
+    'shortBreak': 5 * 60,
+    'longBreak': 15 * 60,
+  };
+  Timer? _pomodoroTimer;
 
   // --- INITIALIZATION ---
   /// [showLoading] defaults to true for initial loads or date changes.
@@ -163,6 +175,58 @@ class DashboardController extends ChangeNotifier {
   void setHeatmapRange(String range) {
     heatmapRange = range;
     initialize(selectedDate, showLoading: false);
+  }
+
+  // --- POMODORO ACTIONS (V9) ---
+
+  void toggleTimer() {
+    if (isTimerRunning) {
+      _pomodoroTimer?.cancel();
+      isTimerRunning = false;
+    } else {
+      isTimerRunning = true;
+      _pomodoroTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (timerSecondsRemaining > 0) {
+          timerSecondsRemaining--;
+          notifyListeners(); // Tick
+        } else {
+          _pomodoroTimer?.cancel();
+          isTimerRunning = false;
+          if (timerMode == 'focus') {
+            int newCompleted = todayRecord.pomodoroSessionsCompleted + 1;
+            if (newCompleted > todayRecord.pomodoroGoal) newCompleted = todayRecord.pomodoroGoal;
+            updatePomodoroStats(newCompleted, todayRecord.pomodoroGoal);
+          }
+          notifyListeners();
+        }
+      });
+    }
+    notifyListeners();
+  }
+
+  void resetTimer() {
+    _pomodoroTimer?.cancel();
+    isTimerRunning = false;
+    timerSecondsRemaining = timerDurations[timerMode] ?? (25 * 60);
+    notifyListeners();
+  }
+
+  void setTimerMode(String mode) {
+    _pomodoroTimer?.cancel();
+    isTimerRunning = false;
+    timerMode = mode;
+    timerSecondsRemaining = timerDurations[mode] ?? (25 * 60);
+    notifyListeners();
+  }
+
+  void updateTimerSettings(int focus, int short, int long, int goal) {
+    timerDurations['focus'] = focus * 60;
+    timerDurations['shortBreak'] = short * 60;
+    timerDurations['longBreak'] = long * 60;
+    if (timerMode == 'focus') timerSecondsRemaining = timerDurations['focus']!;
+    
+    updatePomodoroStats(todayRecord.pomodoroSessionsCompleted, goal);
+    notifyListeners();
   }
 
   Future<void> updatePomodoroStats(int completed, int goal) async {

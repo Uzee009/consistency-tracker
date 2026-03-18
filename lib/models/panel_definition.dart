@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import '../controllers/dashboard_controller.dart';
 
+import '../controllers/dashboard_layout_controller.dart';
+
 typedef PanelContentBuilder = Widget Function(BuildContext context, DashboardController controller, BoxConstraints constraints);
-typedef PanelActionsBuilder = List<Widget> Function(BuildContext context, DashboardController controller);
+typedef PanelActionsBuilder = List<Widget> Function(BuildContext context, DashboardController controller, DashboardLayoutController layoutController);
 
 class PanelDefinition {
   final String id;

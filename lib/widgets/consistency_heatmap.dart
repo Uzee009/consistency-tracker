@@ -628,8 +628,17 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                       color: cellColor,
                       borderRadius: BorderRadius.circular(3),
                       border: isSelected 
-                          ? Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5)
+                          ? Border.all(
+                              color: isDark ? Colors.white : Colors.black, // V9: High contrast highlight
+                              width: 2.0,
+                            )
                           : null,
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.3),
+                          blurRadius: 4,
+                        )
+                      ] : null,
                     ),
                     child: Center(
                       child: intensity == -2

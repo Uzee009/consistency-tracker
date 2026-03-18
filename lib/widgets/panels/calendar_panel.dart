@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../controllers/dashboard_controller.dart';
+import '../../controllers/dashboard_layout_controller.dart';
 import '../../widgets/consistency_heatmap.dart';
 
 class CalendarPanel extends StatefulWidget {
@@ -9,11 +10,12 @@ class CalendarPanel extends StatefulWidget {
   final BoxConstraints constraints;
   const CalendarPanel({super.key, required this.controller, required this.constraints});
 
-  static List<Widget> getActions(BuildContext context, DashboardController controller) {
+  static List<Widget> getActions(BuildContext context, DashboardController controller, DashboardLayoutController layoutController) {
     return [
       _CalendarResetAction(controller: controller),
     ];
   }
+
 
   @override
   State<CalendarPanel> createState() => _CalendarPanelState();

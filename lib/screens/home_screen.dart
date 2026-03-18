@@ -90,6 +90,45 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildMiniTimer(BuildContext context) {
+    final mode = _dataController.timerMode;
+    final color = mode == 'focus' ? const Color(0xFFE11D48) : (mode == 'shortBreak' ? const Color(0xFF10B981) : const Color(0xFF3B82F6));
+    
+    final int mins = _dataController.timerSecondsRemaining ~/ 60;
+    final int secs = _dataController.timerSecondsRemaining % 60;
+    final String timeStr = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer_rounded, size: 12, color: color),
+          const SizedBox(width: 6),
+          Text(
+            timeStr,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _dataController.toggleTimer,
+            child: Icon(_dataController.isTimerRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 14, color: color),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: _dataController.resetTimer,
+            child: Icon(Icons.refresh_rounded, size: 12, color: color.withValues(alpha: 0.5)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGlobalHeader(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final date = _dataController.selectedDate;
@@ -110,12 +149,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // CENTER: BRANDING (Expanded to fill and center text)
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('CONSISTENCY TRACKER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 4)),
-                const SizedBox(height: 4),
-                Text('$dayName, $dateStr'.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey[500], letterSpacing: 1)),
+                // Timer Indicator (Mini-Timer V9)
+                if (_dataController.isTimerRunning || _dataController.timerSecondsRemaining < _dataController.timerDurations[_dataController.timerMode]!) 
+                  _buildMiniTimer(context),
+                
+                const Spacer(),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('CONSISTENCY TRACKER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                    const SizedBox(height: 4),
+                    Text('$dayName, $dateStr'.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey[500], letterSpacing: 1)),
+                  ],
+                ),
+                const Spacer(),
+                
+                // Mirror the Timer Indicator space to keep text perfectly centered
+                if (_dataController.isTimerRunning || _dataController.timerSecondsRemaining < _dataController.timerDurations[_dataController.timerMode]!) 
+                  const SizedBox(width: 80), 
               ],
             ),
           ),

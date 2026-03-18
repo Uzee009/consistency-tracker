@@ -17,7 +17,7 @@ class DashboardLayoutController extends ChangeNotifier {
 
   bool isEditMode = false;
   DashboardSlot? hoverSlot;
-  int taskTabIndex = 0; // V6: Track tab for shell coloring
+  int taskTabIndex = 0;
 
   void setTaskTabIndex(int index) {
     if (taskTabIndex != index) {
@@ -28,7 +28,7 @@ class DashboardLayoutController extends ChangeNotifier {
 
   Map<DashboardSlot, String?> _panelPositions = {
     DashboardSlot.topLeft: 'tasks',
-    DashboardSlot.bottomLeft: 'tasks', 
+    DashboardSlot.bottomLeft: 'tasks',
     DashboardSlot.topRight: 'calendar',
     DashboardSlot.bottomRight: 'graph',
   };
@@ -37,16 +37,11 @@ class DashboardLayoutController extends ChangeNotifier {
 
   int get totalPanels => _panelPositions.values.whereType<String>().toSet().length;
 
-  double hRatio = 0.65; 
-  double lvRatio = 0.5; 
+  double hRatio = 0.65;
+  double lvRatio = 0.5;
   double rvRatio = 0.5;
 
   final Map<String, PanelDefinition> _panelRegistry = {};
-  
-  // CACHE: Store built widgets to preserve state (e.g. Pomodoro timer)
-  final Map<String, Widget> _widgetCache = {};
-  // CONSTRAINTS: Notify cached widgets of their new size without rebuild
-  final Map<String, ValueNotifier<BoxConstraints>> _constraintNotifiers = {};
 
   DashboardLayoutController() {
     _registerPanels();
@@ -58,25 +53,25 @@ class DashboardLayoutController extends ChangeNotifier {
       id: 'tasks', title: 'Habit Mastery', icon: Icons.check_circle_outline_rounded, description: 'Your daily and temporary habits.',
       minWidth: 420, minHeight: 400,
       contentBuilder: (context, controller, constraints) => TaskPanel(controller: controller, layoutController: this, constraints: constraints),
-      actionsBuilder: (context, controller) => TaskPanel.getActions(context, controller),
+      actionsBuilder: (context, controller, layout) => TaskPanel.getActions(context, controller, this),
     );
     _panelRegistry['calendar'] = PanelDefinition(
       id: 'calendar', title: 'Consistency Log', icon: Icons.calendar_month_rounded, description: 'A heatmap of your consistency.',
-      minWidth: 320, minHeight: 400, // V7: 400px min height
+      minWidth: 320, minHeight: 400,
       contentBuilder: (context, controller, constraints) => CalendarPanel(controller: controller, constraints: constraints),
-      actionsBuilder: (context, controller) => CalendarPanel.getActions(context, controller),
+      actionsBuilder: (context, controller, layout) => CalendarPanel.getActions(context, controller, this),
     );
     _panelRegistry['graph'] = PanelDefinition(
       id: 'graph', title: 'Performance Trends', icon: Icons.show_chart_rounded, description: 'Analytics and trends.',
-      minWidth: 340, minHeight: 400, // V7: 400px min height
+      minWidth: 340, minHeight: 400,
       contentBuilder: (context, controller, constraints) => GraphPanel(controller: controller, constraints: constraints),
-      actionsBuilder: (context, controller) => GraphPanel.getActions(context, controller),
+      actionsBuilder: (context, controller, layout) => GraphPanel.getActions(context, controller, this),
     );
     _panelRegistry['focus'] = PanelDefinition(
       id: 'focus', title: 'Focus Zone', icon: Icons.timer_rounded, description: 'Pomodoro timer to maintain focus.',
-      minWidth: 280, minHeight: 400, // V7: 400px min height
+      minWidth: 280, minHeight: 400,
       contentBuilder: (context, controller, constraints) => FocusPanel(controller: controller, constraints: constraints),
-      actionsBuilder: (context, controller) => FocusPanel.getActions(context, controller),
+      actionsBuilder: (context, controller, layout) => FocusPanel.getActions(context, controller, this),
     );
   }
 
@@ -92,12 +87,9 @@ class DashboardLayoutController extends ChangeNotifier {
 
   void updateHRatio(double delta, double totalWidth) {
     final double newRatio = (hRatio + (delta / totalWidth));
-    
     final minWLeft = [getMinWidthForSlot(DashboardSlot.topLeft), getMinWidthForSlot(DashboardSlot.bottomLeft)].reduce((a, b) => a > b ? a : b);
     final minWRight = [getMinWidthForSlot(DashboardSlot.topRight), getMinWidthForSlot(DashboardSlot.bottomRight)].reduce((a, b) => a > b ? a : b);
-
     if (totalWidth * newRatio < minWLeft || totalWidth * (1 - newRatio) < minWRight) return;
-    
     hRatio = newRatio.clamp(0.1, 0.9);
     notifyListeners();
   }
@@ -105,49 +97,27 @@ class DashboardLayoutController extends ChangeNotifier {
   void updateVRatio(double delta, double totalHeight, bool isLeft) {
     final double currentRatio = isLeft ? lvRatio : rvRatio;
     final double newRatio = (currentRatio + (delta / totalHeight));
-    
     final slotTop = isLeft ? DashboardSlot.topLeft : DashboardSlot.topRight;
     final slotBottom = isLeft ? DashboardSlot.bottomLeft : DashboardSlot.bottomRight;
-    
     final double minHTop = getMinHeightForSlot(slotTop);
     final double minHBottom = getMinHeightForSlot(slotBottom);
-
     if (totalHeight * newRatio < minHTop || totalHeight * (1 - newRatio) < minHBottom) return;
-    
     if (isLeft) lvRatio = newRatio.clamp(0.1, 0.9);
     else rvRatio = newRatio.clamp(0.1, 0.9);
     notifyListeners();
   }
 
   Widget getWidgetForId(String id, DashboardController dataController, BuildContext context, BoxConstraints constraints) {
-    // 1. Update the constraints notifier if it exists
-    if (_constraintNotifiers.containsKey(id)) {
-      _constraintNotifiers[id]!.value = constraints;
-    } else {
-      _constraintNotifiers[id] = ValueNotifier(constraints);
-    }
-
-    // 2. Return from cache or build new
-    if (!_widgetCache.containsKey(id)) {
-      final def = _panelRegistry[id];
-      if (def == null) return const Center(child: Text("Unknown Panel"));
-      
-      // We wrap the content in a ValueListenableBuilder so it can respond to 
-      // size changes WITHOUT the entire widget being re-instantiated.
-      _widgetCache[id] = ValueListenableBuilder<BoxConstraints>(
-        key: ValueKey('panel_$id'), // V8: Stable key for state preservation
-        valueListenable: _constraintNotifiers[id]!,
-        builder: (context, latestConstraints, child) {
-          return def.contentBuilder(context, dataController, latestConstraints);
-        },
-      );
-    }
-
-    return _widgetCache[id]!;
+    return _panelRegistry[id]?.contentBuilder(context, dataController, constraints) ?? const Center(child: Text("Unknown Panel"));
   }
 
   List<Widget> getHeaderActionsForId(String id, DashboardController dataController, BuildContext context) {
-    return _panelRegistry[id]?.actionsBuilder?.call(context, dataController) ?? [];
+    // V9 ACTION BUILDER FIX
+    final panelDef = _panelRegistry[id];
+    if (panelDef != null && panelDef.actionsBuilder != null) {
+      return panelDef.actionsBuilder!(context, dataController, this);
+    }
+    return [];
   }
 
   void toggleEditMode() {

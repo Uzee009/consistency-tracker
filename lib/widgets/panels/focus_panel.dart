@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../controllers/dashboard_controller.dart';
+import '../../controllers/dashboard_layout_controller.dart';
 import '../../widgets/pomodoro_timer.dart';
 
 class FocusPanel extends StatelessWidget {
@@ -10,7 +11,7 @@ class FocusPanel extends StatelessWidget {
   
   const FocusPanel({super.key, required this.controller, required this.constraints});
 
-  static List<Widget> getActions(BuildContext context, DashboardController controller) {
+  static List<Widget> getActions(BuildContext context, DashboardController controller, DashboardLayoutController layoutController) {
     return [
       const Icon(Icons.timer_rounded, size: 14, color: Colors.grey),
     ];

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../controllers/dashboard_controller.dart';
+import '../../controllers/dashboard_layout_controller.dart';
 import '../../widgets/analytics_kpis.dart';
 import '../../widgets/analytics_carousel.dart';
 
@@ -11,11 +12,12 @@ class GraphPanel extends StatelessWidget {
   
   const GraphPanel({super.key, required this.controller, required this.constraints});
 
-  static List<Widget> getActions(BuildContext context, DashboardController controller) {
+  static List<Widget> getActions(BuildContext context, DashboardController controller, DashboardLayoutController layoutController) {
     return [
       _GraphRangeAction(controller: controller),
     ];
   }
+
 
   @override
   Widget build(BuildContext context) {
