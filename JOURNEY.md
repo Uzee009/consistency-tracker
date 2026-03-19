@@ -113,3 +113,27 @@ We learned a valuable lesson today: optimization without verification is a trap.
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## Friday, 20 March 2026: The Restoration of Responsiveness
+
+Today was a testament to humility and resilience in development. After a prior session's misstep where an attempt at state persistence inadvertently 'froze' the UI, we embarked on a critical restoration mission. The goal: unfreeze the interface, centralize core logic, and refine user experience elements that had become problematic.
+
+### Unthawing the Interface
+We quickly identified and reverted the faulty widget caching that had rendered the UI unresponsive. This immediately brought life back to the application, allowing habits to be checked and created in real-time, just as they should be. It was a stark reminder that sometimes the simplest approach is the most robust.
+
+### The Omnipresent Pomodoro
+Taking a cue from seamless productivity tools, we moved the Pomodoro timer's entire state and logic into the `DashboardController`. This allowed the timer to run persistently, independent of the UI panel's visibility. A new mini-timer, elegantly placed in the header, now provides constant oversight, fulfilling the 'FigJam style' persistence. The original, classic Pomodoro UI was also lovingly restored, blending familiarity with newfound robustness.
+
+### Precision in Visualization
+Our heatmap, a core visual element, received significant attention. We enhanced its date selection highlight with a high-contrast background overlay and border, making selected days unmistakably clear across all view ranges (1M, 3M, 6M, 1Y). Crucially, we rectified the 1Y scrolling behavior and the 1M view's date highlighting, ensuring that clicking a habit or 'Jump to Today' accurately navigates and emphasizes the correct period.
+
+### Ironing Out the Creases
+Numerous build errors and structural inconsistencies were resolved, including syntax fixes in the main application screen and proper passing of the data controller to the analytics explorer. Every step reinforced the application's foundational stability.
+
+### A New Protocol
+To prevent future documentation inconsistencies, a strict protocol for session logging and storytelling was ingrained into `GEMINI.md`. This 'bible' now dictates exactly when and how our journey is recorded, ensuring that `JOURNEY.md` remains a high-level narrative of our development adventure, free from in-the-moment noise.
+
+Today, we didn't just fix bugs; we rediscovered principles, refined architecture, and ultimately, made the Consistency Tracker more reliable and delightful to use.
+
+---
+*Written by Gemini CLI for the Story Branch.*
