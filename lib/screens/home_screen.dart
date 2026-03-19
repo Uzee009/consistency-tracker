@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
+import 'dart:ui'; // For FontFeature
 import '../controllers/dashboard_controller.dart';
 import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
@@ -44,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           body: Column(
             children: [
-              // 1. GLOBAL HEADER (Centering Branding only)
+              // 1. GLOBAL HEADER
               _buildGlobalHeader(context),
               Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
               
@@ -75,7 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildActiveView() {
     if (_activeTabIndex == 1) {
-      return const AnalyticsExplorerScreen();
+      // V9: Pass controller to Explorer
+      return AnalyticsExplorerScreen(controller: _dataController);
     } else if (_activeTabIndex == 2) {
       return const SettingsScreen(isEmbedded: true);
     }
@@ -108,16 +110,16 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.timer_rounded, size: 12, color: color),
+          Icon(Icons.timer_rounded, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
             timeStr,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
           ),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: _dataController.toggleTimer,
-            child: Icon(_dataController.isTimerRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 14, color: color),
+            child: Icon(_dataController.isTimerRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 16, color: color),
           ),
           const SizedBox(width: 4),
           GestureDetector(
@@ -149,41 +151,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // CENTER: BRANDING (Expanded to fill and center text)
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Timer Indicator (Mini-Timer V9)
-                if (_dataController.isTimerRunning || _dataController.timerSecondsRemaining < _dataController.timerDurations[_dataController.timerMode]!) 
-                  _buildMiniTimer(context),
-                
-                const Spacer(),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('CONSISTENCY TRACKER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 4)),
-                    const SizedBox(height: 4),
-                    Text('$dayName, $dateStr'.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey[500], letterSpacing: 1)),
-                  ],
-                ),
-                const Spacer(),
-                
-                // Mirror the Timer Indicator space to keep text perfectly centered
-                if (_dataController.isTimerRunning || _dataController.timerSecondsRemaining < _dataController.timerDurations[_dataController.timerMode]!) 
-                  const SizedBox(width: 80), 
+                const Text('CONSISTENCY TRACKER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 4)),
+                const SizedBox(height: 4),
+                Text('$dayName, $dateStr'.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey[500], letterSpacing: 1)),
               ],
             ),
           ),
           
-          // RIGHT: USER MENU
-          SizedBox(
-            width: 40,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: UserMenu(
-                currentUser: _dataController.currentUser,
-                onSettingsReturn: () => _dataController.initialize(_dataController.selectedDate, showLoading: false),
+          // RIGHT: TIMER & USER MENU
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_dataController.isTimerRunning || _dataController.timerSecondsRemaining < _dataController.timerDurations[_dataController.timerMode]!) ...[
+                _buildMiniTimer(context),
+                const SizedBox(width: 16), // Margin between timer and user menu
+              ],
+              SizedBox(
+                width: 40,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: UserMenu(
+                    currentUser: _dataController.currentUser,
+                    onSettingsReturn: () => _dataController.initialize(_dataController.selectedDate, showLoading: false),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -236,13 +232,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNavTab(String label, IconData icon, bool isSelected, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
+          color: isSelected ? (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.white) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))] : null,
         ),

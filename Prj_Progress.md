@@ -399,3 +399,12 @@
 *   **Feature Integration:** Added full persistence for Pomodoro focus sessions (#9) with database schema updates.
 *   **Codebase Cleanup:** Deleted 4 redundant files (`HomePremiumMockup`, `TaskFormScreen`, `TasksListScreen`, `StreakBoard`) and consolidated task management into a single, enhanced `AddTaskBottomSheet` (#14).
 *   **Stability:** Implemented race-condition protection in `DashboardController` (#11) using request ID tracking.
+
+## Friday, 20 March 2026 - 03:30 PM
+
+**Summary:**
+*   **Addressed UI Regressions:** Reverted the problematic widget caching mechanism in `DashboardLayoutController` that caused the UI to freeze and restored real-time updates for tasks and heatmap.
+*   **Pomodoro Timer Refinement:** Centralized Pomodoro timer logic in `DashboardController` for persistence. Relocated the mini-timer to the header, beside the user icon, and adjusted its font size. Restored the original legacy UI of the Pomodoro panel.
+*   **Heatmap Improvements:** Applied high-contrast background overlay and border to selected dates in all heatmap ranges (1M, 3M, 6M, 1Y). Fixed 1Y view scrolling to ensure 'Jump to Today' correctly shows the current month and that habit start dates are highlighted in 1M view by correctly updating `_current1MDate` when `visibleMonth` changes.
+*   **Resolved Build Errors:** Fixed numerous syntax errors in `lib/screens/home_screen.dart` and corrected the constructor for `AnalyticsExplorerScreen` to accept the `DashboardController`.
+*   **Updated Gemini Protocol:** Added a strict protocol to `GEMINI.md` for session logging and storytelling.

@@ -59,17 +59,19 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
 
     // Sync with visibleMonth if provided (Time Travel)
     if (widget.visibleMonth != null && (oldWidget.visibleMonth == null || !widget.visibleMonth!.isAtSameMomentAs(oldWidget.visibleMonth!))) {
-      final now = DateTime.now();
-      // JUMP LOGIC: Enable Report Mode if jumping to previous year/months
-      final isPast = widget.visibleMonth!.isBefore(DateTime(now.year, now.month, 1));
-      
       setState(() {
         _current1MDate = DateTime(widget.visibleMonth!.year, widget.visibleMonth!.month, 1);
+        // Only enable Report Mode if we're jumping to a past month from a non-report mode
+        final now = DateTime.now();
+        final isPast = widget.visibleMonth!.isBefore(DateTime(now.year, now.month, 1));
         if (isPast && !_isReportMode) {
           _isReportMode = true;
         }
       });
-      _scrollToCurrentMonth();
+      // V9 FIX: Only scroll for multi-month views
+      if (widget.selectedRange != '1M') {
+        _scrollToCurrentMonth();
+      }
     }
     
     // Sync viewed month with selectedDate if it changes externally (e.g., Today button)
@@ -116,6 +118,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     int targetMonthIndex = -1;
     if (_isReportMode) {
       int monthDiff = (now.year - date.year) * 12 + now.month - date.month;
+      // In Report Mode, index 0 is oldest, index (count-1) is current month
       targetMonthIndex = monthsCount - 1 - monthDiff;
     } else if (widget.selectedRange == '1Y') {
       targetMonthIndex = date.month - 1;
@@ -125,8 +128,18 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     }
 
     if (targetMonthIndex >= 0 && targetMonthIndex < monthsCount) {
-      // V8 FIX: Accurate week-based offset instead of 120.0
-      double estimatedCellWidth = 22.0; 
+      // V9 FIX: If target is the current/last month, just scroll to end to ensure full visibility
+      if (targetMonthIndex == monthsCount - 1) {
+        _heatmapScrollController.animateTo(
+          _heatmapScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+        return;
+      }
+
+      // V9 FIX: Better width estimation
+      double estimatedCellWidth = 24.0; 
       double totalOffset = 0;
       
       for (int i = 0; i < targetMonthIndex; i++) {
@@ -388,6 +401,13 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 dDate.month == widget.selectedDate!.month && 
                 dDate.day == widget.selectedDate!.day;
 
+            // V9: High-contrast background overlay for selected state
+            Color finalCellColor = cellColor;
+            if (isSelected) {
+              final overlayColor = isDark ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.2);
+              finalCellColor = Color.alphaBlend(overlayColor, cellColor);
+            }
+
             weekRowCells.add(
               GestureDetector(
                 onTap: () {
@@ -401,11 +421,20 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   padding: const EdgeInsets.all(2),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: cellColor,
+                      color: finalCellColor,
                       borderRadius: BorderRadius.circular(8), // Increased radius
                       border: isSelected 
-                          ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                          ? Border.all(
+                              color: isDark ? Colors.white : Colors.black, // High contrast
+                              width: 2.0,
+                            )
                           : null,
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.3),
+                          blurRadius: 4,
+                        )
+                      ] : null,
                     ),
                     child: Center(
                        child: intensity == -2
@@ -611,6 +640,13 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               day.month == widget.selectedDate!.month && 
               day.day == widget.selectedDate!.day;
 
+          // V9: High-contrast background overlay for selected state
+          Color finalCellColor = cellColor;
+          if (isSelected) {
+            final overlayColor = isDark ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.2);
+            finalCellColor = Color.alphaBlend(overlayColor, cellColor);
+          }
+
           dayCellsInWeek.add(
             GestureDetector(
               onTap: () {
@@ -625,11 +661,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   padding: const EdgeInsets.all(1.2),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: cellColor,
+                      color: finalCellColor,
                       borderRadius: BorderRadius.circular(3),
                       border: isSelected 
                           ? Border.all(
-                              color: isDark ? Colors.white : Colors.black, // V9: High contrast highlight
+                              color: isDark ? Colors.white : Colors.black, // High contrast border
                               width: 2.0,
                             )
                           : null,

@@ -3,173 +3,188 @@
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/controllers/dashboard_controller.dart';
 
-class PomodoroTimer extends StatelessWidget {
+class PomodoroTimer extends StatefulWidget {
   final DashboardController controller;
   const PomodoroTimer({super.key, required this.controller});
 
   @override
+  State<PomodoroTimer> createState() => _PomodoroTimerState();
+}
+
+class _PomodoroTimerState extends State<PomodoroTimer> {
+  bool _isHovering = false;
+
+  @override
   Widget build(BuildContext context) {
-    // V9: We now use the controller for ALL state
+    final controller = widget.controller;
+    // We use the controller for state
     final int seconds = controller.timerSecondsRemaining;
     final bool isRunning = controller.isTimerRunning;
     final String mode = controller.timerMode;
     final int goal = controller.todayRecord.pomodoroGoal;
     final int completed = controller.todayRecord.pomodoroSessionsCompleted;
+    
+    final accentColor = _getAccentColor(context, mode);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Mode Selector
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildModeButton(context, 'Focus', 'focus', mode == 'focus'),
-              _buildModeButton(context, 'Short Break', 'shortBreak', mode == 'shortBreak'),
-              _buildModeButton(context, 'Long Break', 'longBreak', mode == 'longBreak'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        
-        // Timer Display
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 180,
-              height: 180,
-              child: CircularProgressIndicator(
-                value: seconds / (controller.timerDurations[mode] ?? 1),
-                strokeWidth: 8,
-                backgroundColor: Colors.black.withValues(alpha: 0.05),
-                color: _getModeColor(mode),
-                strokeCap: StrokeCap.round,
-              ),
-            ),
-            Column(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Stack(
+        children: [
+          // 1. MODE SELECTORS (Pinned Top Left)
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Row(
               children: [
-                Text(
-                  _formatTime(seconds),
-                  style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1),
+                _buildModeButton(context, 'Focus', 'focus', mode),
+                const SizedBox(width: 4),
+                _buildModeButton(context, 'Short', 'shortBreak', mode),
+                const SizedBox(width: 4),
+                _buildModeButton(context, 'Long', 'longBreak', mode),
+              ],
+            ),
+          ),
+
+          // 2. UTILITY CONTROLS (Pinned Top Right)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Row(
+              children: [
+                _buildHeaderControl(
+                  context,
+                  icon: Icons.refresh_rounded,
+                  onPressed: controller.resetTimer,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
-                Text(
-                  mode.toUpperCase(),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 1),
+                const SizedBox(width: 4),
+                _buildHeaderControl(
+                  context,
+                  icon: Icons.settings_outlined,
+                  onPressed: () => _showSettingsDialog(context, controller),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ],
             ),
-          ],
-        ),
-        
-        const SizedBox(height: 32),
-        
-        // Controls
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildRoundButton(
-              icon: Icons.settings_rounded,
-              onPressed: () => _showSettingsDialog(context),
+          ),
+
+          // 3. MAIN CENTERED CONTENT
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 24), // Offset for the pinned controls
+                MouseRegion(
+                  onEnter: (_) => setState(() => _isHovering = true),
+                  onExit: (_) => setState(() => _isHovering = false),
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: controller.toggleTimer,
+                    behavior: HitTestBehavior.opaque,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Opacity(
+                          opacity: _isHovering ? 0.2 : 1.0,
+                          child: Text(
+                            _formatTime(seconds),
+                            style: TextStyle(
+                              fontSize: 84,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -2,
+                              color: isRunning ? accentColor : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (_isHovering)
+                          Icon(
+                            isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            size: 64,
+                            color: accentColor.withValues(alpha: 0.8),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Session Progress Dots
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(goal, (index) {
+                    final isDone = index < completed;
+                    return Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDone ? accentColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    );
+                  }),
+                ),
+              ],
             ),
-            const SizedBox(width: 24),
-            _buildPlayButton(isRunning),
-            const SizedBox(width: 24),
-            _buildRoundButton(
-              icon: Icons.refresh_rounded,
-              onPressed: controller.resetTimer,
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 40),
-        
-        // Sessions Progress
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(goal, (index) {
-            final isDone = index < completed;
-            return Container(
-              width: 12,
-              height: 12,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDone ? _getModeColor('focus') : Colors.black.withValues(alpha: 0.05),
-                border: isDone ? null : Border.all(color: Colors.black.withValues(alpha: 0.1)),
-              ),
-              child: isDone ? const Icon(Icons.check, size: 8, color: Colors.white) : null,
-            );
-          }),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '$completed / $goal SESSIONS',
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 1),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildModeButton(BuildContext context, String label, String modeId, bool isSelected) {
+  Widget _buildModeButton(BuildContext context, String label, String modeId, String currentMode) {
+    final isSelected = currentMode == modeId;
+    final accentColor = _getAccentColor(context, currentMode);
     return GestureDetector(
-      onTap: () => controller.setTimerMode(modeId),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      onTap: () => widget.controller.setTimerMode(modeId),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : null,
+          color: isSelected ? accentColor.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: isSelected ? accentColor.withValues(alpha: 0.2) : Colors.transparent),
         ),
         child: Text(
-          label,
+          label.toUpperCase(),
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.black : Colors.grey[600],
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+            color: isSelected ? accentColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPlayButton(bool isRunning) {
-    return GestureDetector(
-      onTap: controller.toggleTimer,
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.black,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        child: Icon(
-          isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          color: Colors.white,
-          size: 32,
-        ),
+  Widget _buildHeaderControl(BuildContext context, {required IconData icon, required VoidCallback onPressed, required Color color}) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(padding: const EdgeInsets.all(4.0), child: Icon(icon, size: 16, color: color)),
       ),
     );
   }
 
-  Widget _buildRoundButton({required IconData icon, required VoidCallback onPressed}) {
-    return IconButton(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 20, color: Colors.grey[600]),
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.black.withValues(alpha: 0.05),
-        padding: const EdgeInsets.all(12),
-      ),
-    );
+  Color _getAccentColor(BuildContext context, String mode) {
+    switch (mode) {
+      case 'focus': return Theme.of(context).colorScheme.primary;
+      case 'shortBreak': return const Color(0xFF10B981);
+      case 'longBreak': return Colors.blue[400]!;
+      default: return Theme.of(context).colorScheme.primary;
+    }
   }
 
-  void _showSettingsDialog(BuildContext context) {
+  String _formatTime(int seconds) {
+    final mins = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
+
+  void _showSettingsDialog(BuildContext context, DashboardController controller) {
     final focusController = TextEditingController(text: (controller.timerDurations['focus']! ~/ 60).toString());
     final shortController = TextEditingController(text: (controller.timerDurations['shortBreak']! ~/ 60).toString());
     final longController = TextEditingController(text: (controller.timerDurations['longBreak']! ~/ 60).toString());
@@ -221,20 +236,5 @@ class PomodoroTimer extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatTime(int seconds) {
-    final int mins = seconds ~/ 60;
-    final int secs = seconds % 60;
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
-  Color _getModeColor(String mode) {
-    switch (mode) {
-      case 'focus': return const Color(0xFFE11D48); // Rose 600
-      case 'shortBreak': return const Color(0xFF10B981); // Emerald 500
-      case 'longBreak': return const Color(0xFF3B82F6); // Blue 500
-      default: return const Color(0xFFE11D48);
-    }
   }
 }

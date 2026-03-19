@@ -10,10 +10,13 @@ import '../widgets/consistency_heatmap.dart';
 import '../widgets/analytics_kpis.dart';
 import '../widgets/analytics_carousel.dart';
 
+import '../controllers/dashboard_controller.dart';
+
 class AnalyticsExplorerScreen extends StatefulWidget {
+  final DashboardController controller;
   final Task? initialSelectedTask;
 
-  const AnalyticsExplorerScreen({super.key, this.initialSelectedTask});
+  const AnalyticsExplorerScreen({super.key, required this.controller, this.initialSelectedTask});
 
   @override
   State<AnalyticsExplorerScreen> createState() => _AnalyticsExplorerScreenState();
@@ -46,20 +49,28 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
   void initState() {
     super.initState();
     _selectedTaskNotifier.value = widget.initialSelectedTask;
+    widget.controller.addListener(_onControllerChanged);
     _loadInitialData();
     _selectedTaskNotifier.addListener(_onTaskSelectionChanged);
   }
 
+  void _onControllerChanged() {
+    // Refresh local data when dashboard controller updates (e.g. task completed)
+    if (mounted) _loadInitialData();
+  }
+
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
     _selectedTaskNotifier.removeListener(_onTaskSelectionChanged);
     _selectedTaskNotifier.dispose();
     _isLoadingNotifier.dispose();
-    _inspectedDateNotifier.dispose();
     _visibleMonthNotifier.dispose();
     _streakInspectionNotifier.dispose();
+    _inspectedDateNotifier.dispose();
     super.dispose();
   }
+
 
   void _onTaskSelectionChanged() {
     final selected = _selectedTaskNotifier.value;

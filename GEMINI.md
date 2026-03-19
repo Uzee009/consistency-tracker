@@ -20,10 +20,14 @@
     *   **Consult Mode (Default/Inquiry):** Focused on analysis, strategy, and brainstorming. You MUST NOT modify any files (except logs during conclusion) or run implementation commands.
     *   **Dev Mode (Directive):** Focused on implementation and execution.
     *   **Switching:** You will stay in the current mode unless specifically asked to switch. If the mode is ambiguous or not specified at the start of a task, you MUST ask: "Which mode are we using: Dev or Consult?"
-2.  **Session Logging & Storytelling:**
-    *   Do NOT log changes after every tool call or task.
-    *   You will ONLY append entries to `Prj_Progress.md` when the user says "conclude session here".
-    *   **LinkedIn/Journey Documentation:** At the end of every session, you must switch to the `story` branch and append a narrative-driven "Founder's Story" to `JOURNEY.md`. This story should translate technical tasks into a journey of building, highlighting challenges, architectural wins, and the evolving vision. Use a tone suitable for LinkedIn. Once written, commit and push to the `story` branch and return to the active development branch.
+2.  **Session Logging & Storytelling (STRICT PROTOCOL):**
+    *   **Session Definition:** A session begins when the user says "Let's start," "Good morning," or when a system date change is detected. A session ENDS only when the user explicitly says "Conclude session here" (or similar).
+    *   **During Session:** Do NOT log changes to `Prj_Progress.md` or `JOURNEY.md` after every tool call. Keep the history clean.
+    *   **End of Session Sequence:** When the user concludes the session, you MUST follow this exact sequence:
+        1.  **Log:** Append a comprehensive summary of all tasks, decisions, and outcomes to `Prj_Progress.md`.
+        2.  **Story:** ONLY after the log is complete, switch to the `story` branch. Based *strictly* on the session's log, write an engaging, narrative-driven entry in `JOURNEY.md`. Focus on what was learned, the "founder's journey," and architectural discoveries.
+        3.  **Commit:** Commit and push the story, then return to the development branch.
+    *   **Prohibition:** You are NOT allowed to add entries to `JOURNEY.md` at any other time. This file is for the retrospective story of the *entire* session.
 3.  **Source Control:**
     *   NEVER commit changes or merge branches (e.g., merging to `master`) unless explicitly and specifically instructed to do so for that specific action.
 
