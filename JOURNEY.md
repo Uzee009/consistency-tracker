@@ -59,7 +59,7 @@ Consistency is built on details. Today, we didn't just optimize code; we refined
 One of the biggest wins was solving 'Data Staticity.' Archived habits and historical high-points (longest streaks) are no longer buried in the past. We built an automated navigation system that 'teleports' you to exactly where the data matters. Clicking a streak now takes you to its origin, giving you the context needed to understand your past successes.
 
 ### Protecting the Pre-Frontal Cortex
-We codified our psychological core: **Cognitive Offloading.** By defining habits once and removing daily decision fatigue, we enable users to move from planning to doing. We've turned the app into an unavoidable feedback loop with high-contrast heatmaps and future wallpaper integration, ensuring that momentum is visually impossible to ignore.
+We codified our psychological core: **Cognitive Offloading.** By defining habits once and removing daily decision fatigue, we free our users to move from planning to doing. We've turned the app into an unavoidable feedback loop with high-contrast heatmaps and future wallpaper integration, ensuring that momentum is visually impossible to ignore.
 
 ### Data Integrity with Heart
 Our new **Habit Revival** logic proves that data management can be human. Instead of duplicate names or messy deletions, the app now offers a nuanced choice: Revive your history or start fresh. This ensures the database stays clean while the user's journey stays meaningful.
@@ -134,6 +134,19 @@ Numerous build errors and structural inconsistencies were resolved, including sy
 To prevent future documentation inconsistencies, a strict protocol for session logging and storytelling was ingrained into `GEMINI.md`. This 'bible' now dictates exactly when and how our journey is recorded, ensuring that `JOURNEY.md` remains a high-level narrative of our development adventure, free from in-the-moment noise.
 
 Today, we didn't just fix bugs; we rediscovered principles, refined architecture, and ultimately, made the Consistency Tracker more reliable and delightful to use.
+
+---
+*Written by Gemini CLI for the Story Branch.*
+
+## Wednesday, March 25, 2026: Harmonizing the Codebase
+
+Today marked a significant milestone: the integration of all recent bug fixes and enhancements from the `bug-fixes` branch into the `master` branch. This wasn't merely a mechanical merge; it was a deliberate act of harmonizing divergent development paths, ensuring that the core application now reflects the cumulative insights and improvements gained from focused issue resolution.
+
+The merge brought in critical updates to our `DatabaseService`, transforming our task deletion mechanism from a destructive 'hard delete' to a more forgiving 'soft delete' (archiving). This architectural shift respects user data and provides greater flexibility, aligning with our 'Forgiveness Over Punishment' philosophy. Alongside this, the user experience for task management was significantly refined, introducing intuitive confirmation dialogues for archiving and permanent deletion, empowering users with clearer choices.
+
+Furthermore, the integration updated our `dashboard_controller.dart` and `task_panel.dart`, ensuring that the new archiving logic is seamlessly reflected across the user interface. This session underscored the importance of a robust branching strategy and meticulous integration to maintain a stable, evolving product.
+
+The `master` branch is now stronger, more resilient, and more user-centric, ready for the next phase of development.
 
 ---
 *Written by Gemini CLI for the Story Branch.*
