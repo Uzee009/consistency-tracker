@@ -160,7 +160,27 @@ class DatabaseService {
     );
   }
 
-  Future<int> deleteTask(int id) async {
+  Future<int> archiveTask(int id) async {
+    Database db = await instance.database;
+    return await db.update(
+      tasksTable,
+      {'is_active': 0}, // Set is_active to 0 for archiving
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> unarchiveTask(int id) async {
+    Database db = await instance.database;
+    return await db.update(
+      tasksTable,
+      {'is_active': 1}, // Set is_active to 1 for unarchiving
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteTaskPermanently(int id) async {
     Database db = await instance.database;
     return await db.delete(
       tasksTable,
@@ -214,16 +234,35 @@ class DatabaseService {
     }).toList();
   }
 
-  Future<List<Task>> getAllTasks() async {
+  Future<List<Task>> getAllTasks({bool includeArchived = true}) async {
     Database db = await instance.database;
-    List<Map<String, dynamic>> maps = await db.query(tasksTable);
+    String whereClause = includeArchived ? '1 = 1' : 'is_active = ?';
+    List<dynamic> whereArgs = includeArchived ? [] : [1];
+
+    List<Map<String, dynamic>> maps = await db.query(
+      tasksTable,
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+    return List.generate(maps.length, (i) {
+      return Task.fromMap(maps[i]);
+    });
+  }
+
+  Future<List<Task>> getArchivedTasks() async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> maps = await db.query(
+      tasksTable,
+      where: 'is_active = ?',
+      whereArgs: [0],
+    );
     return List.generate(maps.length, (i) {
       return Task.fromMap(maps[i]);
     });
   }
 
   Future<Task?> findDuplicateTask(String name) async {
-    final all = await getAllTasks();
+    final all = await getAllTasks(includeArchived: false); // Only search active tasks for duplicates
     final searchName = name.toLowerCase().trim();
     try {
       return all.firstWhere((t) => t.name.toLowerCase().trim() == searchName);

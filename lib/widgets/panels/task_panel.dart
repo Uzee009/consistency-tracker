@@ -135,8 +135,74 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
       title: '', type: type, tasks: widget.controller.todaysTasks, dayRecord: widget.controller.todayRecord,
       onAddPressed: () {}, onCheatPressed: null,
       onToggleCompletion: _handleToggleTask, onToggleSkip: (task) => widget.controller.toggleTaskSkip(task),
-      onEdit: (t) => _editTask(t), onDelete: (t) => widget.controller.deleteTask(t.id),
-      onTaskFocusRequested: (_) {}, showTitle: false, isEmbedded: true,
+      onEdit: (t) => _editTask(t), 
+      onDelete: (t) async {
+        final result = await showDialog<String>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Manage Task'),
+            content: RichText(
+              text: TextSpan(
+                style: DefaultTextStyle.of(context).style,
+                children: <TextSpan>[
+                  TextSpan(text: 'Remove "${t.name}"?\n'),
+                  const TextSpan(text: 'Archive to hide it while keeping history.\n\n'), // Added extra \n
+                  TextSpan(text: 'Delete to permanently erase all data.', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+            actions: [
+              FilledButton.icon(
+                icon: const Icon(Icons.archive_outlined),
+                label: const Text('Archive'),
+                onPressed: () => Navigator.pop(context, 'archive'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.delete_forever_outlined),
+                label: const Text('Delete'), // Changed from 'Delete Permanently'
+                onPressed: () => Navigator.pop(context, 'deletePermanently'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'cancel'),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+
+        if (result == 'archive') {
+          widget.controller.deleteTask(t.id); // This now calls archiveTask
+        } else if (result == 'deletePermanently') {
+          final confirmPermanentDelete = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Confirm Permanent Deletion'),
+              content: Text('WARNING: Deleting this task permanently will erase ALL its progress data. This action cannot be undone. Are you sure?', style: TextStyle(color: Colors.red)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Delete', style: TextStyle(color: Colors.red)), // Changed from 'Delete Permanently'
+                ),
+              ],
+            ),
+          );
+          if (confirmPermanentDelete == true) {
+            widget.controller.deleteTaskPermanently(t.id);
+          }
+        }
+      },      onTaskFocusRequested: (_) {}, showTitle: false, isEmbedded: true,
     );
   }
 

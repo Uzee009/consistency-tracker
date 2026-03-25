@@ -6,7 +6,6 @@
 *   Successfully set up the Flutter development environment on Linux.
 *   Flutter SDK installed and configured.
 *   Android toolchain validated (Android Studio installed, command-line tools installed, all licenses accepted).
-*   Linux desktop development toolchain validated (clang, ninja-build, libgtk-3-dev installed).
 *   Confirmed that Android emulators will be skipped due to system limitations, focusing on physical Android devices for testing.
 *   The Flutter SDK path has been permanently added to the user's `~/.bashrc` file.
 
@@ -23,7 +22,6 @@
 *   Completed data modeling for the core entities of the application.
 *   Defined `user_model.dart` with `User` class (id, name, createdAt).
 *   Defined `task_model.dart` with `Task` class (id, name, type, durationDays, createdAt, isActive) and `TaskType` enum.
-*   Defined `day_record_model.dart` with `DayRecord` class (date, completedTaskIds, cheatUsed, completionScore, visualState) and `VisualState` enum.
 *   Implemented `toMap()` and `fromMap()` methods for easy conversion to/from database-friendly formats for all models.
 
 ## Thursday, 19 February 2026 - 11:30 AM
@@ -408,3 +406,31 @@
 *   **Heatmap Improvements:** Applied high-contrast background overlay and border to selected dates in all heatmap ranges (1M, 3M, 6M, 1Y). Fixed 1Y view scrolling to ensure 'Jump to Today' correctly shows the current month and that habit start dates are highlighted in 1M view by correctly updating `_current1MDate` when `visibleMonth` changes.
 *   **Resolved Build Errors:** Fixed numerous syntax errors in `lib/screens/home_screen.dart` and corrected the constructor for `AnalyticsExplorerScreen` to accept the `DashboardController`.
 *   **Updated Gemini Protocol:** Added a strict protocol to `GEMINI.md` for session logging and storytelling.
+
+## Wednesday, March 25, 2026 - 04:00 PM
+
+**Summary:**
+*   **Implemented Task Archiving (Soft Delete):** Modified `lib/services/database_service.dart` to change task deletion behavior from permanent removal to archiving.
+    *   Renamed `deleteTask` to `archiveTask` and updated its implementation to set `is_active` to `0` instead of deleting the database record.
+    *   Added a new method `unarchiveTask` to reactivate tasks by setting `is_active` to `1`.
+    *   Modified `getAllTasks` to accept an optional `includeArchived` parameter, allowing flexible retrieval of tasks (all, or only active).
+    *   Added `getArchivedTasks` to specifically retrieve archived tasks.
+    *   Updated `findDuplicateTask` to only search for duplicates among active tasks, ensuring proper behavior when adding new tasks.
+
+## Wednesday, March 25, 2026 - 04:05 PM
+
+**Summary:**
+*   **Fixed `deleteTask` reference:** Corrected the call from `deleteTask` to `archiveTask` in `lib/controllers/dashboard_controller.dart` to resolve a compilation error after `DatabaseService` refactoring.
+*   **Implemented Task Archiving/Deletion Confirmation Dialog:** Added a confirmation dialog in `lib/widgets/panels/task_panel.dart` when a task's delete button is pressed.
+    *   The dialog provides options to "Archive" (soft delete) or "Delete Permanently" (hard delete).
+    *   "Delete Permanently" includes a warning about data loss and requires an additional confirmation.
+    *   Added `deleteTaskPermanently` method to `DatabaseService` and `DashboardController` to support hard deletion.
+
+## Wednesday, March 25, 2026 - 04:10 PM
+
+**Summary:**
+*   **Enhanced Task Deletion Dialog UI/UX:** Improved the visual presentation and user-friendliness of the task archiving/deletion confirmation dialog in `lib/widgets/panels/task_panel.dart`.
+    *   Reworded the content for better clarity regarding the implications of archiving vs. permanent deletion.
+    *   Styled the "Archive" button as an `OutlinedButton.icon` with `Icons.archive_outlined` and primary color styling.
+    *   Styled the "Delete Permanently" button as an `OutlinedButton.icon` with `Icons.delete_forever_outlined` and red color styling.
+    *   Kept the "Cancel" button as a standard `TextButton` for a neutral option.

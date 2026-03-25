@@ -163,7 +163,12 @@ class DashboardController extends ChangeNotifier {
   }
 
   Future<void> deleteTask(int taskId) async {
-    await DatabaseService.instance.deleteTask(taskId);
+    await DatabaseService.instance.archiveTask(taskId);
+    await initialize(selectedDate, showLoading: false);
+  }
+
+  Future<void> deleteTaskPermanently(int taskId) async {
+    await DatabaseService.instance.deleteTaskPermanently(taskId);
     await initialize(selectedDate, showLoading: false);
   }
 
