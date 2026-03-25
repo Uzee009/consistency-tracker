@@ -308,8 +308,7 @@
     *   Created `feature/ui-revamp-modular` branch to explore high-density UI solutions.
     *   Implemented `AnalyticsExplorerScreen`: A **Master-Detail** explorer featuring a searchable sidebar, category filtering (Daily/Temp/Archive), and a slide-in **Day Inspector** for micro-data management.
     *   Restored **Historical Leniency**: Users can now click any date in the Explorer's heatmap and check/uncheck tasks via the Inspector sidebar, with real-time global UI updates.
-*   **Premium UI Mockup:**
-    *   Developed `HomePremiumMockup` showcasing a **"T-Shape" Architecture**: Replaced vertical sidebars with sleek **Top-Left Navigation Tabs** (Dashboard | Explorer | Settings).
+    *   `HomePremiumMockup` showcasing a **"T-Shape" Architecture**: Replaced vertical sidebars with sleek **Top-Left Navigation Tabs** (Dashboard | Explorer | Settings).
     *   Implemented the **Timeline History Strip**: A horizontal 10-day consistency row that allows users to "jump" the home screen to any historical date instantly.
     *   Unified Global Header: Integrated a permanent Date/Clock header to provide grounding and "Now" context.
 *   **Pinned Ideas (Future Iteration):**
@@ -434,3 +433,13 @@
     *   Styled the "Archive" button as an `OutlinedButton.icon` with `Icons.archive_outlined` and primary color styling.
     *   Styled the "Delete Permanently" button as an `OutlinedButton.icon` with `Icons.delete_forever_outlined` and red color styling.
     *   Kept the "Cancel" button as a standard `TextButton` for a neutral option.
+
+## Wednesday, March 25, 2026 08:13:04 PM
+
+**Summary:**
+*   **Merged `bug-fixes` into `master`:** Incorporated all recent bug fixes and enhancements from the `bug-fixes` branch into the `master` branch.
+*   **Affected files:**
+    *   `Prj_Progress.md`
+    *   `lib/controllers/dashboard_controller.dart`
+    *   `lib/services/database_service.dart`
+    *   `lib/widgets/panels/task_panel.dart`
