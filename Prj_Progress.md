@@ -456,3 +456,12 @@
 *   **FirstRunSetupScreen Layout:** Adjusted `FirstRunSetupScreen` layout with a constrained, centered design.
 *   **Dynamic Theme Preview:** Implemented real-time `VisualStyle` preview on `FirstRunSetupScreen` selection.
 
+## Friday, March 27, 2026 - Current Session Summary
+
+**Summary:**
+*   **Implemented CI/CD Workflows:** Added GitHub Actions for building Linux and Windows applications (`.github/workflows/linux_build.yml`, `.github/workflows/windows_build.yml`).
+*   **Environment-Specific Database:** Configured environment-specific database names using `--dart-define-from-file` and `config/dev.json` / `config/prod.json`.
+*   **Startup Theme Fix (Initial Attempt):** Explicitly set `backgroundColor` for the loading `Scaffold` in `lib/main.dart` to address startup theme bug. (Later found insufficient)
+*   **FirstRunSetupScreen Layout:** Adjusted `FirstRunSetupScreen` layout with a constrained, centered design for improved aesthetics (`lib/screens/first_run_setup_screen.dart`).
+*   **Dynamic Theme Preview:** Implemented real-time `VisualStyle` preview on `FirstRunSetupScreen` selection by updating `styleNotifier.value` dynamically (`lib/screens/first_run_setup_screen.dart`).
+*   **Startup Theme Fix (Final Solution):** Refactored `_MyAppState` in `lib/main.dart` to explicitly manage theme/style state using `initState`, `dispose`, and a custom `_updateThemeAndStyle` method, and wrapped `MaterialApp` in a `FutureBuilder` to await full theme initialization. This resolved the startup theme flicker and ensured dynamic theme application from the first frame.
