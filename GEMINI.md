@@ -30,6 +30,8 @@
     *   **Prohibition:** You are NOT allowed to add entries to `JOURNEY.md` at any other time. This file is for the retrospective story of the *entire* session.
 3.  **Source Control:**
     *   NEVER commit changes or merge branches (e.g., merging to `master`) unless explicitly and specifically instructed to do so for that specific action.
+    *   If I say "let's commit these", we push it to the hub.
+    *   If I say "let's create a checkpoint", we keep it local.
 
 # Directory Overview
 
