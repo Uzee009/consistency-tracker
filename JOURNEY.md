@@ -150,3 +150,15 @@ The `master` branch is now stronger, more resilient, and more user-centric, read
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## Friday, March 27, 2026: Empowering the Build and Refining the First Impression
+
+Today's session was a deep dive into refining the Consistency Tracker's user experience and foundational architecture. We kicked off by empowering our build process, integrating CI/CD workflows for Linux and Windows directly into GitHub Actions. This was a crucial step towards cross-platform stability, mirroring our existing macOS setup and laying the groundwork for seamless future releases across all major desktop environments.
+
+A significant architectural win was the implementation of environment-specific database configurations. By leveraging Flutter's `--dart-define-from-file` capabilities, we decoupled development and production data, preventing accidental contamination and streamlining our dev-test cycles. This small but mighty change removed a significant operational headache, ensuring a robust data integrity model from the get-go.
+
+However, the journey wasn't without its immediate challenges. A persistent startup theme bug, where the app initially displayed a 'vibrant' theme despite 'minimalist' being selected, proved to be a more tenacious adversary than anticipated. Our initial attempts to simply fix the loading `Scaffold` background fell short. This led us to a deeper architectural understanding: the `MaterialApp`'s theme initialization, even with `ValueListenableBuilder`s, could suffer from subtle timing issues during the very first frames of rendering. The solution involved refactoring `_MyAppState` to explicitly manage theme state and wrap the `MaterialApp` in a `FutureBuilder`, ensuring themes are fully loaded and applied *before* any UI elements are drawn. This direct approach eliminated the flicker and guaranteed the dynamic application of selected styles from the app's initial launch.
+
+Simultaneously, we polished the `FirstRunSetupScreen`, enhancing its aesthetic appeal by constraining its elements within a centered, card-like layout. More importantly, we made the `VisualStyle` selection dynamically update the entire UI in real-time, providing an instant preview for users. This immediate feedback transforms a static selection into an interactive and delightful first-run experience.
+
+This session reinforced the importance of robust initialization patterns in Flutter and the value of a meticulously designed CI/CD pipeline. Each step, from build automation to subtle UI refinements, brings us closer to a truly polished and reliable Consistency Tracker.
