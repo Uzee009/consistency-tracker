@@ -74,3 +74,19 @@ To maintain a clear and chronological record of our development efforts, a `Prj_
     *   **Summary:** Briefly describe the tasks completed, decisions made, and any significant outcomes or issues encountered during the session.
 
 This practice ensures continuous tracking and easy reference for our development journey.
+
+# Development Mode Instructions
+
+To run the application in development mode, which uses a separate database (`consistency_tracker_dev.db`), use the following command:
+
+```bash
+flutter run --dart-define-from-file=config/dev.json
+```
+
+For building development versions for specific platforms (e.g., Linux, Windows, macOS), you would include the same flag:
+
+```bash
+flutter build linux --dart-define-from-file=config/dev.json
+flutter build windows --dart-define-from-file=config/dev.json
+flutter build macos --dart-define-from-file=config/dev.json
+```
