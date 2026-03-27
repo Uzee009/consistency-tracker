@@ -53,8 +53,10 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedStyle = style),
-        child: AnimatedContainer(
+        onTap: () {
+          setState(() => _selectedStyle = style);
+          styleNotifier.value = style; // Update global notifier for live preview
+        },        child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
@@ -103,99 +105,102 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 40.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'CONSISTENCY',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 4,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                ),
-              ),
-              const SizedBox(height: 64),
-              Text(
-                'Build your discipline.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.8,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 48),
-              
-              Text(
-                'WHAT IS YOUR NAME?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _nameController,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                decoration: InputDecoration(
-                  hintText: 'John Doe',
-                  fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
-                ),
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 40),
-
-              Text(
-                'CHOOSE YOUR VIBE',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildStyleOption(VisualStyle.minimalist, 'MINIMALIST', Icons.filter_vintage_outlined),
-                  const SizedBox(width: 12),
-                  _buildStyleOption(VisualStyle.vibrant, 'VIBRANT', Icons.auto_awesome_outlined),
-                ],
-              ),
-              const SizedBox(height: 48),
-              
-              ElevatedButton(
-                onPressed: _completeSetup,
-                child: const Text(
-                  'Start Tracking',
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400), // Max width for the content
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'CONSISTENCY',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    letterSpacing: 4,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                 ),
-              ),
-              const SizedBox(height: 64),
-              Text(
-                'Minimalist habit tracking for the focused mind.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 64),
+                Text(
+                  'Build your discipline.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.8,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 48),
+                
+                Text(
+                  'WHAT IS YOUR NAME?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _nameController,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  decoration: InputDecoration(
+                    hintText: 'John Doe',
+                    fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 40),
+
+                Text(
+                  'CHOOSE YOUR VIBE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildStyleOption(VisualStyle.minimalist, 'MINIMALIST', Icons.filter_vintage_outlined),
+                    const SizedBox(width: 12),
+                    _buildStyleOption(VisualStyle.vibrant, 'VIBRANT', Icons.auto_awesome_outlined),
+                  ],
+                ),
+                const SizedBox(height: 48),
+                
+                ElevatedButton(
+                  onPressed: _completeSetup,
+                  child: const Text(
+                    'Start Tracking',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 64),
+                Text(
+                  'Minimalist habit tracking for the focused mind.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

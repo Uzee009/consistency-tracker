@@ -309,23 +309,25 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
   Widget _clickableDate(DateTime date) {
     final dateStr = "${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year}";
-    return InkWell(
-      onTap: () {
+    return TextButton(
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        minimumSize: Size.zero, // Remove minimum size constraints
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Shrink tap target
+        alignment: Alignment.centerLeft, // Align text to left
+      ),
+      onPressed: () {
         _visibleMonthNotifier.value = date;
         _fetchInspectedDayData(date);
       },
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Text(
-          dateStr, 
-          style: TextStyle(
-            fontSize: 13, 
-            color: Theme.of(context).colorScheme.primary, 
-            fontWeight: FontWeight.w800,
-            decoration: TextDecoration.underline,
-            decorationStyle: TextDecorationStyle.dashed,
-          )
+      child: Text(
+        dateStr,
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w800,
+          decoration: TextDecoration.underline,
+          decorationStyle: TextDecorationStyle.dashed,
         ),
       ),
     );

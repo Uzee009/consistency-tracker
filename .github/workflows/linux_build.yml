@@ -1,0 +1,33 @@
+name: Build Linux App
+
+on:
+  push:
+    branches: [ master, feature/** ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Install Dependencies
+        run: flutter pub get
+        
+      - name: Enable Linux Desktop
+        run: flutter enable-linux-desktop
+        
+      - name: Build Linux
+        run: flutter build linux --release
+        
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: consistency-tracker-linux
+          path: build/linux/x64/release/bundle/

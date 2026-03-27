@@ -57,11 +57,36 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late Future<bool> _isFirstRun;
+  late ThemeMode _currentThemeMode;
+  late VisualStyle _currentVisualStyle;
+  late bool _isDark;
 
   @override
   void initState() {
     super.initState();
     _isFirstRun = _checkFirstRun();
+    _currentThemeMode = themeNotifier.value;
+    _currentVisualStyle = styleNotifier.value;
+    themeNotifier.addListener(_updateThemeAndStyle);
+    styleNotifier.addListener(_updateThemeAndStyle);
+  }
+
+  @override
+  void dispose() {
+    themeNotifier.removeListener(_updateThemeAndStyle);
+    styleNotifier.removeListener(_updateThemeAndStyle);
+    super.dispose();
+  }
+
+  void _updateThemeAndStyle() {
+    setState(() {
+      _currentThemeMode = themeNotifier.value;
+      _currentVisualStyle = styleNotifier.value;
+      // Recalculate isDark based on the new values
+      _isDark = _currentThemeMode == ThemeMode.dark ||
+                (_currentThemeMode == ThemeMode.system &&
+                 WidgetsBinding.instance.window.platformBrightness == Brightness.dark);
+    });
   }
 
   Future<bool> _checkFirstRun() async {
@@ -71,162 +96,156 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (_, mode, __) {
-        return ValueListenableBuilder<VisualStyle>(
-          valueListenable: styleNotifier,
-          builder: (_, style, __) {
-            final bool isDark = mode == ThemeMode.dark || 
-                (mode == ThemeMode.system && MediaQuery.platformBrightnessOf(context) == Brightness.dark);
-            
-            final primaryColor = StyleService.getPrimaryColor(style, isDark);
+    // Initial calculation of _isDark, or update if context changes (e.g., system brightness)
+    // This is crucial for ThemeMode.system
+    _isDark = _currentThemeMode == ThemeMode.dark ||
+              (_currentThemeMode == ThemeMode.system &&
+               MediaQuery.of(context).platformBrightness == Brightness.dark);
+    
+    final primaryColor = StyleService.getPrimaryColor(_currentVisualStyle, _isDark);
 
-            return MaterialApp(
-              title: 'Consistency Tracker',
-              themeMode: mode,
-              theme: ThemeData(
-                textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: Colors.grey,
-                  primary: primaryColor,
-                  surface: Colors.white,
-                  onSurface: const Color(0xFF09090B),
-                ),
-                useMaterial3: true,
-                scaffoldBackgroundColor: Colors.white,
-                appBarTheme: AppBarTheme(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF09090B),
-                  elevation: 0,
-                  centerTitle: true,
-                  titleTextStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF09090B),
-                    letterSpacing: 2,
-                  ),
-                ),
-                inputDecorationTheme: InputDecorationTheme(
-                  filled: true,
-                  fillColor: const Color(0xFFF4F4F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(color: primaryColor, width: 1),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  hintStyle: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 14),
-                ),
-                elevatedButtonTheme: ElevatedButtonThemeData(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: style == VisualStyle.vibrant ? Colors.white : Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
-                  ),
-                ),
-                dividerTheme: const DividerThemeData(
-                  thickness: 1,
-                  color: Color(0xFFF4F4F5),
-                  space: 1,
-                ),
-              ),
-              darkTheme: ThemeData(
-                textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: Colors.grey,
-                  brightness: Brightness.dark,
-                  primary: primaryColor,
-                  surface: const Color(0xFF09090B),
-                  onSurface: Colors.white,
-                ),
-                useMaterial3: true,
-                scaffoldBackgroundColor: const Color(0xFF09090B),
-                appBarTheme: AppBarTheme(
-                  backgroundColor: const Color(0xFF09090B),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  centerTitle: true,
-                  titleTextStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                  ),
-                ),
-                inputDecorationTheme: InputDecorationTheme(
-                  filled: true,
-                  fillColor: const Color(0xFF18181B),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(color: primaryColor, width: 1),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  hintStyle: const TextStyle(color: Color(0xFF27272A), fontSize: 14),
-                ),
-                elevatedButtonTheme: ElevatedButtonThemeData(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: isDark && style == VisualStyle.minimalist ? const Color(0xFF09090B) : Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
-                  ),
-                ),
-                dividerTheme: const DividerThemeData(
-                  thickness: 1,
-                  color: Color(0xFF18181B),
-                  space: 1,
-                ),
-              ),
-              debugShowCheckedModeBanner: false,
-              home: FutureBuilder<bool>(
-                future: _isFirstRun,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Scaffold(
-                      body: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  } else if (snapshot.hasError) {
-                    return Scaffold(
-                      body: Center(
-                        child: Text('Error: ${snapshot.error}'),
-                      ),
-                    );
-                  } else {
-                    if (snapshot.data == true) {
-                      return const FirstRunSetupScreen();
-                    } else {
-                      return const HomeScreen();
-                    }
-                  }
-                },
+    return MaterialApp(
+      title: 'Consistency Tracker',
+      themeMode: _currentThemeMode,
+      theme: ThemeData(
+        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.grey,
+          primary: primaryColor,
+          surface: Colors.white,
+          onSurface: const Color(0xFF09090B),
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF09090B),
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF09090B),
+            letterSpacing: 2,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFFF4F4F5),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide(color: primaryColor, width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintStyle: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 14),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            foregroundColor: _currentVisualStyle == VisualStyle.vibrant ? Colors.white : Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          thickness: 1,
+          color: Color(0xFFF4F4F5),
+          space: 1,
+        ),
+      ),
+      darkTheme: ThemeData(
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.grey,
+          brightness: Brightness.dark,
+          primary: primaryColor,
+          surface: const Color(0xFF09090B),
+          onSurface: Colors.white,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF09090B),
+        appBarTheme: AppBarTheme(
+          backgroundColor: const Color(0xFF09090B),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: 2,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF18181B),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide(color: primaryColor, width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintStyle: const TextStyle(color: Color(0xFF27272A), fontSize: 14),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            foregroundColor: _isDark && _currentVisualStyle == VisualStyle.minimalist ? const Color(0xFF09090B) : Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          thickness: 1,
+          color: Color(0xFF18181B),
+          space: 1,
+        ),
+      ),
+      debugShowCheckedModeBanner: false,
+      home: FutureBuilder<bool>(
+        future: _isFirstRun,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: const Center(
+                child: CircularProgressIndicator(),
               ),
             );
-          },
-        );
-      },
+          } else if (snapshot.hasError) {
+            return Scaffold(
+              body: Center(
+                child: Text('Error: ${snapshot.error}'),
+              ),
+            );
+          } else {
+            if (snapshot.data == true) {
+              return const FirstRunSetupScreen();
+            } else {
+              return const HomeScreen();
+            }
+          }
+        },
+      ),
     );
   }
 }

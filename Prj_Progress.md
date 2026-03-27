@@ -434,12 +434,25 @@
     *   Styled the "Delete Permanently" button as an `OutlinedButton.icon` with `Icons.delete_forever_outlined` and red color styling.
     *   Kept the "Cancel" button as a standard `TextButton` for a neutral option.
 
-## Wednesday, March 25, 2026 08:13:04 PM
+## Wednesday, March 25, 2026 - 06:45 PM
 
 **Summary:**
-*   **Merged `bug-fixes` into `master`:** Incorporated all recent bug fixes and enhancements from the `bug-fixes` branch into the `master` branch.
-*   **Affected files:**
-    *   `Prj_Progress.md`
-    *   `lib/controllers/dashboard_controller.dart`
-    *   `lib/services/database_service.dart`
-    *   `lib/widgets/panels/task_panel.dart`
+*   **Investigated "Jump to Start Date" Bug on Windows:** Explored why the "jump to start date of habit" functionality on the Explore page was not working on Windows, while it worked on Linux.
+*   **Initial Debugging Attempts (Cancelled):** Proposed adding print statements to `_clickableDate` in `analytics_explorer_screen.dart` and `getDayRecord` in `database_service.dart` to diagnose, but the user cancelled this approach.
+*   **Reverted Debugging Changes:** Reverted the temporary debugging print statements.
+*   **Speculative Date Normalization Fix (Reverted):** Implemented a fix in `_clickableDate` to normalize the `DateTime` object to local midnight before use, to address potential timezone-related interpretation differences between platforms. This change was subsequently reverted by user instruction.
+*   **Branch Management:** Switched to the `bug-fixes` branch as instructed by the user.
+*   **Root Cause Identification (UI Event Handling):** After further investigation, determined the likely root cause to be an issue with `InkWell` widget's tap event registration or visual feedback consistency specifically on the Windows desktop platform.
+*   **Implemented UI Fix:** Replaced the `InkWell` widget with a `TextButton` in the `_clickableDate` function within `lib/screens/analytics_explorer_screen.dart`. `TextButton` is designed for clickable text and provides more robust event handling and visual feedback across desktop platforms.
+*   **Verified Fix:** The user confirmed that the fix (using `TextButton`) successfully resolved the "jump to start date" functionality on Windows.
+*   **Committed Fix:** Committed the successful fix to the `bug-fixes` branch.
+
+## Friday, March 27, 2026 - 09:00 AM (CI/CD, Env Config, Theme & UI Fixes)
+
+**Summary:**
+*   **Implemented CI/CD Workflows:** Added GitHub Actions for building Linux and Windows applications (`.github/workflows/linux_build.yml`, `.github/workflows/windows_build.yml`).
+*   **Environment-Specific Database:** Configured environment-specific database names using `--dart-define-from-file` and `config/dev.json` / `config/prod.json`.
+*   **Startup Theme Fix:** Refactored `main.dart` for more robust theme application on startup and explicitly set loading `Scaffold` background.
+*   **FirstRunSetupScreen Layout:** Adjusted `FirstRunSetupScreen` layout with a constrained, centered design.
+*   **Dynamic Theme Preview:** Implemented real-time `VisualStyle` preview on `FirstRunSetupScreen` selection.
+

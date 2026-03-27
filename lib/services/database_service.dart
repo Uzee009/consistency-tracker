@@ -28,7 +28,11 @@ class DatabaseService {
 
   Future<Database> _initDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, 'consistency_tracker.db');
+    String dbName = const String.fromEnvironment(
+      'DATABASE_NAME', 
+      defaultValue: 'consistency_tracker.db'
+    );
+    String path = join(documentsDirectory.path, dbName);
     return await openDatabase(
       path,
       version: 6, // V8: Added pomodoro fields to day_records
