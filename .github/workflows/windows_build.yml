@@ -16,16 +16,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          enable-windows: true
           
       - name: Install Dependencies
         run: flutter pub get
-        
-      - name: Enable Windows Desktop
-        run: flutter enable-windows-desktop
-        
+
       - name: Build Windows
         run: flutter build windows --release
-        
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

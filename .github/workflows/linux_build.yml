@@ -16,16 +16,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          enable-linux: true
           
       - name: Install Dependencies
         run: flutter pub get
-        
-      - name: Enable Linux Desktop
-        run: flutter enable-linux-desktop
-        
+
       - name: Build Linux
         run: flutter build linux --release
-        
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
