@@ -6,7 +6,7 @@ A habit tracking application built with Flutter.
 
 You can download the latest stable release of the Consistency Tracker application from our GitHub Releases page:
 
-**[Download from GitHub Releases](https://github.com/${{ github.repository }}/releases/latest)**
+**[Download from GitHub Releases](https://github.com/Uzee009/consistency-tracker/releases/latest)**
 
 ### Installation Instructions:
 
