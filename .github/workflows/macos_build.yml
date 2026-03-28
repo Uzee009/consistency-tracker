@@ -1,9 +1,8 @@
 name: Build macOS App
 
 on:
-  push:
-    branches: [ master, feature/** ]
-  workflow_dispatch:
+  repository_dispatch:
+    types: [release_created]
 
 jobs:
   build:
@@ -12,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Parse Release Info
+        id: parse_release
+        run: |
+          echo "RELEASE_ID=$(jq -r '.client_payload.release_id' "$GITHUB_EVENT_PATH")" >> $GITHUB_ENV
+          echo "TAG=$(jq -r '.client_payload.tag' "$GITHUB_EVENT_PATH")" >> $GITHUB_ENV
+        shell: bash
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -23,8 +29,19 @@ jobs:
       - name: Build macOS
         run: flutter build macos --release
         
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - name: Archive macOS App
+        run: |
+          mkdir -p macos-build
+          cp -r build/macos/Build/Products/Release/*.app macos-build/
+          zip -r consistency-tracker-macos-${{ env.TAG }}.zip macos-build/*
+        shell: bash
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: consistency-tracker-macos
-          path: build/macos/Build/Products/Release/*.app
+          upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets{?name}
+          asset_path: consistency-tracker-macos-${{ env.TAG }}.zip
+          asset_name: consistency-tracker-macos-${{ env.TAG }}.zip
+          asset_content_type: application/zip

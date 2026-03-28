@@ -1,9 +1,8 @@
 name: Build Windows App
 
 on:
-  push:
-    branches: [ master, feature/** ]
-  workflow_dispatch:
+  repository_dispatch:
+    types: [release_created]
 
 jobs:
   build:
@@ -12,6 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Parse Release Info
+        id: parse_release
+        run: |
+          $eventPayload = Get-Content -Raw -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json
+          echo "RELEASE_ID=$($eventPayload.client_payload.release_id)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "TAG=$($eventPayload.client_payload.tag)" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -23,8 +30,18 @@ jobs:
 
       - name: Build Windows
         run: flutter build windows --release
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        
+      - name: Archive Windows Executable
+        run: |
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "consistency-tracker-windows-${{ env.TAG }}.zip"
+        shell: pwsh # Use PowerShell for Compress-Archive
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: consistency-tracker-windows
-          path: build/windows/x64/runner/Release/
+          upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets{?name}
+          asset_path: consistency-tracker-windows-${{ env.TAG }}.zip
+          asset_name: consistency-tracker-windows-${{ env.TAG }}.zip
+          asset_content_type: application/zip

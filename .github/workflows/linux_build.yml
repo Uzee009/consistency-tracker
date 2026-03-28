@@ -1,9 +1,8 @@
 name: Build Linux App
 
 on:
-  push:
-    branches: [ master, feature/** ]
-  workflow_dispatch:
+  repository_dispatch:
+    types: [release_created]
 
 jobs:
   build:
@@ -12,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Parse Release Info
+        id: parse_release
+        run: |
+          echo "RELEASE_ID=$(jq -r '.client_payload.release_id' "$GITHUB_EVENT_PATH")" >> $GITHUB_ENV
+          echo "TAG=$(jq -r '.client_payload.tag' "$GITHUB_EVENT_PATH")" >> $GITHUB_ENV
+        shell: bash
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -29,8 +35,18 @@ jobs:
 
       - name: Build Linux
         run: flutter build linux --release
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        
+      - name: Archive Linux Bundle
+        run: |
+          zip -r consistency-tracker-linux-${{ env.TAG }}.zip build/linux/x64/release/bundle/
+        shell: bash
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: consistency-tracker-linux
-          path: build/linux/x64/release/bundle/
+          upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets{?name}
+          asset_path: consistency-tracker-linux-${{ env.TAG }}.zip
+          asset_name: consistency-tracker-linux-${{ env.TAG }}.zip
+          asset_content_type: application/zip

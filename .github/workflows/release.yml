@@ -1,0 +1,43 @@
+name: Create GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on pushes to tags like v1.0.0
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## Release Notes
+
+            This is a new release of the Consistency Tracker application.
+
+            ### Changes:
+            - Initial release artifacts.
+            - See commit history for more details.
+          draft: false
+          prerelease: false
+
+      - name: Output Release ID
+        run: echo "RELEASE_ID=${{ steps.create_release.outputs.id }}" >> $GITHUB_ENV
+      
+      - name: Dispatch Build Workflows
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: release_created
+          client_payload: '{"release_id": "${{ steps.create_release.outputs.id }}", "tag": "${{ github.ref }}"}'
