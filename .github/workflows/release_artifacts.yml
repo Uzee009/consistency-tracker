@@ -1,0 +1,184 @@
+name: Build and Release Application
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on pushes to tags like v1.0.0
+
+jobs:
+  create_github_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grant write permissions for creating releases
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      tag_name: ${{ github.ref }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## Release Notes
+
+            This is a new release of the Consistency Tracker application.
+
+            ### Changes:
+            - See commit history for more details.
+          draft: false
+          prerelease: false
+
+  build_macos:
+    needs: create_github_release
+    runs-on: macos-latest
+    permissions:
+      contents: write # Grant write permissions for uploading release assets
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Install Dependencies
+        run: flutter pub get
+        
+      - name: Build macOS
+        run: flutter build macos --release
+        
+      - name: Archive macOS App
+        run: |
+          mkdir -p macos-build
+          cp -r build/macos/Build/Products/Release/*.app macos-build/
+          zip -r consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}.zip macos-build/*
+        shell: bash
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}
+          path: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}.zip
+
+  build_linux:
+    needs: create_github_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grant write permissions for uploading release assets
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          enable-linux: true
+          
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Install GTK Development Libraries
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev
+      
+      - name: Build Linux
+        run: flutter build linux --release
+        
+      - name: Archive Linux Bundle
+        run: |
+          zip -r consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}.zip build/linux/x64/release/bundle/
+        shell: bash
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}
+          path: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}.zip
+
+  build_windows:
+    needs: create_github_release
+    runs-on: windows-latest
+    permissions:
+      contents: write # Grant write permissions for uploading release assets
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          enable-windows: true
+          
+      - name: Install Dependencies
+        run: flutter pub get
+        
+      - name: Build Windows
+        run: flutter build windows --release
+        
+      - name: Archive Windows Executable
+        run: |
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}.zip"
+        shell: pwsh
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}
+          path: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}.zip
+
+  upload_release_assets:
+    needs: [build_macos, build_linux, build_windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grant write permissions for uploading release assets
+    steps:
+      - name: Download macOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}
+          path: macos-artifact/
+
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}
+          path: linux-artifact/
+      
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}
+          path: windows-artifact/
+
+      - name: Upload macOS Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.repository_url }}/releases/${{ needs.create_github_release.outputs.release_id }}/assets{?name}
+          asset_path: macos-artifact/consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}.zip
+          asset_name: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Linux Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.repository_url }}/releases/${{ needs.create_github_release.outputs.release_id }}/assets{?name}
+          asset_path: linux-artifact/consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}.zip
+          asset_name: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.repository_url }}/releases/${{ needs.create_github_release.outputs.release_id }}/assets{?name}
+          asset_path: windows-artifact/consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}.zip
+          asset_name: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}.zip
+          asset_content_type: application/zip
