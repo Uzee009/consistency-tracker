@@ -1,0 +1,66 @@
+# .github/workflows/build_reusable.yml
+name: Reusable Flutter Build
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+        description: 'The platform to build for (macos, linux, windows)'
+      output_name:
+        required: true
+        type: string
+        description: 'The name to use for the output artifact zip file'
+      is_release:
+        required: true
+        type: boolean
+        description: 'Whether this is a release build (creates .zip for release assets)'
+
+jobs:
+  build:
+    runs-on: ${{ (inputs.platform == 'macos' && 'macos-latest') || (inputs.platform == 'linux' && 'ubuntu-latest') || (inputs.platform == 'windows' && 'windows-latest') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          ${{ (inputs.platform == 'linux' && 'enable-linux: true') || (inputs.platform == 'windows' && 'enable-windows: true') }}
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Install GTK Development Libraries (Linux)
+        if: inputs.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev
+
+      - name: Build ${{ inputs.platform }}
+        run: flutter build ${{ inputs.platform }} --release
+
+      - name: Archive macOS App
+        if: inputs.platform == 'macos'
+        run: |
+          mkdir -p macos-build
+          cp -r build/macos/Build/Products/Release/*.app macos-build/
+          zip -r ${{ inputs.output_name }}.zip macos-build/*
+        shell: bash
+
+      - name: Archive Linux Bundle
+        if: inputs.platform == 'linux'
+        run: |
+          zip -r ${{ inputs.output_name }}.zip build/linux/x64/release/bundle/
+        shell: bash
+
+      - name: Archive Windows Executable
+        if: inputs.platform == 'windows'
+        run: |
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "${{ inputs.output_name }}.zip"
+        shell: pwsh
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.output_name }}
+          path: ${{ inputs.output_name }}.zip
