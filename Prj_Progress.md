@@ -456,12 +456,21 @@
 *   **FirstRunSetupScreen Layout:** Adjusted `FirstRunSetupScreen` layout with a constrained, centered design.
 *   **Dynamic Theme Preview:** Implemented real-time `VisualStyle` preview on `FirstRunSetupScreen` selection.
 
-## Friday, March 27, 2026 - Current Session Summary
+## Monday, 30 March 2026 - Current Session
 
 **Summary:**
-*   **Implemented CI/CD Workflows:** Added GitHub Actions for building Linux and Windows applications (`.github/workflows/linux_build.yml`, `.github/workflows/windows_build.yml`).
-*   **Environment-Specific Database:** Configured environment-specific database names using `--dart-define-from-file` and `config/dev.json` / `config/prod.json`.
-*   **Startup Theme Fix (Initial Attempt):** Explicitly set `backgroundColor` for the loading `Scaffold` in `lib/main.dart` to address startup theme bug. (Later found insufficient)
-*   **FirstRunSetupScreen Layout:** Adjusted `FirstRunSetupScreen` layout with a constrained, centered design for improved aesthetics (`lib/screens/first_run_setup_screen.dart`).
-*   **Dynamic Theme Preview:** Implemented real-time `VisualStyle` preview on `FirstRunSetupScreen` selection by updating `styleNotifier.value` dynamically (`lib/screens/first_run_setup_screen.dart`).
-*   **Startup Theme Fix (Final Solution):** Refactored `_MyAppState` in `lib/main.dart` to explicitly manage theme/style state using `initState`, `dispose`, and a custom `_updateThemeAndStyle` method, and wrapped `MaterialApp` in a `FutureBuilder` to await full theme initialization. This resolved the startup theme flicker and ensured dynamic theme application from the first frame.
+*   **Branch Management:** Created and switched to the `feature/flexible-weekly-tasks` branch.
+*   **Feature: Flexible Weekly Tasks:**
+    *   Implemented "Anniversary Week" (Staggered Week) logic: every weekly task follows its own 7-day cycle starting from its creation date.
+    *   Updated `Task` model and performed a database migration (Version 7) to include `frequencyType` and `weeklyTarget` fields.
+    *   Refactored `ScoringService` with a "Smart Denominator" approach: tasks only penalize the daily score if they are "Strictly Required" to hit the weekly target within the remaining days.
+    *   Enhanced `DashboardController` with automated sorting: Required tasks move to the top, while "Goal Met" or Optional tasks move to the bottom.
+*   **UI/UX Enhancements:**
+    *   Updated `AddTaskBottomSheet` with a frequency toggle and a sessions-per-week picker (1-7).
+    *   Added dynamic subtext to `TaskItem` showing `(current/target) sessions` and `days left`.
+    *   Implemented visual dimming for completed or "Goal Met" tasks to provide a clear "done" state for the week.
+    *   Integrated "Extra Credit" logic: completing optional tasks boosts the daily score and facilitates earning Stars.
+*   **Engineering Standards:**
+    *   Ensured history-aware scoring by passing `allRecords` through the widget hierarchy (`TaskPanel` -> `TaskSection` -> `TaskItem`).
+    *   Maintained full compatibility with existing daily and temporary task types.
+    *   Verified code quality with `flutter analyze`.
