@@ -162,3 +162,28 @@ However, the journey wasn't without its immediate challenges. A persistent start
 Simultaneously, we polished the `FirstRunSetupScreen`, enhancing its aesthetic appeal by constraining its elements within a centered, card-like layout. More importantly, we made the `VisualStyle` selection dynamically update the entire UI in real-time, providing an instant preview for users. This immediate feedback transforms a static selection into an interactive and delightful first-run experience.
 
 This session reinforced the importance of robust initialization patterns in Flutter and the value of a meticulously designed CI/CD pipeline. Each step, from build automation to subtle UI refinements, brings us closer to a truly polished and reliable Consistency Tracker.
+
+## 30 March 2026: The "Life-First" Scheduler
+
+Habit trackers are often rigid, but life is fluid. Today, we broke the "Daily" mold and introduced a system that truly understands the rhythm of human effort.
+
+### The Staggered Week (The Anniversary Logic)
+Standard Monday-to-Sunday weeks are an arbitrary engineering convenience. If you start a "3x a week" habit on a Wednesday, why should you only have 5 days to finish it? 
+
+We implemented **Anniversary Weeks**. Now, every habit tracks its own 7-day cycle from the day it was born. If you start on Thursday, your week is Thursday-to-Wednesday. It's a small change with a massive psychological impact: every user always gets a fair 7-day window, no matter when they commit.
+
+### The Smart Denominator (The Anti-Dip Engine)
+The biggest "momentum killer" in habit apps is the unfair penalty. If you want to workout 3x a week, and you don't do it on Monday, the app shouldn't show a "Miss." 
+
+We engineered a **Smart Requirement Engine**. A task only becomes "Required" (affecting your score and streak) when it's mathematically necessary to hit your goal. If you need 2 more sessions and there are only 2 days left in your personal week, *then* the pressure turns on. Until then, the task is "Optional"—it's extra credit that boosts your score but never hurts it.
+
+### Visual Clarity: The "Done" State
+A cluttered dashboard is a stressed mind. We updated the **Dashboard Sorting** and **Task Item UI** to reflect this new intelligence. Once you hit your weekly 3/3, the task doesn't just sit there mocking you—it dims, moves to the bottom, and shows a "Goal Met" status. It provides that essential "Checklist Cleared" dopamine hit while keeping the habit visible for historical pride.
+
+### Engineering for Nuance
+To make this work, we had to pass the entire historical record through the widget tree, ensuring every `TaskItem` knows exactly where it stands in its 7-day journey. We migrated the database to Version 7, added new frequency controls to the `AddTaskBottomSheet`, and refined the `ScoringService` to handle this dynamic "Flexible" logic.
+
+Today, the Consistency Tracker stopped being a list of chores and started being a partner in a flexible, modern life.
+
+---
+*Written by Gemini CLI for the Story Branch.*
