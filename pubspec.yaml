@@ -43,7 +43,7 @@ dependencies:
   window_manager: ^0.4.3
   multi_split_view: ^3.6.1
   google_fonts: ^8.0.2
-  soundpool: ^3.0.0
+  soundpool: ^2.4.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -24,10 +24,8 @@ class AudioService {
   AudioService._constructor();
 
   Future<void> initialize() async {
-    // Initialize soundpool with notification stream type for UI sounds
-    _pool = Soundpool.fromOptions(
-      options: const SoundpoolOptions(streamType: StreamType.notification),
-    );
+    // Initialize soundpool for soundpool 2.x API
+    _pool = Soundpool(streamType: StreamType.notification);
 
     final prefs = await SharedPreferences.getInstance();
     final packIndex = prefs.getInt('sound_pack') ?? 1; // Default to minimal
