@@ -175,15 +175,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
                     _buildLabel('Preview Sounds'),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildPreviewChip('Focus', AudioType.focusEnd),
-                        _buildPreviewChip('Break', AudioType.shortBreakEnd),
-                        _buildPreviewChip('Hype', AudioType.longBreakStart),
-                        _buildPreviewChip('Goal', AudioType.goalReached),
+                        _buildPreviewChip('Timer End', AudioType.timerEnd),
+                        const SizedBox(width: 12),
+                        _buildPreviewChip('Goal Reached', AudioType.goalReached),
                       ],
                     ),
-                  ]),
+                    ]),
 
                   const SizedBox(height: 48),
                   

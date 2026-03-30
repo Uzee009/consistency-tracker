@@ -216,24 +216,20 @@ class DashboardController extends ChangeNotifier {
           _pomodoroTimer?.cancel();
           isTimerRunning = false;
           
+          // Play common timer end sound
+          AudioService.instance.playSound(AudioType.timerEnd);
+
           if (timerMode == 'focus') {
-            // Play focus end sound
-            AudioService.instance.playSound(AudioType.focusEnd);
-            
             int newCompleted = todayRecord.pomodoroSessionsCompleted + 1;
             if (newCompleted > todayRecord.pomodoroGoal) newCompleted = todayRecord.pomodoroGoal;
             updatePomodoroStats(newCompleted, todayRecord.pomodoroGoal);
 
             // Celebration if goal hit
             if (newCompleted >= todayRecord.pomodoroGoal) {
-              AudioService.instance.playSound(AudioType.goalReached);
-            } else if (newCompleted % 4 == 0) {
-              // Hype for long break if every 4th session
-              AudioService.instance.playSound(AudioType.longBreakStart);
+              Future.delayed(const Duration(milliseconds: 500), () {
+                AudioService.instance.playSound(AudioType.goalReached);
+              });
             }
-          } else {
-            // Play break end sound
-            AudioService.instance.playSound(AudioType.shortBreakEnd);
           }
           notifyListeners();
         }
