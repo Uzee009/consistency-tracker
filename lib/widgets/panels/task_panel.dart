@@ -132,9 +132,15 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
 
   Widget _buildTaskSection(TaskType type) {
     return TaskSection(
-      title: '', type: type, tasks: widget.controller.todaysTasks, dayRecord: widget.controller.todayRecord,
-      onAddPressed: () {}, onCheatPressed: null,
-      onToggleCompletion: _handleToggleTask, onToggleSkip: (task) => widget.controller.toggleTaskSkip(task),
+      title: '', 
+      type: type, 
+      tasks: widget.controller.todaysTasks, 
+      dayRecord: widget.controller.todayRecord,
+      history: widget.controller.allRecords, // Pass history
+      onAddPressed: () {}, 
+      onCheatPressed: null,
+      onToggleCompletion: _handleToggleTask, 
+      onToggleSkip: (task) => widget.controller.toggleTaskSkip(task),
       onEdit: (t) => _editTask(t), 
       onDelete: (t) async {
         final result = await showDialog<String>(

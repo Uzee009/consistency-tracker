@@ -2,6 +2,8 @@
 
 enum TaskType { daily, temporary }
 
+enum FrequencyType { daily, weekly }
+
 class Task {
   final int id; // Unique ID for the task
   final String name;
@@ -10,6 +12,10 @@ class Task {
   final bool isPerpetual; // True for tasks that never expire
   final DateTime createdAt;
   final bool isActive;
+  
+  // Weekly Frequency Fields
+  final FrequencyType frequencyType;
+  final int weeklyTarget; // e.g., 3 sessions per week
 
   Task({
     required this.id,
@@ -19,6 +25,8 @@ class Task {
     this.isPerpetual = false,
     required this.createdAt,
     this.isActive = true,
+    this.frequencyType = FrequencyType.daily,
+    this.weeklyTarget = 1,
   });
 
   // Convert a Task object into a Map.
@@ -31,6 +39,8 @@ class Task {
       'is_perpetual': isPerpetual ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'is_active': isActive ? 1 : 0, // Store boolean as integer
+      'frequency_type': frequencyType.toString().split('.').last,
+      'weekly_target': weeklyTarget,
     };
   }
 
@@ -47,11 +57,16 @@ class Task {
       isPerpetual: map['is_perpetual'] == 1,
       createdAt: DateTime.parse(map['created_at']),
       isActive: map['is_active'] == 1,
+      frequencyType: FrequencyType.values.firstWhere(
+        (e) => e.toString().split('.').last == (map['frequency_type'] ?? 'daily'),
+        orElse: () => FrequencyType.daily,
+      ),
+      weeklyTarget: map['weekly_target'] ?? 1,
     );
   }
 
   @override
   String toString() {
-    return 'Task(id: $id, name: $name, type: $type, durationDays: $durationDays, isPerpetual: $isPerpetual, createdAt: $createdAt, isActive: $isActive)';
+    return 'Task(id: $id, name: $name, type: $type, durationDays: $durationDays, isPerpetual: $isPerpetual, createdAt: $createdAt, isActive: $isActive, frequencyType: $frequencyType, weeklyTarget: $weeklyTarget)';
   }
 }

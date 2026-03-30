@@ -22,6 +22,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _durationController;
   late bool _isPerpetual;
+  late FrequencyType _frequencyType;
+  late int _weeklyTarget;
 
   @override
   void initState() {
@@ -29,6 +31,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     _nameController = TextEditingController(text: widget.task?.name ?? '');
     _durationController = TextEditingController(text: widget.task?.durationDays.toString() ?? '30');
     _isPerpetual = widget.task?.isPerpetual ?? false;
+    _frequencyType = widget.task?.frequencyType ?? FrequencyType.daily;
+    _weeklyTarget = widget.task?.weeklyTarget ?? 3;
   }
 
   @override
@@ -99,6 +103,63 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           ),
           if (widget.type == TaskType.daily) ...[
             const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildChoiceChip(
+                    label: 'Every Day',
+                    selected: _frequencyType == FrequencyType.daily,
+                    onSelected: (s) => setState(() => _frequencyType = FrequencyType.daily),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildChoiceChip(
+                    label: 'Weekly Goal',
+                    selected: _frequencyType == FrequencyType.weekly,
+                    onSelected: (s) => setState(() => _frequencyType = FrequencyType.weekly),
+                  ),
+                ),
+              ],
+            ),
+            if (_frequencyType == FrequencyType.weekly) ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Sessions per week', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface)),
+                          Text('Target to hit per 7 days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: _weeklyTarget > 1 ? () => setState(() => _weeklyTarget--) : null,
+                          icon: const Icon(Icons.remove_circle_outline, size: 20),
+                        ),
+                        Text('$_weeklyTarget', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                        IconButton(
+                          onPressed: _weeklyTarget < 7 ? () => setState(() => _weeklyTarget++) : null,
+                          icon: const Icon(Icons.add_circle_outline, size: 20),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -164,6 +225,23 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     );
   }
 
+  Widget _buildChoiceChip({required String label, required bool selected, required Function(bool) onSelected}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ChoiceChip(
+      label: Container(
+        width: double.infinity,
+        alignment: Alignment.center,
+        child: Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: selected ? (isDark ? Colors.black : Colors.white) : Theme.of(context).colorScheme.onSurface)),
+      ),
+      selected: selected,
+      onSelected: onSelected,
+      selectedColor: isDark ? Colors.white : Colors.black,
+      backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+      showCheckmark: false,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide.none),
+    );
+  }
+
   Future<void> _saveTask() async {
     final String taskName = _nameController.text.trim();
     if (taskName.isEmpty) return;
@@ -180,6 +258,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             : 0,
         createdAt: widget.task!.createdAt,
         isActive: widget.task!.isActive,
+        frequencyType: _frequencyType,
+        weeklyTarget: _weeklyTarget,
       );
       await DatabaseService.instance.updateTask(updated);
       widget.onTaskAdded();
@@ -226,6 +306,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             isPerpetual: existing.isPerpetual,
             createdAt: existing.createdAt, // Keep original start date
             isActive: true,
+            frequencyType: _frequencyType,
+            weeklyTarget: _weeklyTarget,
           );
           await DatabaseService.instance.updateTask(revived);
           widget.onTaskAdded();
@@ -260,6 +342,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           ? (int.tryParse(_durationController.text) ?? 30)
           : 0,
       createdAt: DateTime.now(),
+      frequencyType: _frequencyType,
+      weeklyTarget: _weeklyTarget,
     );
 
     await DatabaseService.instance.addTask(newTask);

@@ -10,6 +10,7 @@ class TaskSection extends StatelessWidget {
   final TaskType type;
   final List<Task> tasks;
   final DayRecord dayRecord;
+  final List<DayRecord> history; // V10: Pass history for weekly logic
   final VoidCallback onAddPressed;
   final VoidCallback? onCheatPressed;
   final Function(Task, bool?) onToggleCompletion;
@@ -26,6 +27,7 @@ class TaskSection extends StatelessWidget {
     required this.type,
     required this.tasks,
     required this.dayRecord,
+    this.history = const [],
     required this.onAddPressed,
     this.onCheatPressed,
     required this.onToggleCompletion,
@@ -138,6 +140,8 @@ class TaskSection extends StatelessWidget {
 
                       return TaskItem(
                         task: task,
+                        history: history,
+                        selectedDate: DateTime.parse(dayRecord.date),
                         isCompleted: isCompleted,
                         isSkipped: isSkipped,
                         onToggleCompletion: (val) =>

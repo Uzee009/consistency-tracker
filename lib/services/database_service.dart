@@ -35,7 +35,7 @@ class DatabaseService {
     String path = join(documentsDirectory.path, dbName);
     return await openDatabase(
       path,
-      version: 6, // V8: Added pomodoro fields to day_records
+      version: 7, // V7: Added frequency_type and weekly_target to tasks
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -58,7 +58,9 @@ class DatabaseService {
         duration_days INTEGER NOT NULL,
         is_perpetual INTEGER NOT NULL,
         created_at TEXT NOT NULL,
-        is_active INTEGER NOT NULL
+        is_active INTEGER NOT NULL,
+        frequency_type TEXT DEFAULT 'daily',
+        weekly_target INTEGER DEFAULT 1
       )
     ''');
     await db.execute('''
@@ -102,6 +104,10 @@ class DatabaseService {
     if (oldVersion < 6) {
       await db.execute("ALTER TABLE $dayRecordsTable ADD COLUMN pomodoro_sessions INTEGER DEFAULT 0");
       await db.execute("ALTER TABLE $dayRecordsTable ADD COLUMN pomodoro_goal INTEGER DEFAULT 4");
+    }
+    if (oldVersion < 7) {
+      await db.execute("ALTER TABLE $tasksTable ADD COLUMN frequency_type TEXT DEFAULT 'daily'");
+      await db.execute("ALTER TABLE $tasksTable ADD COLUMN weekly_target INTEGER DEFAULT 1");
     }
   }
 

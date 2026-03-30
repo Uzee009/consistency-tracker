@@ -11,6 +11,7 @@ import '../services/scoring_service.dart';
 class DashboardController extends ChangeNotifier {
   // --- STATE ---
   List<Task> todaysTasks = [];
+  List<DayRecord> allRecords = []; // Store history for weekly logic
   DayRecord todayRecord = DayRecord(date: '', completedTaskIds: [], skippedTaskIds: []);
   User? currentUser;
   int cheatDaysUsed = 0;
@@ -63,9 +64,25 @@ class DashboardController extends ChangeNotifier {
     todaysTasks = await DatabaseService.instance.getActiveTasksForDate(date);
     if (requestId != _lastRequestId) return;
 
-    final allRecords = await DatabaseService.instance.getDayRecords(limit: 366);
+    allRecords = await DatabaseService.instance.getDayRecords(limit: 366);
     final allTasks = await DatabaseService.instance.getAllTasks();
     if (requestId != _lastRequestId) return;
+
+    // SORTING LOGIC: Required/Active -> Optional/GoalMet
+    todaysTasks.sort((a, b) {
+      final progA = ScoringService.getWeeklyProgress(a, selectedDate, allRecords);
+      final progB = ScoringService.getWeeklyProgress(b, selectedDate, allRecords);
+
+      final isDoneA = todayRecord.completedTaskIds.contains(a.id) || progA.isGoalMet;
+      final isDoneB = todayRecord.completedTaskIds.contains(b.id) || progB.isGoalMet;
+      
+      final isRequiredA = progA.isRequiredToday && !isDoneA;
+      final isRequiredB = progB.isRequiredToday && !isDoneB;
+
+      if (isRequiredA != isRequiredB) return isRequiredA ? -1 : 1;
+      if (isDoneA != isDoneB) return isDoneA ? 1 : -1;
+      return a.name.compareTo(b.name);
+    });
 
     final taskTypeMap = {for (var t in allTasks) t.id: t.type};
 
@@ -253,8 +270,8 @@ class DashboardController extends ChangeNotifier {
     
     final scoreResult = ScoringService.calculateDayScore(
       allTasks: todaysTasks, 
-      dayRecord: DayRecord(
-        date: todayRecord.date,
+      history: allRecords,
+      dayRecord: DayRecord(        date: todayRecord.date,
         completedTaskIds: completedIds,
         skippedTaskIds: skippedIds,
         cheatUsed: isCheatUsed,

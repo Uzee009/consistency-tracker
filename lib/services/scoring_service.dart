@@ -3,6 +3,22 @@
 import 'package:consistency_tracker_v1/models/day_record_model.dart';
 import 'package:consistency_tracker_v1/models/task_model.dart';
 
+class WeeklyProgress {
+  final int sessionsCompleted;
+  final int sessionsTarget;
+  final int daysRemainingInWeek;
+  final bool isGoalMet;
+  final bool isRequiredToday;
+
+  WeeklyProgress({
+    required this.sessionsCompleted,
+    required this.sessionsTarget,
+    required this.daysRemainingInWeek,
+    required this.isGoalMet,
+    required this.isRequiredToday,
+  });
+}
+
 class ScoringService {
   // This class can be expanded with more complex scoring logic.
   // For now, it provides a method to calculate the daily completion score.
@@ -10,6 +26,7 @@ class ScoringService {
   static ScoreResult calculateDayScore({
     required List<Task> allTasks,
     required DayRecord dayRecord,
+    List<DayRecord> history = const [], // Optional history for weekly logic
   }) {
     // If it's a cheat day AND NO tasks were done, return cheat state
     if (dayRecord.cheatUsed && dayRecord.completedTaskIds.isEmpty) {
@@ -19,42 +36,54 @@ class ScoringService {
       );
     }
 
-    final dailyTasks = allTasks.where((t) => t.type == TaskType.daily).toList();
+    final dailyTasks = allTasks.where((t) => t.type == TaskType.daily && t.frequencyType == FrequencyType.daily).toList();
     final tempTasks = allTasks.where((t) => t.type == TaskType.temporary).toList();
+    final weeklyTasks = allTasks.where((t) => t.type == TaskType.daily && t.frequencyType == FrequencyType.weekly).toList();
 
-    if (dailyTasks.isEmpty && tempTasks.isEmpty) {
+    if (dailyTasks.isEmpty && tempTasks.isEmpty && weeklyTasks.isEmpty) {
       return ScoreResult(completionScore: 0, visualState: VisualState.empty);
     }
 
-    final completedDailyTasks = dailyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
-    final completedTempTasks = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
-    final skippedDailyTasks = dailyTasks.where((t) => dayRecord.skippedTaskIds.contains(t.id)).length;
+    final completedDailyCount = dailyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
+    final completedTempCount = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
+    final completedWeeklyCount = weeklyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
+    
+    final skippedDailyIds = dailyTasks.where((t) => dayRecord.skippedTaskIds.contains(t.id)).map((t) => t.id).toList();
+
+    // Weekly Requirement Logic
+    int requiredWeeklyCount = 0;
+    DateTime today = DateTime.parse(dayRecord.date);
+
+    for (var task in weeklyTasks) {
+      final progress = getWeeklyProgress(task, today, history);
+      if (progress.isRequiredToday && !dayRecord.skippedTaskIds.contains(task.id)) {
+        requiredWeeklyCount++;
+      }
+    }
 
     // A skip is an "excuse", so we remove it from the required daily benchmark.
-    final activeDailyCount = dailyTasks.length - skippedDailyTasks;
+    final activeDailyCount = dailyTasks.length - skippedDailyIds.length;
     
-    // V8 FIX: If all daily tasks were skipped AND no tasks were done, it's an "Excused/Empty" day, not a failure.
-    if (activeDailyCount <= 0 && completedDailyTasks == 0 && completedTempTasks == 0) {
+    // Total Benchmark (Denominator)
+    // Only includes Daily tasks and Weekly tasks that are strictly required today.
+    final totalBenchmark = (activeDailyCount + requiredWeeklyCount).clamp(1, 999);
+    
+    // Effective completed score (Numerator)
+    // Includes all completions (even optional ones).
+    final effectiveCompleted = completedDailyCount + completedTempCount + completedWeeklyCount;
+    final score = (effectiveCompleted / totalBenchmark).clamp(0.0, 1.0);
+
+    // V8 FIX: If all required tasks were skipped AND no tasks were done, it's an "Excused/Empty" day.
+    if (activeDailyCount + requiredWeeklyCount <= 0 && effectiveCompleted == 0) {
       return ScoreResult(
         completionScore: 0,
         visualState: dayRecord.cheatUsed ? VisualState.cheat : VisualState.empty,
       );
     }
 
-    // However, we ensure we don't divide by zero if some tasks WERE completed despite all being "skipped" 
-    // (though logically unlikely, we clamp to 1 for safety).
-    final dailyBenchmark = activeDailyCount.clamp(1, 999);
-    
-    // Effective completed score
-    final effectiveCompleted = completedDailyTasks + completedTempTasks;
-    final score = (effectiveCompleted / dailyBenchmark).clamp(0.0, 1.0);
-
-    // Star Logic: All daily tasks completed PLUS at least one temporary task
-    // BUG FIX: Cannot get a star if any task was skipped
-    final hasStar = (dailyTasks.isNotEmpty && 
-                    completedDailyTasks == (dailyTasks.length - skippedDailyTasks) && 
-                    completedTempTasks > 0 && 
-                    skippedDailyTasks == 0);
+    // Star Logic: All required tasks completed PLUS at least one extra task
+    // or exceeding requirements.
+    final hasStar = (effectiveCompleted > totalBenchmark && totalBenchmark > 0);
 
     if (hasStar) {
       return ScoreResult(
@@ -66,6 +95,63 @@ class ScoringService {
     return ScoreResult(
       completionScore: score,
       visualState: _mapScoreToVisualState(score),
+    );
+  }
+
+  /// Calculates the "Anniversary Week" progress for a task.
+  /// Staggered week starts on task.createdAt.weekday.
+  static WeeklyProgress getWeeklyProgress(Task task, DateTime targetDate, List<DayRecord> history) {
+    if (task.frequencyType == FrequencyType.daily) {
+      return WeeklyProgress(
+        sessionsCompleted: 0, 
+        sessionsTarget: 1, 
+        daysRemainingInWeek: 0, 
+        isGoalMet: false, 
+        isRequiredToday: true
+      );
+    }
+
+    // 1. Calculate the start of the current "Anniversary Week"
+    // We normalize everything to midnight.
+    final DateTime created = DateTime(task.createdAt.year, task.createdAt.month, task.createdAt.day);
+    final DateTime today = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    
+    final int daysSinceCreation = today.difference(created).inDays;
+    final int weekNumber = daysSinceCreation ~/ 7;
+    final DateTime weekStart = created.add(Duration(days: weekNumber * 7));
+    final DateTime weekEnd = weekStart.add(const Duration(days: 6));
+    
+    final int daysRemaining = weekEnd.difference(today).inDays; // 0 to 6
+
+    // 2. Count completions in this window [weekStart, today]
+    // Note: We include 'today' in the count if it's already recorded as completed in history 
+    // OR passed in the current record (but this function usually looks at past records).
+    int completions = 0;
+    for (var record in history) {
+      final recordDate = DateTime.parse(record.date);
+      if (recordDate.isAtSameMomentAs(weekStart) || (recordDate.isAfter(weekStart) && recordDate.isBefore(today.add(const Duration(seconds: 1))))) {
+        if (record.completedTaskIds.contains(task.id)) {
+          completions++;
+        }
+      }
+    }
+
+    final int sessionsNeeded = (task.weeklyTarget - completions).clamp(0, task.weeklyTarget);
+    final bool isGoalMet = sessionsNeeded <= 0;
+    
+    // 3. Is it required today?
+    // Logic: If sessions needed >= days remaining + 1 (including today)
+    // Example: 2 sessions needed, 2 days left (Today + Tomorrow). 
+    // If I don't do it today, I'll have 1 day left to do 2 sessions -> Impossible.
+    // So if sessionsNeeded >= (daysRemaining + 1), it is REQUIRED.
+    final bool isRequiredToday = !isGoalMet && (sessionsNeeded >= (daysRemaining + 1));
+
+    return WeeklyProgress(
+      sessionsCompleted: completions,
+      sessionsTarget: task.weeklyTarget,
+      daysRemainingInWeek: daysRemaining,
+      isGoalMet: isGoalMet,
+      isRequiredToday: isRequiredToday,
     );
   }
 
