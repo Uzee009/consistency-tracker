@@ -7,6 +7,7 @@ import 'package:consistency_tracker_v1/screens/home_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'dart:io';
 
 // Global notifiers for theme and style management
@@ -44,6 +45,8 @@ void main() async {
 
   final styleIndex = prefs.getInt('visual_style') ?? 0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
+
+  await AudioService.instance.initialize();
 
   runApp(const MyApp());
 }

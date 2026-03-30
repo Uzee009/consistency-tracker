@@ -187,6 +187,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
         if (result == 'archive') {
           widget.controller.deleteTask(t.id); // This now calls archiveTask
         } else if (result == 'deletePermanently') {
+          if (!mounted) return;
           final confirmPermanentDelete = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
@@ -248,25 +249,32 @@ class _TaskAddAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentType = layoutController.taskTabIndex == 0 ? TaskType.daily : TaskType.temporary;
     
-    return Tooltip(
-      message: 'Add Task',
-      child: Material(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: () => showModalBottomSheet(
-            context: context, 
-            isScrollControlled: true, 
-            builder: (_) => AddTaskBottomSheet(
-              type: currentType, 
-              onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false)
-            )
-          ),
-          borderRadius: BorderRadius.circular(8),
-          child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.add_rounded, size: 16, color: Colors.grey)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: FilledButton.icon(
+        onPressed: () => showModalBottomSheet(
+          context: context, 
+          isScrollControlled: true, 
+          builder: (_) => AddTaskBottomSheet(
+            type: currentType, 
+            onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false)
+          )
+        ),
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: const Text(
+          'ADD TASK', 
+          style: TextStyle(
+            fontSize: 10, 
+            fontWeight: FontWeight.w900, 
+            letterSpacing: 1.0
+          )
+        ),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          // Background is handled by Theme primary via FilledButton
         ),
       ),
     );

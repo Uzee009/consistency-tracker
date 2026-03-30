@@ -1,14 +1,12 @@
 // lib/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
-import 'dart:ui'; // For FontFeature
 import '../controllers/dashboard_controller.dart';
 import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
 import '../widgets/user_menu.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
-import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

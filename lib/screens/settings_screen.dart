@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
+import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -142,6 +143,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ]),
 
+                  const SizedBox(height: 40),
+
+                  _buildSectionHeader('SOUND & FEEDBACK', 'Configure notification sounds and haptics.'),
+                  _buildCard(context, [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: AudioService.instance.isEnabled,
+                      builder: (context, enabled, _) => SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Sound Effects', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Play sounds during Pomodoro sessions', style: TextStyle(fontSize: 12)),
+                        value: enabled,
+                        onChanged: (v) => AudioService.instance.toggleEnabled(v),
+                        activeThumbColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildLabel('Sound Pack'),
+                    ValueListenableBuilder<SoundPack>(
+                      valueListenable: AudioService.instance.currentPack,
+                      builder: (context, pack, _) => _buildDropdown<SoundPack>(
+                        value: pack,
+                        items: const [
+                          DropdownMenuItem(value: SoundPack.zen, child: Text('Zen (Calm)')),
+                          DropdownMenuItem(value: SoundPack.minimal, child: Text('Minimalist (Digital)')),
+                          DropdownMenuItem(value: SoundPack.retro, child: Text('Retro (8-bit)')),
+                        ],
+                        onChanged: (v) { if (v != null) AudioService.instance.setPack(v); },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildLabel('Preview Sounds'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildPreviewChip('Focus', AudioType.focusEnd),
+                        _buildPreviewChip('Break', AudioType.shortBreakEnd),
+                        _buildPreviewChip('Hype', AudioType.longBreakStart),
+                        _buildPreviewChip('Goal', AudioType.goalReached),
+                      ],
+                    ),
+                  ]),
+
                   const SizedBox(height: 48),
                   
                   Row(
@@ -238,6 +281,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
           dropdownColor: isDark ? const Color(0xFF18181B) : Colors.white,
           items: items,
           onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewChip(String label, AudioType type) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: () => AudioService.instance.playSound(type),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_arrow_rounded, size: 12, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          ],
         ),
       ),
     );

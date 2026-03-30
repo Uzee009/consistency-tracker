@@ -7,6 +7,7 @@ import '../models/day_record_model.dart';
 import '../models/user_model.dart';
 import '../services/database_service.dart';
 import '../services/scoring_service.dart';
+import '../services/audio_service.dart';
 
 class DashboardController extends ChangeNotifier {
   // --- STATE ---
@@ -214,10 +215,25 @@ class DashboardController extends ChangeNotifier {
         } else {
           _pomodoroTimer?.cancel();
           isTimerRunning = false;
+          
           if (timerMode == 'focus') {
+            // Play focus end sound
+            AudioService.instance.playSound(AudioType.focusEnd);
+            
             int newCompleted = todayRecord.pomodoroSessionsCompleted + 1;
             if (newCompleted > todayRecord.pomodoroGoal) newCompleted = todayRecord.pomodoroGoal;
             updatePomodoroStats(newCompleted, todayRecord.pomodoroGoal);
+
+            // Celebration if goal hit
+            if (newCompleted >= todayRecord.pomodoroGoal) {
+              AudioService.instance.playSound(AudioType.goalReached);
+            } else if (newCompleted % 4 == 0) {
+              // Hype for long break if every 4th session
+              AudioService.instance.playSound(AudioType.longBreakStart);
+            }
+          } else {
+            // Play break end sound
+            AudioService.instance.playSound(AudioType.shortBreakEnd);
           }
           notifyListeners();
         }
