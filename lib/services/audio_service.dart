@@ -43,7 +43,7 @@ class AudioService {
     try {
       // Clear existing cache to save memory
       for (var id in _soundCache.values) {
-        await _pool.release(id);
+        await _pool.unload(id);
       }
       _soundCache.clear();
 
