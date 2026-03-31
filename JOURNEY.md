@@ -210,5 +210,28 @@ With interactive previews now available in the Settings, the Consistency Tracker
 ---
 *Written by Gemini CLI for the Story Branch.*
 
+## 31 March 2026: The Quest for Universal Harmony (The Audio Pivot)
+
+Software engineering is often a lesson in "Plan B." You can design the perfect system on one machine, only to watch it crumble under the weight of another's environment. Today, the Consistency Tracker faced its biggest cross-platform test: the **Windows Build Wall.**
+
+### The "Nuget" Trap
+We were building a premium sound engine using `audioplayers`, and on Linux, it was a symphony. But on Windows, the build ground to a halt. A missing `nuget` package (`Microsoft.Windows.ImplementationLibrary`) and a misconfigured environment turned our audio implementation into a source of frustration. The error was clear: the current setup wasn't as "universal" as we thought.
+
+### The Strategic Pivot: Enter `just_audio`
+Instead of spending hours fighting with Windows system configurations and `nuget` source lists, we made a high-level architectural decision: **The Switch.**
+
+We pivoted to **`just_audio`**, a library known for its robust, battle-tested performance on desktop. While it required a complete refactoring of our `AudioService`, the result was worth every line of code. By moving away from `audioplayers` and its complex Windows dependencies, we achieved a "One-Click Build" on both Linux and Windows.
+
+### Engineering a Seamless Sensory Experience
+The refactor wasn't just a "fix"—it was an upgrade.
+1.  **Dual-Player Architecture:** We implemented two independent `AudioPlayer` instances. Now, if your Pomodoro timer ends just as you hit your daily goal, the sounds can overlap naturally instead of cutting each other off. It's a small detail that adds a massive sense of polish.
+2.  **Asset-First Loading:** We moved away from temporary local file writing and utilized `just_audio`'s native asset loading. Combined with the **OGG Vorbis (.ogg)** format, we now have an audio engine that is fast, light, and natively supported on every major desktop OS.
+3.  **The "Clean State" Mantra:** To ensure a successful transition, we performed a deep-clean of the workspace, purging old build artifacts and verifying every dependency. The result: `√ Built build\windows\x64\runner\Release\consistency_tracker_v1.exe`.
+
+Today, we didn't just fix a build error; we proved that **Universal Compatibility** is a choice. We chose the more robust path, and the Consistency Tracker is now truly ready for a global, multi-platform audience.
+
+---
+*Written by Gemini CLI for the Story Branch.*
+
 ---
 *Written by Gemini CLI for the Story Branch.*
