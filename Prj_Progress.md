@@ -483,12 +483,12 @@
     *   Refactored the subtle gray add icon in `TaskPanel` into a prominent `FilledButton.icon`.
     *   Applied the theme's primary color and added a clear "ADD TASK" label with bold typography.
     *   Enhanced discoverability for new users by making the core action a high-visibility CTA.
-*   **Feature: Premium Sound Engine:**
+*   Feature: Premium Sound Engine:
     *   Integrated `audioplayers` for high-quality, low-latency audio support.
     *   Implemented `AudioService` with support for modular **Sound Packs**: Zen (Calm), Minimalist (Digital), and Retro (8-bit).
-    *   Created the `assets/sounds/` directory structure for organized sound asset management.
-    *   Integrated sound triggers into `DashboardController`'s Pomodoro logic: Focus End, Break End, Long Break Hype, and Daily Goal Celebration.
-*   **UI: Sound Settings & Preview:**
+    *   Standardized on **OGG Vorbis (.ogg)** format for all audio assets to ensure **flawless cross-platform performance** and native Linux/GStreamer compatibility.
+    *   Integrated sound triggers into `DashboardController`'s Pomodoro logic: Timer End (Focus/Break) and Daily Goal Celebration.
+*   UI: Sound Settings & Preview:
     *   Added a "SOUND & FEEDBACK" card to the `SettingsScreen`.
     *   Implemented a master sound toggle and a sound pack dropdown selector.
     *   Added **Interactive Sound Previews**: Users can now test each sound type (Focus, Break, Hype, Goal) directly in the settings before selection.
