@@ -495,3 +495,19 @@
 *   **Engineering & Stability:**
     *   Resolved `use_build_context_synchronously` warnings and modernized deprecated `activeColor` usage.
     *   Cleaned up unused imports and verified project health with `flutter analyze`.
+
+## Tuesday, 31 March 2026 - Current Session (Windows Build Fix & Audio Engine Refinement)
+
+**Summary:**
+*   **Resolved Windows Build Error:**
+    *   Diagnosed a critical build failure on Windows caused by the `audioplayers_windows` plugin's dependency on `nuget` (specifically `Microsoft.Windows.ImplementationLibrary`), which failed due to missing environment tools.
+    *   Strategically pivoted from `audioplayers` to **`just_audio`**, a more robust and desktop-friendly audio library that avoids complex `nuget` installation steps.
+    *   Verified the fix with a successful full Windows build: `√ Built build\windows\x64\runner\Release\consistency_tracker_v1.exe`.
+*   **Audio Engine Refactoring (`just_audio`):**
+    *   Refactored `AudioService` to use multiple `AudioPlayer` instances (one for Timers, one for Goals) to allow overlapping sounds and prevent state-switching errors on Linux and Windows.
+    *   Implemented direct asset loading using `setAsset`, maintaining support for the **OGG Vorbis (.ogg)** format for native cross-platform performance.
+    *   Added proper `dispose()` logic for all players to ensure clean memory management.
+*   **Engineering Standards:**
+    *   Updated `pubspec.yaml` to include `just_audio: ^0.9.46` and removed all `audioplayers` references.
+    *   Performed a deep clean (`flutter clean` and manual `build` folder removal) to ensure no cached artifacts from the failed `audioplayers` build remained.
+    *   Achieved **zero-error status** in `flutter analyze` post-refactoring.
