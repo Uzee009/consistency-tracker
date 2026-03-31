@@ -1,9 +1,9 @@
 // lib/services/audio_service.dart
 
 import 'dart:io';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,11 +17,9 @@ enum AudioType {
 class AudioService {
   static final AudioService instance = AudioService._constructor();
   
-  // Use a single player for standard UI feedback to keep pipeline stable
-  final AudioPlayer _player = AudioPlayer();
-  
-  // Paths to local files for playback
-  final Map<AudioType, String> _localPaths = {};
+  // JustAudio players for robust desktop performance
+  final AudioPlayer _timerPlayer = AudioPlayer();
+  final AudioPlayer _goalPlayer = AudioPlayer();
   
   final ValueNotifier<SoundPack> currentPack = ValueNotifier(SoundPack.minimal);
   final ValueNotifier<bool> isEnabled = ValueNotifier(true);
@@ -40,28 +38,27 @@ class AudioService {
     await loadPack(currentPack.value);
   }
 
-  /// Loads the sound files for a specific pack into app storage for robust playback
+  /// Loads the sound files for a specific pack into local storage and pre-loads the players
   Future<void> loadPack(SoundPack pack) async {
     try {
       final packStr = pack.toString().split('.').last;
-      // V11: Use ApplicationSupport (more stable permissions than /tmp/ on Linux)
       final docDir = await getApplicationSupportDirectory();
       
-      // Load and write Timer End sound
+      // 1. Prepare Timer End sound
       final timerData = await rootBundle.load("assets/sounds/$packStr/timer_end.mp3");
       final timerFile = File("${docDir.path}/sound_timer_end_${packStr}.mp3");
       await timerFile.writeAsBytes(timerData.buffer.asUint8List());
-      _localPaths[AudioType.timerEnd] = timerFile.path;
+      await _timerPlayer.setFilePath(timerFile.path);
           
-      // Load and write Goal Reached sound
+      // 2. Prepare Goal Reached sound
       final goalData = await rootBundle.load("assets/sounds/$packStr/goal_reached.mp3");
       final goalFile = File("${docDir.path}/sound_goal_reached_${packStr}.mp3");
       await goalFile.writeAsBytes(goalData.buffer.asUint8List());
-      _localPaths[AudioType.goalReached] = goalFile.path;
+      await _goalPlayer.setFilePath(goalFile.path);
           
-      debugPrint('AudioService: Local files prepared in ${docDir.path}');
+      debugPrint('AudioService: JustAudio ready with pack $packStr.');
     } catch (e) {
-      debugPrint('AudioService: Error preparing local files: $e');
+      debugPrint('AudioService: Error pre-loading with JustAudio: $e');
     }
   }
 
@@ -81,16 +78,23 @@ class AudioService {
   Future<void> playSound(AudioType type) async {
     if (!isEnabled.value) return;
 
-    final path = _localPaths[type];
-    if (path != null) {
-      try {
-        // V11: DIRECT PLAY. 
-        // Calling stop() immediately before play() often causes GStreamer state errors on Linux.
-        // AudioPlayers handles the interruption internally if already playing.
-        await _player.play(DeviceFileSource(path));
-      } catch (e) {
-        debugPrint('AudioService: Error playing $type: $e');
+    final player = (type == AudioType.timerEnd) ? _timerPlayer : _goalPlayer;
+    
+    try {
+      // V11: Instant play logic for JustAudio
+      if (player.playing) {
+        await player.stop();
       }
+      await player.seek(Duration.zero);
+      await player.play();
+    } catch (e) {
+      debugPrint('AudioService: JustAudio Playback Error ($type): $e');
     }
+  }
+
+  // Dispose players when app closes (optional but good practice)
+  void dispose() {
+    _timerPlayer.dispose();
+    _goalPlayer.dispose();
   }
 }
