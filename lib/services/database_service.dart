@@ -2,12 +2,13 @@
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart'; // For getting the application documents directory
-import 'dart:io'; // For Directory
-
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:math';
 import '../models/user_model.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
+import '../services/scoring_service.dart';
 
 class DatabaseService {
   static Database? _database;
@@ -16,7 +17,7 @@ class DatabaseService {
   final String usersTable = 'users';
   final String tasksTable = 'tasks';
   final String dayRecordsTable = 'day_records';
-  final String monthlyUsageTable = 'monthly_usage'; // New table
+  final String monthlyUsageTable = 'monthly_usage';
 
   DatabaseService._constructor();
 
@@ -35,7 +36,7 @@ class DatabaseService {
     String path = join(documentsDirectory.path, dbName);
     return await openDatabase(
       path,
-      version: 7, // V7: Added frequency_type and weekly_target to tasks
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -174,7 +175,7 @@ class DatabaseService {
     Database db = await instance.database;
     return await db.update(
       tasksTable,
-      {'is_active': 0}, // Set is_active to 0 for archiving
+      {'is_active': 0},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -184,7 +185,7 @@ class DatabaseService {
     Database db = await instance.database;
     return await db.update(
       tasksTable,
-      {'is_active': 1}, // Set is_active to 1 for unarchiving
+      {'is_active': 1},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -206,7 +207,7 @@ class DatabaseService {
     List<dynamic> whereArgs = [1];
     
     if (includeArchived) {
-      whereClause = '1 = 1'; // Get all tasks
+      whereClause = '1 = 1';
       whereArgs = [];
     }
 
@@ -217,26 +218,16 @@ class DatabaseService {
     );
 
     List<Task> allTasks = List.generate(maps.length, (i) => Task.fromMap(maps[i]));
-    
-    // Normalize target date to midnight for comparison
     final targetDate = DateTime(date.year, date.month, date.day);
 
     return allTasks.where((task) {
       final taskCreatedDate = DateTime(task.createdAt.year, task.createdAt.month, task.createdAt.day);
-
-      // Rule 1: A task cannot exist BEFORE its creation date
-      if (targetDate.isBefore(taskCreatedDate)) {
-        return false;
-      }
+      if (targetDate.isBefore(taskCreatedDate)) return false;
 
       if (task.type == TaskType.temporary) {
-        // Temporary tasks only appear on their EXACT creation day
         return targetDate.isAtSameMomentAs(taskCreatedDate);
       } else if (task.type == TaskType.daily) {
-        // Daily tasks appear if they are perpetual OR within their duration window
-        if (task.isPerpetual) {
-          return true;
-        }
+        if (task.isPerpetual) return true;
         final expirationDate = taskCreatedDate.add(Duration(days: task.durationDays));
         return targetDate.isBefore(expirationDate);
       }
@@ -272,7 +263,7 @@ class DatabaseService {
   }
 
   Future<Task?> findDuplicateTask(String name) async {
-    final all = await getAllTasks(includeArchived: false); // Only search active tasks for duplicates
+    final all = await getAllTasks(includeArchived: false);
     final searchName = name.toLowerCase().trim();
     try {
       return all.firstWhere((t) => t.name.toLowerCase().trim() == searchName);
@@ -323,15 +314,6 @@ class DatabaseService {
 
   Future<List<DayRecord>> getTaskHistory(int taskId) async {
     Database db = await instance.database;
-    // V8 Optimization: Use SQL LIKE to filter records where the task was 
-    // either completed, skipped, OR it was a cheat day (neutral).
-    // Note: Since taskId is an integer, we wrap it in commas or check start/end 
-    // to avoid partial matches (e.g. searching '1' finding '10'), but in our CSV format 
-    // '1,2,3' a LIKE '%1%' might be risky if we have 10, 11 etc.
-    // However, for SQLite, a more robust way is to fetch records where 
-    // (completed LIKE '%,taskId,%' OR completed LIKE 'taskId,%' OR ...)
-    // For now, we fetch records where the taskId appears in either list OR it was a cheat day.
-
     final String tId = taskId.toString();
 
     List<Map<String, dynamic>> maps = await db.query(
@@ -345,6 +327,7 @@ class DatabaseService {
       return DayRecord.fromMap(maps[i]);
     });
   }
+
   // --- Cheat Day Management ---
   Future<int> getCheatDaysUsed(String yearMonth) async {
     final db = await database;
@@ -394,6 +377,129 @@ class DatabaseService {
         where: 'year_month = ?',
         whereArgs: [yearMonth],
       );
+    }
+  }
+
+  // --- Seeding Logic ---
+  Future<void> seedData() async {
+    final db = await database;
+    
+    // 1. Clear existing data
+    await db.delete(usersTable);
+    await db.delete(tasksTable);
+    await db.delete(dayRecordsTable);
+    await db.delete(monthlyUsageTable);
+
+    // 2. Create Test User
+    final user = User(
+      id: 1,
+      name: 'Test Pilot',
+      createdAt: DateTime.now().subtract(const Duration(days: 200)),
+      monthlyCheatDays: 3,
+    );
+    await createUser(user);
+
+    // 3. Define Tasks
+    final startDate = DateTime.now().subtract(const Duration(days: 180));
+    final random = Random();
+
+    // A. Daily Habits (Perpetual)
+    final habits = [
+      Task(id: 1, name: 'Morning Meditation', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(id: 2, name: 'Reading (30m)', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(id: 3, name: 'Journaling', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate.add(const Duration(days: 30))),
+    ];
+
+    // B. Weekly Tasks (Flexible)
+    final weeklyTasks = [
+      Task(id: 4, name: 'Gym Workout', type: TaskType.daily, frequencyType: FrequencyType.weekly, weeklyTarget: 3, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(id: 5, name: 'Weekly Review', type: TaskType.daily, frequencyType: FrequencyType.weekly, weeklyTarget: 1, durationDays: 0, isPerpetual: true, createdAt: startDate),
+    ];
+
+    for (var t in habits) { await addTask(t); }
+    for (var t in weeklyTasks) { await addTask(t); }
+
+    // 4. Generate 180 Days of Records
+    List<DayRecord> history = [];
+    final allPermanentTasks = [...habits, ...weeklyTasks];
+
+    for (int i = 0; i < 180; i++) {
+      final currentDate = startDate.add(Duration(days: i));
+      final dateStr = currentDate.toIso8601String().split('T')[0];
+      
+      // Randomly add Temporary Tasks (approx every 3 days)
+      List<Task> activeTasksForDay = List.from(allPermanentTasks.where((t) => !currentDate.isBefore(t.createdAt)));
+      if (random.nextDouble() < 0.3) {
+        final tempTask = Task(
+          id: 1000 + i,
+          name: 'Temp Task $i',
+          type: TaskType.temporary,
+          durationDays: 1,
+          isPerpetual: false,
+          createdAt: currentDate,
+        );
+        await addTask(tempTask);
+        activeTasksForDay.add(tempTask);
+      }
+
+      List<int> completedIds = [];
+      List<int> skippedIds = [];
+      bool isCheatDay = false;
+
+      // Decide if it's a cheat day (max 3 per month)
+      final yearMonth = "${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}";
+      int cheatUsedThisMonth = history.where((r) => r.date.startsWith(yearMonth) && r.cheatUsed).length;
+      if (cheatUsedThisMonth < 3 && random.nextDouble() < 0.05) {
+        isCheatDay = true;
+      }
+
+      if (!isCheatDay) {
+        for (var task in activeTasksForDay) {
+          double completionProbability = 0.8; 
+          
+          if (task.frequencyType == FrequencyType.weekly) {
+             final progress = ScoringService.getWeeklyProgress(task, currentDate, history);
+             if (progress.isGoalMet) {
+                completionProbability = 0.1;
+             } else if (progress.isRequiredToday) {
+                completionProbability = 0.95;
+             }
+          }
+
+          if (random.nextDouble() < completionProbability) {
+            completedIds.add(task.id);
+          } else if (random.nextDouble() < 0.2) {
+            skippedIds.add(task.id);
+          }
+        }
+      }
+
+      final tempRecord = DayRecord(
+        date: dateStr,
+        completedTaskIds: completedIds,
+        skippedTaskIds: skippedIds,
+        cheatUsed: isCheatDay,
+        pomodoroSessionsCompleted: random.nextInt(6),
+        pomodoroGoal: 4,
+      );
+
+      final scoreResult = ScoringService.calculateDayScore(
+        allTasks: activeTasksForDay,
+        dayRecord: tempRecord,
+        history: history,
+      );
+
+      final finalRecord = tempRecord.copyWith(
+        completionScore: scoreResult.completionScore,
+        visualState: scoreResult.visualState,
+      );
+
+      await createOrUpdateDayRecord(finalRecord);
+      history.add(finalRecord);
+
+      if (isCheatDay) {
+        await incrementCheatDaysUsed(yearMonth);
+      }
     }
   }
 }

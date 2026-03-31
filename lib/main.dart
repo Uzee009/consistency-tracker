@@ -46,6 +46,12 @@ void main() async {
   final styleIndex = prefs.getInt('visual_style') ?? 0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
 
+  // SEED DATA ONLY IN DEV MODE
+  if (const String.fromEnvironment('DATABASE_NAME') == 'consistency_tracker_dev.db') {
+    debugPrint('DatabaseService: Seeding development data...');
+    await DatabaseService.instance.seedData();
+  }
+
   await AudioService.instance.initialize();
 
   runApp(const MyApp());
