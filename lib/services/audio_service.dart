@@ -1,8 +1,10 @@
 // lib/services/audio_service.dart
 
+import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum SoundPack { zen, minimal, retro }
@@ -18,8 +20,8 @@ class AudioService {
   final AudioPlayer _timerPlayer = AudioPlayer();
   final AudioPlayer _goalPlayer = AudioPlayer();
   
-  // Buffers to store pre-loaded audio bytes
-  final Map<AudioType, Uint8List> _bufferCache = {};
+  // Paths to temporary files for playback
+  final Map<AudioType, String> _tempPaths = {};
   
   final ValueNotifier<SoundPack> currentPack = ValueNotifier(SoundPack.minimal);
   final ValueNotifier<bool> isEnabled = ValueNotifier(true);
@@ -34,29 +36,31 @@ class AudioService {
     currentPack.value = SoundPack.values[packIndex];
     isEnabled.value = enabled;
 
-    // V11: Set players to low latency if available on platform
-    // AudioPlayers 5.x handles this via PlayerMode
-    
     // Pre-load the current pack
     await loadPack(currentPack.value);
   }
 
-  /// Loads the sound files for a specific pack into memory buffers
+  /// Loads the sound files for a specific pack into temporary files for robust playback
   Future<void> loadPack(SoundPack pack) async {
     try {
-      _bufferCache.clear();
       final packStr = pack.toString().split('.').last;
+      final tempDir = await getTemporaryDirectory();
       
-      // Pre-load bytes from assets into memory
+      // Load and write Timer End sound
       final timerData = await rootBundle.load("assets/sounds/$packStr/timer_end.mp3");
-      _bufferCache[AudioType.timerEnd] = timerData.buffer.asUint8List();
+      final timerFile = File("${tempDir.path}/timer_end_${packStr}.mp3");
+      await timerFile.writeAsBytes(timerData.buffer.asUint8List());
+      _tempPaths[AudioType.timerEnd] = timerFile.path;
           
+      // Load and write Goal Reached sound
       final goalData = await rootBundle.load("assets/sounds/$packStr/goal_reached.mp3");
-      _bufferCache[AudioType.goalReached] = goalData.buffer.asUint8List();
+      final goalFile = File("${tempDir.path}/goal_reached_${packStr}.mp3");
+      await goalFile.writeAsBytes(goalData.buffer.asUint8List());
+      _tempPaths[AudioType.goalReached] = goalFile.path;
           
-      debugPrint('AudioService: Buffers loaded for pack $packStr.');
+      debugPrint('AudioService: Temp files created for pack $packStr.');
     } catch (e) {
-      debugPrint('AudioService: Error pre-loading buffers: $e');
+      debugPrint('AudioService: Error creating temp files: $e');
     }
   }
 
@@ -77,18 +81,18 @@ class AudioService {
   Future<void> playSound(AudioType type) async {
     if (!isEnabled.value) return;
 
-    final bytes = _bufferCache[type];
-    if (bytes != null) {
+    final path = _tempPaths[type];
+    if (path != null) {
       final player = (type == AudioType.timerEnd) ? _timerPlayer : _goalPlayer;
       try {
-        // V11: Stop and play from BytesSource (Memory)
+        // V11: Use DeviceFileSource for 100% reliable playback on all platforms (including Linux)
         await player.stop();
-        await player.play(BytesSource(bytes));
+        await player.play(DeviceFileSource(path));
       } catch (e) {
-        debugPrint('AudioService: Error playing sound from buffer: $e');
+        debugPrint('AudioService: Error playing sound from temp file: $e');
       }
     } else {
-      debugPrint('AudioService: Buffer for $type not found.');
+      debugPrint('AudioService: Temp file for $type not found.');
     }
   }
 }
