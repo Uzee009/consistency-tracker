@@ -17,11 +17,11 @@ enum AudioType {
 class AudioService {
   static final AudioService instance = AudioService._constructor();
   
-  final AudioPlayer _timerPlayer = AudioPlayer();
-  final AudioPlayer _goalPlayer = AudioPlayer();
+  // Use a single player for standard UI feedback to keep pipeline stable
+  final AudioPlayer _player = AudioPlayer();
   
-  // Paths to temporary files for playback
-  final Map<AudioType, String> _tempPaths = {};
+  // Paths to local files for playback
+  final Map<AudioType, String> _localPaths = {};
   
   final ValueNotifier<SoundPack> currentPack = ValueNotifier(SoundPack.minimal);
   final ValueNotifier<bool> isEnabled = ValueNotifier(true);
@@ -30,7 +30,7 @@ class AudioService {
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    final packIndex = prefs.getInt('sound_pack') ?? 1; // Default to minimal
+    final packIndex = prefs.getInt('sound_pack') ?? 1;
     final enabled = prefs.getBool('sound_enabled') ?? true;
     
     currentPack.value = SoundPack.values[packIndex];
@@ -40,27 +40,28 @@ class AudioService {
     await loadPack(currentPack.value);
   }
 
-  /// Loads the sound files for a specific pack into temporary files for robust playback
+  /// Loads the sound files for a specific pack into app storage for robust playback
   Future<void> loadPack(SoundPack pack) async {
     try {
       final packStr = pack.toString().split('.').last;
-      final tempDir = await getTemporaryDirectory();
+      // V11: Use ApplicationSupport (more stable permissions than /tmp/ on Linux)
+      final docDir = await getApplicationSupportDirectory();
       
       // Load and write Timer End sound
       final timerData = await rootBundle.load("assets/sounds/$packStr/timer_end.mp3");
-      final timerFile = File("${tempDir.path}/timer_end_${packStr}.mp3");
+      final timerFile = File("${docDir.path}/sound_timer_end_${packStr}.mp3");
       await timerFile.writeAsBytes(timerData.buffer.asUint8List());
-      _tempPaths[AudioType.timerEnd] = timerFile.path;
+      _localPaths[AudioType.timerEnd] = timerFile.path;
           
       // Load and write Goal Reached sound
       final goalData = await rootBundle.load("assets/sounds/$packStr/goal_reached.mp3");
-      final goalFile = File("${tempDir.path}/goal_reached_${packStr}.mp3");
+      final goalFile = File("${docDir.path}/sound_goal_reached_${packStr}.mp3");
       await goalFile.writeAsBytes(goalData.buffer.asUint8List());
-      _tempPaths[AudioType.goalReached] = goalFile.path;
+      _localPaths[AudioType.goalReached] = goalFile.path;
           
-      debugPrint('AudioService: Temp files created for pack $packStr.');
+      debugPrint('AudioService: Local files prepared in ${docDir.path}');
     } catch (e) {
-      debugPrint('AudioService: Error creating temp files: $e');
+      debugPrint('AudioService: Error preparing local files: $e');
     }
   }
 
@@ -68,7 +69,6 @@ class AudioService {
     currentPack.value = pack;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('sound_pack', pack.index);
-    // Reload memory buffers when pack changes
     await loadPack(pack);
   }
 
@@ -81,18 +81,16 @@ class AudioService {
   Future<void> playSound(AudioType type) async {
     if (!isEnabled.value) return;
 
-    final path = _tempPaths[type];
+    final path = _localPaths[type];
     if (path != null) {
-      final player = (type == AudioType.timerEnd) ? _timerPlayer : _goalPlayer;
       try {
-        // V11: Use DeviceFileSource for 100% reliable playback on all platforms (including Linux)
-        await player.stop();
-        await player.play(DeviceFileSource(path));
+        // V11: DIRECT PLAY. 
+        // Calling stop() immediately before play() often causes GStreamer state errors on Linux.
+        // AudioPlayers handles the interruption internally if already playing.
+        await _player.play(DeviceFileSource(path));
       } catch (e) {
-        debugPrint('AudioService: Error playing sound from temp file: $e');
+        debugPrint('AudioService: Error playing $type: $e');
       }
-    } else {
-      debugPrint('AudioService: Temp file for $type not found.');
     }
   }
 }

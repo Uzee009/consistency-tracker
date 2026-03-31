@@ -141,25 +141,28 @@ class AnalyticsKPIs extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  isWarning ? label : "$label $subtitle",
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                    color: isWarning ? Colors.orange[700] : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isWarning ? label : "$label $subtitle",
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                      color: isWarning ? Colors.orange[700] : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
                   ),
-                ),
-                if (isClickable) ...[
-                  const SizedBox(width: 4),
-                  const Icon(Icons.north_east_rounded, size: 10, color: Colors.grey),
-                ]
-              ],
+                  if (isClickable) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.north_east_rounded, size: 10, color: Colors.grey),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Flexible(
