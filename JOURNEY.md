@@ -233,5 +233,29 @@ Today, we didn't just fix a build error; we proved that **Universal Compatibilit
 ---
 *Written by Gemini CLI for the Story Branch.*
 
+## 31 March 2026: The Visual Identity & The Global Icon
+
+A brand is not just a logo; it's a promise of consistency. Today, we moved the Consistency Tracker from a "developer's tool" to a "polished product" by codifying its visual identity.
+
+### The Dynamic Chameleon (The AppLogo Widget)
+We faced a classic UI challenge: a logo that looks great on a white background but disappears on a dark one. Instead of forcing a one-size-fits-all solution, we engineered the **`AppLogo` Widget**.
+
+This widget acts as a visual chameleon. It monitors the system theme in real-time and dynamically swaps between a "Black on Transparent" and a "White on Transparent" variant. By wrapping this logic in a dedicated widget with precise padding (to prevent the 'C' from clipping), we've ensured the brand's face is always flawless, whether it's on a minimalist light setup or a deep-dark midnight dashboard.
+
+### Standardizing the First Impression
+The first time a user opens the app, they should feel the quality. We replaced our old text-based headers in the `FirstRunSetupScreen` with this new dynamic branding. Combined with a subtle rounded-corner container, the app now greets the user with a level of polish that matches its underlying engineering.
+
+### The Global Presence (Launcher Icons)
+Finally, we ensured this identity lives outside the app itself. Using `flutter_launcher_icons`, we generated official, high-resolution icons for every major platform:
+*   **Android & iOS:** Standardized mobile presence.
+*   **Windows & macOS:** Professional desktop launcher icons.
+*   **Linux:** Proper `.png` icons for native window managers.
+*   **Web:** Favicons and PWA manifest icons.
+
+The Consistency Tracker now has a permanent, high-quality home on every taskbar and dock it touches. We've moved beyond code to a unified, global product identity.
+
+---
+*Written by Gemini CLI for the Story Branch.*
+
 ---
 *Written by Gemini CLI for the Story Branch.*
