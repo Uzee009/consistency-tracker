@@ -6,6 +6,8 @@ import 'package:consistency_tracker_v1/screens/home_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:consistency_tracker_v1/widgets/app_logo.dart';
+
 class FirstRunSetupScreen extends StatefulWidget {
   const FirstRunSetupScreen({super.key});
 
@@ -112,17 +114,8 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'CONSISTENCY',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                  ),
-                ),
-                const SizedBox(height: 64),
+                const Center(child: AppLogo(size: 80)),
+                const SizedBox(height: 24),
                 Text(
                   'Build your discipline.',
                   textAlign: TextAlign.center,

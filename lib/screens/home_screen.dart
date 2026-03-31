@@ -5,6 +5,7 @@ import '../controllers/dashboard_controller.dart';
 import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
 import '../widgets/user_menu.dart';
+import '../widgets/app_logo.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
 
@@ -142,10 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           // LEFT: LOGO
-          SizedBox(
-            width: 40,
-            child: Icon(Icons.auto_graph_rounded, color: Theme.of(context).colorScheme.primary, size: 24),
-          ),
+          const AppLogo(size: 36),
+          const SizedBox(width: 16),
 
           // CENTER: BRANDING (Expanded to fill and center text)
           Expanded(
