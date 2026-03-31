@@ -185,5 +185,30 @@ To make this work, we had to pass the entire historical record through the widge
 
 Today, the Consistency Tracker stopped being a list of chores and started being a partner in a flexible, modern life.
 
+## 30 March 2026: The Sonic Polish & The Primary CTA
+
+A premium app is defined by how it feels, but even more so by how it *sounds*. Today was about adding that final layer of sensory feedback and guiding new users with a stronger visual hand.
+
+### The High-Visibility CTA
+We realized the "Add Task" button was too humble. It was a small gray icon waiting to be found. Today, we elevated it to a **Primary CTA Pill**. By applying the theme’s primary color and a bold "ADD TASK" label, we’ve made the entry point for new users unmistakable. The app now proactively invites you to start your consistency journey.
+
+### The Battle for Flawless Audio
+Implementing sound across all platforms, especially Linux, is a notorious engineering hurdle. We went through a high-intensity optimization cycle:
+1.  **MP3 Streaming:** Failed due to missing system decoders.
+2.  **WAV Playback:** Failed on systems without specialized PCM plugins.
+3.  **OGG Vorbis (.ogg):** The Victory. 
+
+We standardized on OGG—the native language of Linux audio (GStreamer) and a universally supported format on Windows and macOS. By converting our premium Zen, Minimalist, and Retro sound packs to OGG, we achieved **Flawless Audio Performance** without requiring the user to install a single extra codec.
+
+### Simple, Elegant Feedback
+We also listened to the most important principle: **Simplicity.** We stripped back the "Hype" and "Transition" sounds to focus on the two moments that matter most:
+*   **Timer End:** A clean, satisfying notification when focus or rest is complete.
+*   **Goal Reached:** A celebratory chime to reward you for hitting your daily Pomodoro goal.
+
+With interactive previews now available in the Settings, the Consistency Tracker doesn't just track your life—it provides a premium, sensory environment for your deepest work.
+
+---
+*Written by Gemini CLI for the Story Branch.*
+
 ---
 *Written by Gemini CLI for the Story Branch.*
