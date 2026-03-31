@@ -41,10 +41,9 @@ class AudioService {
   /// Loads the sound files for a specific pack into memory
   Future<void> loadPack(SoundPack pack) async {
     try {
-      // Clear existing cache to save memory
-      for (var id in _soundCache.values) {
-        await _pool.unload(id);
-      }
+      // V11: In soundpool 2.x, we release the whole pool to clear memory
+      await _pool.release();
+      _pool = Soundpool(streamType: StreamType.notification);
       _soundCache.clear();
 
       final packStr = pack.toString().split('.').last;
