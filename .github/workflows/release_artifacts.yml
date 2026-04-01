@@ -5,138 +5,47 @@ on:
     branches:
       - master
     tags:
-      - 'v*.*.*' # Trigger on pushes to tags like v1.0.0
+      - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
-  create_github_release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Grant write permissions for creating releases
-    outputs:
-      release_id: ${{ steps.create_release.outputs.id }}
-      tag_name: ${{ github.ref }}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            ## Release Notes
-
-            This is a new release of the Consistency Tracker application.
-
-            ### Changes:
-            - See commit history for more details.
-          draft: false
-          prerelease: false
-
   build_macos:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: create_github_release
     uses: ./.github/workflows/build_reusable.yml
     with:
       platform: macos
-      output_name: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}
-      is_release: true
-
-  build_macos_master:
-    if: github.ref == 'refs/heads/master'
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      platform: macos
-      output_name: consistency-tracker-macos-${{ github.sha }}
-      is_release: false
+      output_name: ConsistencyTracker-macOS
 
   build_linux:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: create_github_release
     uses: ./.github/workflows/build_reusable.yml
     with:
       platform: linux
-      output_name: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}
-      is_release: false
-
-  build_linux_master:
-    if: github.ref == 'refs/heads/master'
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      platform: linux
-      output_name: consistency-tracker-linux-${{ github.sha }}
-      is_release: false
+      output_name: ConsistencyTracker-Linux
 
   build_windows:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: create_github_release
     uses: ./.github/workflows/build_reusable.yml
     with:
       platform: windows
-      output_name: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}
-      is_release: false
+      output_name: ConsistencyTracker-Windows
 
-  build_windows_master:
-    if: github.ref == 'refs/heads/master'
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      platform: windows
-      output_name: consistency-tracker-windows-${{ github.sha }}
-      is_release: false
-
-  upload_release_assets:
+  release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build_macos, build_linux, build_windows]
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Grant write permissions for uploading release assets
+      contents: write
     steps:
-      - name: Download macOS Artifact
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
-        with:
-          name: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}
-          path: macos-artifact/
-
-      - name: Download Linux Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}
-          path: linux-artifact/
       
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}
-          path: windows-artifact/
-
-      - name: Upload macOS Release Asset
-        uses: actions/upload-release-asset@v1
+          files: |
+            ConsistencyTracker-macOS/ConsistencyTracker-macOS.dmg
+            ConsistencyTracker-Linux/ConsistencyTracker-Linux.tar.gz
+            ConsistencyTracker-Windows/ConsistencyTracker-Windows.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.repository_url }}/releases/${{ needs.create_github_release.outputs.release_id }}/assets{?name}
-          asset_path: macos-artifact/consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}.zip
-          asset_name: consistency-tracker-macos-${{ needs.create_github_release.outputs.tag_name }}.zip
-          asset_content_type: application/zip
-
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.repository_url }}/releases/${{ needs.create_github_release.outputs.release_id }}/assets{?name}
-          asset_path: linux-artifact/consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}.zip
-          asset_name: consistency-tracker-linux-${{ needs.create_github_release.outputs.tag_name }}.zip
-          asset_content_type: application/zip
-
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.repository_url }}/releases/${{ needs.create_github_release.outputs.release_id }}/assets{?name}
-          asset_path: windows-artifact/consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}.zip
-          asset_name: consistency-tracker-windows-${{ needs.create_github_release.outputs.tag_name }}.zip
-          asset_content_type: application/zip

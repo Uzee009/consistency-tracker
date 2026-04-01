@@ -11,11 +11,7 @@ on:
       output_name:
         required: true
         type: string
-        description: 'The name to use for the output artifact zip file'
-      is_release:
-        required: true
-        type: boolean
-        description: 'Whether this is a release build (creates .zip for release assets)'
+        description: 'The name to use for the output artifact'
 
 jobs:
   build:
@@ -27,33 +23,36 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          ${{ (inputs.platform == 'linux' && 'enable-linux: true') || (inputs.platform == 'windows' && 'enable-windows: true') }}
+          cache: true
 
       - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Install GTK Development Libraries (Linux)
-        if: inputs.platform == 'linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev
+        run: |
+          if [ "${{ inputs.platform }}" == "linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev liblzma-dev libglu1-mesa-dev ninja-build pkg-config
+          fi
+          flutter pub get
+        shell: bash
 
       - name: Build ${{ inputs.platform }}
         run: flutter build ${{ inputs.platform }} --release
 
-      - name: Archive macOS App
+      - name: Package macOS (DMG)
         if: inputs.platform == 'macos'
         run: |
-          mkdir -p macos-build
-          cp -r build/macos/Build/Products/Release/*.app macos-build/
-          zip -r ${{ inputs.output_name }}.zip macos-build/*
+          mkdir -p dist
+          cp -r build/macos/Build/Products/Release/*.app dist/
+          hdiutil create -volname "Consistency Tracker" -srcfolder dist -ov -format UDZO "${{ inputs.output_name }}.dmg"
         shell: bash
 
-      - name: Archive Linux Bundle
+      - name: Package Linux (Tarball)
         if: inputs.platform == 'linux'
         run: |
-          zip -r ${{ inputs.output_name }}.zip build/linux/x64/release/bundle/
+          cd build/linux/x64/release/bundle
+          tar -czf "../../../../../${{ inputs.output_name }}.tar.gz" .
         shell: bash
 
-      - name: Archive Windows Executable
+      - name: Package Windows (Zip)
         if: inputs.platform == 'windows'
         run: |
           Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "${{ inputs.output_name }}.zip"
@@ -63,4 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.output_name }}
-          path: ${{ inputs.output_name }}.zip
+          path: |
+            *.dmg
+            *.tar.gz
+            *.zip
