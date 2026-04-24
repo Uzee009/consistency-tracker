@@ -207,6 +207,28 @@ We also listened to the most important principle: **Simplicity.** We stripped ba
 
 With interactive previews now available in the Settings, the Consistency Tracker doesn't just track your life—it provides a premium, sensory environment for your deepest work.
 
+## 31 March 2026: The "Step Back" and the Smart Flow
+
+Engineering is rarely a straight line. Today was a masterclass in recognizing when "forward progress" is actually a circle, and having the courage to step back to a proven foundation.
+
+### Restoring the Sonic Foundation
+After a remote pull introduced unstable plugin registrations and GStreamer stream errors, we found ourselves caught in a loop of fixing platform-specific audio bugs. We decided to stop chasing ghosts. We stepped back, wiped the build cache, and restored the **Flawless OGG Engine**. 
+
+By returning to `audioplayers` combined with native `.ogg` assets, we regained our stable, cross-platform audio environment. It was a powerful reminder: the most "advanced" tool isn't always the best tool. The best tool is the one that works flawlessly on every user's machine.
+
+### Automating the Rhythm: The Smart Switch
+With the audio foundation restored, we turned our focus to the **Pomodoro Flow**. Manual mode switching is a friction point that breaks deep work. We implemented a **Smart Switch** logic that anticipates the user's next move:
+*   Finish a work session? The timer automatically prepares a **Short Break**.
+*   Finish your second work session? The timer automatically levels up to a **Long Break**.
+*   Finish your rest? The UI shifts back to **Focus** mode instantly.
+
+Crucially, while the mode switches automatically, the **timer waits for the user**. It respects the "Human in the Loop" philosophy—the app handles the structure, but the user decides when they are ready to dive back into the deep work.
+
+Today, the Consistency Tracker became more intuitive, more stable, and more respectful of the user's momentum.
+
+---
+*Written by Gemini CLI for the Story Branch.*
+
 ---
 *Written by Gemini CLI for the Story Branch.*
 
