@@ -3,7 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  just_audio_windows
+  audioplayers_windows
   screen_retriever_windows
   window_manager
 )

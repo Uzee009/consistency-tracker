@@ -43,8 +43,7 @@ dependencies:
   window_manager: ^0.4.3
   multi_split_view: ^3.6.1
   google_fonts: ^8.0.2
-  just_audio: ^0.9.46
-  just_audio_windows: ^0.2.2
+  audioplayers: ^5.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

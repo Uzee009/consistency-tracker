@@ -30,6 +30,7 @@ class DashboardController extends ChangeNotifier {
   int timerSecondsRemaining = 25 * 60;
   bool isTimerRunning = false;
   String timerMode = 'focus'; // 'focus', 'shortBreak', 'longBreak'
+  int _consecutiveSessions = 0; // V11: Track sessions for auto-switching
   Map<String, int> timerDurations = {
     'focus': 25 * 60,
     'shortBreak': 5 * 60,
@@ -220,6 +221,7 @@ class DashboardController extends ChangeNotifier {
           AudioService.instance.playSound(AudioType.timerEnd);
 
           if (timerMode == 'focus') {
+            _consecutiveSessions++;
             int newCompleted = todayRecord.pomodoroSessionsCompleted + 1;
             if (newCompleted > todayRecord.pomodoroGoal) newCompleted = todayRecord.pomodoroGoal;
             updatePomodoroStats(newCompleted, todayRecord.pomodoroGoal);
@@ -230,7 +232,20 @@ class DashboardController extends ChangeNotifier {
                 AudioService.instance.playSound(AudioType.goalReached);
               });
             }
+
+            // V11 AUTO-SWITCH: Focus -> Break
+            // After every 2 focus sessions, take a Long Break.
+            if (_consecutiveSessions % 2 == 0) {
+              timerMode = 'longBreak';
+            } else {
+              timerMode = 'shortBreak';
+            }
+          } else {
+            // V11 AUTO-SWITCH: Break -> Focus
+            timerMode = 'focus';
           }
+
+          timerSecondsRemaining = timerDurations[timerMode] ?? (25 * 60);
           notifyListeners();
         }
       });
@@ -242,6 +257,8 @@ class DashboardController extends ChangeNotifier {
     _pomodoroTimer?.cancel();
     isTimerRunning = false;
     timerSecondsRemaining = timerDurations[timerMode] ?? (25 * 60);
+    // V11: Resetting the timer also resets the consecutive session chain
+    _consecutiveSessions = 0;
     notifyListeners();
   }
 
@@ -250,6 +267,10 @@ class DashboardController extends ChangeNotifier {
     isTimerRunning = false;
     timerMode = mode;
     timerSecondsRemaining = timerDurations[mode] ?? (25 * 60);
+    // V11: Manually changing the mode resets the chain to avoid confusion
+    if (mode == 'focus') {
+      _consecutiveSessions = 0;
+    }
     notifyListeners();
   }
 
