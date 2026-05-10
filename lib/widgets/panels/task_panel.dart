@@ -230,6 +230,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
       builder: (_) => AddTaskBottomSheet(
         type: task.type, 
         task: task, // V8: Pass the task to edit
+        initialDate: widget.controller.selectedDate, // V12: Pass selected date
         onTaskAdded: () => widget.controller.initialize(widget.controller.selectedDate, showLoading: false)
       )
     );
@@ -259,6 +260,7 @@ class _TaskAddAction extends StatelessWidget {
           isScrollControlled: true, 
           builder: (_) => AddTaskBottomSheet(
             type: currentType, 
+            initialDate: controller.selectedDate, // V12: Pass selected date
             onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false)
           )
         ),

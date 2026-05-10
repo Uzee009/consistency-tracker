@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../models/day_record_model.dart';
 import '../services/database_service.dart';
 
 class AddTaskBottomSheet extends StatefulWidget {
   final TaskType type;
   final VoidCallback onTaskAdded;
   final Task? task; // V8: Optional task for editing
+  final DateTime? initialDate; // V12: Date to start task from
 
   const AddTaskBottomSheet({
     super.key,
     required this.type,
     required this.onTaskAdded,
     this.task,
+    this.initialDate,
   });
 
   @override
@@ -24,6 +27,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   late bool _isPerpetual;
   late FrequencyType _frequencyType;
   late int _weeklyTarget;
+  late bool _autoCheck; // V12: Auto-check for historical dates
 
   @override
   void initState() {
@@ -33,6 +37,13 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     _isPerpetual = widget.task?.isPerpetual ?? false;
     _frequencyType = widget.task?.frequencyType ?? FrequencyType.daily;
     _weeklyTarget = widget.task?.weeklyTarget ?? 3;
+    
+    // Default autoCheck to true if we are adding a new task to a historical date
+    final isToday = widget.initialDate == null || 
+                    (widget.initialDate!.day == DateTime.now().day && 
+                     widget.initialDate!.month == DateTime.now().month && 
+                     widget.initialDate!.year == DateTime.now().year);
+    _autoCheck = !isToday && widget.task == null;
   }
 
   @override
@@ -45,6 +56,13 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isToday = widget.initialDate == null || 
+                    (widget.initialDate!.day == DateTime.now().day && 
+                     widget.initialDate!.month == DateTime.now().month && 
+                     widget.initialDate!.year == DateTime.now().year);
+    final dateStr = widget.initialDate != null 
+        ? "${widget.initialDate!.day}/${widget.initialDate!.month}/${widget.initialDate!.year}"
+        : "Today";
 
     return Container(
       decoration: BoxDecoration(
@@ -57,170 +75,217 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
         left: 24,
         right: 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          Text(
-            widget.task == null ? 'Add ${widget.type == TaskType.daily ? 'Daily' : 'Temporary'} Task' : 'Edit Task',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Define your new consistency goal below.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 14),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Task Name',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _nameController,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            decoration: const InputDecoration(
-              hintText: 'e.g. Read for 30 mins',
-            ),
-            autofocus: true,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          if (widget.type == TaskType.daily) ...[
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildChoiceChip(
-                    label: 'Every Day',
-                    selected: _frequencyType == FrequencyType.daily,
-                    onSelected: (s) => setState(() => _frequencyType = FrequencyType.daily),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildChoiceChip(
-                    label: 'Weekly Goal',
-                    selected: _frequencyType == FrequencyType.weekly,
-                    onSelected: (s) => setState(() => _frequencyType = FrequencyType.weekly),
-                  ),
-                ),
-              ],
-            ),
-            if (_frequencyType == FrequencyType.weekly) ...[
-              const SizedBox(height: 20),
+            if (!isToday && widget.task == null) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                  color: Colors.amber.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
+                    const Icon(Icons.history, size: 16, color: Colors.amber),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Sessions per week', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface)),
-                          Text('Target to hit per 7 days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 12)),
-                        ],
+                      child: Text(
+                        'Adding task starting from $dateStr',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber),
                       ),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: _weeklyTarget > 1 ? () => setState(() => _weeklyTarget--) : null,
-                          icon: const Icon(Icons.remove_circle_outline, size: 20),
-                        ),
-                        Text('$_weeklyTarget', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                        IconButton(
-                          onPressed: _weeklyTarget < 7 ? () => setState(() => _weeklyTarget++) : null,
-                          icon: const Icon(Icons.add_circle_outline, size: 20),
-                        ),
-                      ],
                     ),
                   ],
                 ),
               ),
             ],
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              child: SwitchListTile(
-                title: Text(
-                  'Permanent Task',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
-                ),
-                subtitle: Text('Does not expire', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
-                value: _isPerpetual,
-                activeTrackColor: isDark ? Colors.white : Colors.black,
-                inactiveTrackColor: isDark ? Colors.white10 : Colors.black12,
-                onChanged: (value) => setState(() => _isPerpetual = value),
+            Text(
+              widget.task == null ? 'Add ${widget.type == TaskType.daily ? 'Daily' : 'Temporary'} Task' : 'Edit Task',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            if (!_isPerpetual) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Define your new consistency goal below.',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Task Name',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nameController,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              decoration: const InputDecoration(
+                hintText: 'e.g. Read for 30 mins',
+              ),
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            if (widget.type == TaskType.daily) ...[
               const SizedBox(height: 20),
-              Text(
-                'Duration in Days',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _durationController,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                decoration: const InputDecoration(
-                  hintText: '30',
-                  helperText: 'How many days this task should appear',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ],
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildChoiceChip(
+                      label: 'Every Day',
+                      selected: _frequencyType == FrequencyType.daily,
+                      onSelected: (s) => setState(() => _frequencyType = FrequencyType.daily),
+                    ),
                   ),
-                  child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildChoiceChip(
+                      label: 'Weekly Goal',
+                      selected: _frequencyType == FrequencyType.weekly,
+                      onSelected: (s) => setState(() => _frequencyType = FrequencyType.weekly),
+                    ),
+                  ),
+                ],
+              ),
+              if (_frequencyType == FrequencyType.weekly) ...[
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Sessions per week', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface)),
+                            Text('Target to hit per 7 days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _weeklyTarget > 1 ? () => setState(() => _weeklyTarget--) : null,
+                            icon: const Icon(Icons.remove_circle_outline, size: 20),
+                          ),
+                          Text('$_weeklyTarget', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                          IconButton(
+                            onPressed: _weeklyTarget < 7 ? () => setState(() => _weeklyTarget++) : null,
+                            icon: const Icon(Icons.add_circle_outline, size: 20),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    'Permanent Task',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  subtitle: Text('Does not expire', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                  value: _isPerpetual,
+                  activeTrackColor: isDark ? Colors.white : Colors.black,
+                  inactiveTrackColor: isDark ? Colors.white10 : Colors.black12,
+                  onChanged: (value) => setState(() => _isPerpetual = value),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _saveTask,
-                  child: Text(widget.task == null ? 'Save Task' : 'Update Task'),
+              if (!_isPerpetual) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Duration in Days',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _durationController,
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                  decoration: const InputDecoration(
+                    hintText: '30',
+                    helperText: 'How many days this task should appear',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ],
+            if (!isToday && widget.task == null) ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    'Mark as Completed',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  subtitle: Text('Log completion for $dateStr', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                  value: _autoCheck,
+                  activeTrackColor: isDark ? Colors.white : Colors.black,
+                  inactiveTrackColor: isDark ? Colors.white10 : Colors.black12,
+                  onChanged: (value) => setState(() => _autoCheck = value),
                 ),
               ),
             ],
-          ),
-        ],
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saveTask,
+                    child: Text(widget.task == null ? 'Save Task' : 'Update Task'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -310,6 +375,11 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             weeklyTarget: _weeklyTarget,
           );
           await DatabaseService.instance.updateTask(revived);
+          
+          if (_autoCheck && widget.initialDate != null) {
+             await _handleAutoCheck(revived.id);
+          }
+
           widget.onTaskAdded();
           if (mounted) Navigator.pop(context);
           return;
@@ -341,13 +411,40 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       durationDays: widget.type == TaskType.daily && !_isPerpetual
           ? (int.tryParse(_durationController.text) ?? 30)
           : 0,
-      createdAt: DateTime.now(),
+      createdAt: widget.initialDate ?? DateTime.now(), // V12: Use initialDate
       frequencyType: _frequencyType,
       weeklyTarget: _weeklyTarget,
     );
 
     await DatabaseService.instance.addTask(newTask);
+
+    if (_autoCheck && widget.initialDate != null) {
+      await _handleAutoCheck(newTask.id);
+    }
+
     widget.onTaskAdded();
     if (mounted) Navigator.of(context).pop();
   }
+
+  Future<void> _handleAutoCheck(int taskId) async {
+    final date = widget.initialDate!;
+    final dateFormatted = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    
+    final record = await DatabaseService.instance.getDayRecord(dateFormatted) ?? 
+                  DayRecord(date: dateFormatted, completedTaskIds: [], skippedTaskIds: []);
+    
+    if (!record.completedTaskIds.contains(taskId)) {
+      final updatedIds = List<int>.from(record.completedTaskIds)..add(taskId);
+      final updatedSkipped = List<int>.from(record.skippedTaskIds)..remove(taskId);
+      
+      // We don't have direct access to DashboardController here easily without context,
+      // but we can update the DB directly. The callback widget.onTaskAdded() will trigger the refresh.
+      final updatedRecord = record.copyWith(
+        completedTaskIds: updatedIds,
+        skippedTaskIds: updatedSkipped,
+      );
+      await DatabaseService.instance.createOrUpdateDayRecord(updatedRecord);
+    }
+  }
 }
+

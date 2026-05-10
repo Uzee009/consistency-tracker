@@ -528,3 +528,22 @@
     *   Updated `pubspec.yaml` to include `just_audio: ^0.9.46` and removed all `audioplayers` references.
     *   Performed a deep clean (`flutter clean` and manual `build` folder removal) to ensure no cached artifacts from the failed `audioplayers` build remained.
     *   Achieved **zero-error status** in `flutter analyze` post-refactoring.
+
+## Sunday, 10 May 2026 - Session: Historical Integrity & UX Stability
+
+**Summary:**
+*   **Feature: Contextual Historical Task Addition:**
+    *   Implemented "Valid From" logic: New tasks added while viewing historical dates on the heatmap now automatically start from that specific date.
+    *   Added an amber **History Banner** in the `AddTaskBottomSheet` to confirm the backdated start date to the user.
+    *   Implemented **One-Click Historical Logging**: A "Mark as Completed" toggle now appears for backdated tasks, allowing creation and completion in a single step.
+*   **UX: Stable Task Sorting ("No-Jiggle" List):**
+    *   Refactored the dashboard sorting engine to eliminate the "jumping" behavior where completed tasks moved to the bottom.
+    *   Implemented a **Two-Tier Stable Bucket** system: "Today's Priorities" (Daily/Required) and "Bonus" (Optional/Goal Met).
+    *   Enforced strict **Alphabetical Stability** within each bucket to preserve the user's spatial memory of the list.
+*   **UX: Enhanced Task Interactivity:**
+    *   Implemented **Tap-to-Check**: Clicking anywhere on the task name area now toggles its completion status.
+    *   Relocated **Contextual Focus Mode** to a long-press action on the task name to prevent interaction conflicts.
+*   **Engineering & Architecture:**
+    *   Created two dedicated feature branches: `feature/historical-task-addition` and `feature/stable-task-sorting`.
+    *   Verified all changes with `flutter analyze`, maintaining zero-error status in core logic.
+    *   Resolved an import race condition in the `AddTaskBottomSheet` regarding the `DayRecord` model.

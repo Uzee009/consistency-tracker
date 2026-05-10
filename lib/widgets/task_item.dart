@@ -80,7 +80,8 @@ class TaskItem extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: InkWell(
-                onTap: onFocusRequested,
+                onTap: isSkipped ? null : () => onToggleCompletion(!isCompleted),
+                onLongPress: onFocusRequested,
                 borderRadius: BorderRadius.circular(4),
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,

@@ -70,20 +70,21 @@ class DashboardController extends ChangeNotifier {
     final allTasks = await DatabaseService.instance.getAllTasks();
     if (requestId != _lastRequestId) return;
 
-    // SORTING LOGIC: Required/Active -> Optional/GoalMet
+    // V12 SORTING LOGIC: Stable Buckets
+    // Bucket 1: Required Today (Daily + Weekly tasks needing sessions)
+    // Bucket 2: Optional Today (Weekly tasks with goals met or not required today)
     todaysTasks.sort((a, b) {
       final progA = ScoringService.getWeeklyProgress(a, selectedDate, allRecords);
       final progB = ScoringService.getWeeklyProgress(b, selectedDate, allRecords);
 
-      final isDoneA = todayRecord.completedTaskIds.contains(a.id) || progA.isGoalMet;
-      final isDoneB = todayRecord.completedTaskIds.contains(b.id) || progB.isGoalMet;
-      
-      final isRequiredA = progA.isRequiredToday && !isDoneA;
-      final isRequiredB = progB.isRequiredToday && !isDoneB;
+      // A task is "Primary" if it's Daily OR if it's Weekly and required today.
+      final bool isPrimaryA = a.frequencyType == FrequencyType.daily || progA.isRequiredToday;
+      final bool isPrimaryB = b.frequencyType == FrequencyType.daily || progB.isRequiredToday;
 
-      if (isRequiredA != isRequiredB) return isRequiredA ? -1 : 1;
-      if (isDoneA != isDoneB) return isDoneA ? 1 : -1;
-      return a.name.compareTo(b.name);
+      if (isPrimaryA != isPrimaryB) return isPrimaryA ? -1 : 1;
+      
+      // Secondary sort: Alphabetical
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
 
     final taskTypeMap = {for (var t in allTasks) t.id: t.type};
