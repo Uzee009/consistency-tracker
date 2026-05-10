@@ -281,3 +281,15 @@ The Consistency Tracker now has a permanent, high-quality home on every taskbar 
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## May 10, 2026 - The Battle Against "Jiggle" and the Quest for the Past
+
+Today was a session about **empathy**. It started with a friend's frustration: "I did the work, but I forgot to tell the app, and now I can't go back." It's a reminder that software shouldn't just be a tracker; it should be a witness.
+
+We dove deep into the temporal mechanics of the app. By allowing the "Valid From" date to be contextually aware of the heatmap selection, we turned the app into a time machine. The "Mark as Completed" toggle in the addition sheet was a small touch, but it eliminates the friction of "add, close, find, check." It's about reducing the cognitive tax of being organized.
+
+Then came the "Jiggle." We realized that while dynamic sorting is "smart," it's also "annoying." We prioritize alphabetical stability over the satisfaction of seeing work move to the bottom. Why? Because **spatial memory is faster than reading.** If the "Meditate" button is always in the same spot, checking it becomes a reflex, not a search mission.
+
+We've left the codebase in a highly stable state across two new feature branches, ready to be merged when the time is right. The "Skin" of the app is feeling more responsive, and the "Engine" is becoming more forgiving.
+
+*Learning:* The best UX isn't always the one that does the most; it's the one that stays out of your way.
