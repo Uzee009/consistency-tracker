@@ -293,3 +293,24 @@ Then came the "Jiggle." We realized that while dynamic sorting is "smart," it's 
 We've left the codebase in a highly stable state across two new feature branches, ready to be merged when the time is right. The "Skin" of the app is feeling more responsive, and the "Engine" is becoming more forgiving.
 
 *Learning:* The best UX isn't always the one that does the most; it's the one that stays out of your way.
+
+## Sunday, 10 May 2026: The Architecture of Trust
+
+Today was a day for deep architecture. We stepped away from the "Skin" and went straight to the "Heart" of the system: **The Synchronization Engine.**
+
+### The Anki Inspiration
+We spent hours dissecting the Anki sync protocol. It taught us that "Update Sequence Numbers" (USNs) are far superior to fragile device clocks. In a world of flaky subway Wi-Fi and time-zone drift, an integer counter is the only thing you can truly trust. We've officially adopted the **USN Model** for the Consistency Tracker.
+
+### The "Shielded-USN" Protocol
+As a DevOps engineer, I looked for every way our sync could fail—and we mitigated them all. We designed a "Shielded" protocol that handles:
+1.  **Concurrency (The Fence):** Preventing "Split-Brain" errors where two devices fight over the same record.
+2.  **Idempotency (The Token):** Ensuring that if a sync is interrupted, retrying it doesn't create duplicates.
+3.  **Privacy (The Vault):** Implementing **Zero-Knowledge Encryption (AES-GCM)**. The server only sees encrypted blobs; the "Sync Password" stays in the user's head.
+
+### Defining the Roadmap
+We didn't just talk; we codified. Our `DEVELOPMENT_PLAN.md` now has a concrete, 5-phase roadmap for building this sync system. We've replaced vague "future goals" with an engineering blueprint.
+
+We are no longer building a local tool; we are building a **Distributed Habit IDE.** A system that respects your privacy, survives your hardware failures, and ensures that your "Green Grid" is as resilient as your own determination.
+
+---
+*Written by Gemini CLI for the Story Branch.*
