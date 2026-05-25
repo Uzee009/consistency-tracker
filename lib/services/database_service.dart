@@ -139,13 +139,20 @@ class DatabaseService {
       await db.execute("ALTER TABLE $tasksTable ADD COLUMN weekly_target INTEGER DEFAULT 1");
     }
     if (oldVersion < 8) {
-      // PHASE 0: Migrate to sid identity + task_status/day_meta
-      // Step 1: Rebuild tasks table with sid PK, backfill UUIDs
+      // PHASE 0: Migrate to sid identity + task_status/day_meta.
+      // NOTE: sqflite runs onUpgrade INSIDE an exclusive transaction
+      // (sqflite_common database_mixin.dart). Any exception thrown here rolls
+      // the entire migration back, so this block is already atomic/crash-safe.
+      // Do NOT wrap it in a nested db.transaction() — that only reuses this same
+      // open transaction and adds no extra safety.
       const uuid = Uuid();
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      // --- Step 1: Rebuild tasks table with sid PK, backfill UUIDs ---
       final oldTasks = await db.query(tasksTable);
       final Map<int, String> oldIntIdToSid = {};
 
-      // Create tasks_new with new schema
+      await db.execute("DROP TABLE IF EXISTS tasks_new");
       await db.execute('''
         CREATE TABLE tasks_new (
           sid TEXT PRIMARY KEY,
@@ -163,11 +170,9 @@ class DatabaseService {
         )
       ''');
 
-      // Backfill tasks with UUIDs and copy to tasks_new
-      final now = DateTime.now().millisecondsSinceEpoch;
       for (var row in oldTasks) {
         final newSid = uuid.v4();
-        oldIntIdToSid[row['id'] as int] = newSid;
+        oldIntIdToSid[(row['id'] as num).toInt()] = newSid;
         await db.execute('''
           INSERT INTO tasks_new
           (sid, name, type, duration_days, is_perpetual, created_at, is_active, frequency_type, weekly_target, updated_at, deleted, dirty)
@@ -186,13 +191,12 @@ class DatabaseService {
         ]);
       }
 
-      // Drop old, rename new
       await db.execute("DROP TABLE $tasksTable");
       await db.execute("ALTER TABLE tasks_new RENAME TO $tasksTable");
 
-      // Step 2: Create task_status and day_meta tables
+      // --- Step 2: Create task_status and day_meta tables ---
       await db.execute('''
-        CREATE TABLE $taskStatusTable (
+        CREATE TABLE IF NOT EXISTS $taskStatusTable (
           date TEXT NOT NULL,
           task_sid TEXT NOT NULL,
           status TEXT NOT NULL,
@@ -203,7 +207,7 @@ class DatabaseService {
         )
       ''');
       await db.execute('''
-        CREATE TABLE $dayMetaTable (
+        CREATE TABLE IF NOT EXISTS $dayMetaTable (
           date TEXT PRIMARY KEY,
           cheat_used INTEGER NOT NULL DEFAULT 0,
           pomodoro_sessions INTEGER NOT NULL DEFAULT 0,
@@ -214,42 +218,32 @@ class DatabaseService {
         )
       ''');
 
-      // Step 3: Migrate day_records data into task_status + day_meta
-      final oldRecords = await db.query(dayRecordsTable);
+      // --- Step 3: Migrate day_records into task_status + day_meta and
+      // recompute the derived completion_score / visual_state cache. ---
+      // Load freshly-migrated tasks so scores can be re-derived.
+      // Match the live getActiveTasksForDate scoring path: only non-deleted,
+      // active tasks count toward a day's derived score.
+      final migratedTaskMaps =
+          await db.query(tasksTable, where: 'deleted = 0 AND is_active = 1');
+      final migratedTasks =
+          migratedTaskMaps.map((m) => Task.fromMap(m)).toList();
+
+      // Process days chronologically so weekly-task scoring sees correct history.
+      final oldRecords = await db.query(dayRecordsTable, orderBy: 'date ASC');
+      final List<DayRecord> history = [];
+
       for (var rec in oldRecords) {
         final dateStr = rec['date'] as String;
-        final now = DateTime.now().millisecondsSinceEpoch;
 
-        // Parse old int CSVs and remap to sids
-        final completedStr = (rec['completed_task_ids'] as String?) ?? '';
-        final skippedStr = (rec['skipped_task_ids'] as String?) ?? '';
-        final newCompletedSids = <String>[];
-        final newSkippedSids = <String>[];
+        // Parse legacy int CSVs -> sids (dropping ids whose task was
+        // hard-deleted before v8; those task rows no longer exist).
+        final newCompletedSids =
+            _remapCsvToSids(rec['completed_task_ids'] as String?, oldIntIdToSid);
+        final newSkippedSids =
+            _remapCsvToSids(rec['skipped_task_ids'] as String?, oldIntIdToSid);
+        // A sid cannot be both completed and skipped; completed wins.
+        newSkippedSids.removeWhere(newCompletedSids.contains);
 
-        if (completedStr.isNotEmpty) {
-          for (var idStr in completedStr.split(',')) {
-            final trimmed = idStr.trim();
-            if (trimmed.isNotEmpty) {
-              final intId = int.tryParse(trimmed);
-              if (intId != null && oldIntIdToSid.containsKey(intId)) {
-                newCompletedSids.add(oldIntIdToSid[intId]!);
-              }
-            }
-          }
-        }
-        if (skippedStr.isNotEmpty) {
-          for (var idStr in skippedStr.split(',')) {
-            final trimmed = idStr.trim();
-            if (trimmed.isNotEmpty) {
-              final intId = int.tryParse(trimmed);
-              if (intId != null && oldIntIdToSid.containsKey(intId)) {
-                newSkippedSids.add(oldIntIdToSid[intId]!);
-              }
-            }
-          }
-        }
-
-        // Insert into task_status
         for (var sid in newCompletedSids) {
           await db.execute('''
             INSERT OR REPLACE INTO $taskStatusTable
@@ -265,29 +259,85 @@ class DatabaseService {
           ''', [dateStr, sid, now]);
         }
 
-        // Insert into day_meta
+        final cheatUsed = ((rec['cheat_used'] as int?) ?? 0) == 1;
         await db.execute('''
           INSERT OR REPLACE INTO $dayMetaTable
           (date, cheat_used, pomodoro_sessions, pomodoro_goal, updated_at, deleted, dirty)
           VALUES (?, ?, ?, ?, ?, 0, 0)
         ''', [
           dateStr,
-          rec['cheat_used'],
+          cheatUsed ? 1 : 0,
           rec['pomodoro_sessions'] ?? 0,
           rec['pomodoro_goal'] ?? 4,
           now,
         ]);
 
-        // Update day_records cache: remap CSVs from int -> sid
-        final newCompletedCSV = newCompletedSids.join(',');
-        final newSkippedCSV = newSkippedSids.join(',');
-        await db.execute('''
-          UPDATE $dayRecordsTable
-          SET completed_task_ids = ?, skipped_task_ids = ?
-          WHERE date = ?
-        ''', [newCompletedCSV, newSkippedCSV, dateStr]);
+        // Recompute derived score + visual_state from migrated sids so the
+        // day_records cache stays consistent after orphaned ids are dropped.
+        final tempRecord = DayRecord(
+          date: dateStr,
+          completedTaskIds: newCompletedSids,
+          skippedTaskIds: newSkippedSids,
+          cheatUsed: cheatUsed,
+          pomodoroSessionsCompleted: (rec['pomodoro_sessions'] as int?) ?? 0,
+          pomodoroGoal: (rec['pomodoro_goal'] as int?) ?? 4,
+        );
+        final activeTasks =
+            _activeTasksFor(DateTime.parse(dateStr), migratedTasks);
+        final scoreResult = ScoringService.calculateDayScore(
+          allTasks: activeTasks,
+          dayRecord: tempRecord,
+          history: history,
+        );
+        final finalRecord = tempRecord.copyWith(
+          completionScore: scoreResult.completionScore,
+          visualState: scoreResult.visualState,
+        );
+
+        await db.update(
+          dayRecordsTable,
+          finalRecord.toMap(),
+          where: 'date = ?',
+          whereArgs: [dateStr],
+        );
+        history.add(finalRecord);
       }
     }
+  }
+
+  // Parse a legacy comma-joined int-id CSV into sids, dropping any id that no
+  // longer maps to an existing task (e.g. tasks hard-deleted before v8).
+  List<String> _remapCsvToSids(String? csv, Map<int, String> idToSid) {
+    final result = <String>[];
+    if (csv == null || csv.isEmpty) return result;
+    for (final part in csv.split(',')) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+      final intId = int.tryParse(trimmed);
+      if (intId != null && idToSid.containsKey(intId)) {
+        result.add(idToSid[intId]!);
+      }
+    }
+    return result;
+  }
+
+  // In-memory equivalent of getActiveTasksForDate's date-window filter, used
+  // during migration to re-derive day scores.
+  List<Task> _activeTasksFor(DateTime date, List<Task> tasks) {
+    final targetDate = DateTime(date.year, date.month, date.day);
+    return tasks.where((task) {
+      final created = DateTime(
+          task.createdAt.year, task.createdAt.month, task.createdAt.day);
+      if (targetDate.isBefore(created)) return false;
+      if (task.type == TaskType.temporary) {
+        return targetDate.isAtSameMomentAs(created);
+      } else if (task.type == TaskType.daily) {
+        if (task.isPerpetual) return true;
+        final expiration = created.add(Duration(days: task.durationDays));
+        return targetDate.isBefore(expiration);
+      }
+      return false;
+    }).toList();
   }
 
   // --- User Management ---
@@ -485,7 +535,8 @@ class DatabaseService {
     );
     final existingSids = existingStatus.map((r) => r['task_sid'] as String).toSet();
     final newCompletedSids = record.completedTaskIds.toSet();
-    final newSkippedSids = record.skippedTaskIds.toSet();
+    final newSkippedSids = record.skippedTaskIds.toSet()
+      ..removeAll(record.completedTaskIds);
     final newAllSids = {...newCompletedSids, ...newSkippedSids};
 
     // Insert/update completed and skipped rows
@@ -569,16 +620,27 @@ class DatabaseService {
   Future<List<DayRecord>> getTaskHistory(String taskSid) async {
     Database db = await instance.database;
 
-    List<Map<String, dynamic>> maps = await db.query(
+    // Dates this task was completed/skipped, from the normalized task_status
+    // table — no CSV LIKE, no spurious cheat-day matches.
+    final statusRows = await db.query(
+      taskStatusTable,
+      columns: ['date'],
+      distinct: true,
+      where: 'task_sid = ? AND deleted = 0',
+      whereArgs: [taskSid],
+    );
+    if (statusRows.isEmpty) return [];
+
+    final dates = statusRows.map((r) => r['date'] as String).toList();
+    final placeholders = List.filled(dates.length, '?').join(',');
+
+    final maps = await db.query(
       dayRecordsTable,
-      where: "completed_task_ids LIKE ? OR skipped_task_ids LIKE ? OR cheat_used = 1",
-      whereArgs: ['%$taskSid%', '%$taskSid%'],
+      where: 'date IN ($placeholders)',
+      whereArgs: dates,
       orderBy: 'date ASC',
     );
-
-    return List.generate(maps.length, (i) {
-      return DayRecord.fromMap(maps[i]);
-    });
+    return maps.map((m) => DayRecord.fromMap(m)).toList();
   }
 
   // --- Cheat Day Management ---
