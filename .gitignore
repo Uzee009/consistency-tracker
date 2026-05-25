@@ -50,3 +50,6 @@ gha-creds-*.json
 
 # Throwaway cross-device sync experiment (PocketBase binary, pb_data, Dart spike client)
 sync_spike/
+
+# Claude Code per-machine settings (local permission grants — not shared)
+.claude/settings.local.json

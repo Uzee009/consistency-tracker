@@ -572,3 +572,18 @@
     *   **Offline reconcile correct:** stale offline edits rejected by LWW; the latest offline edit syncs up cleanly.
 *   **Branching:** Work performed on the `experiment` branch.
 *   **Next Steps:** Execute **Phase 0** (UUID `sid` + `task_status`/`day_meta` split + derived scoring), then wire the PocketBase sync engine into the app. Development continues in the terminal.
+
+## Monday, 26 May 2026 - Session: Phase 0 Migration Hardening & Workflow Adoption
+
+**Summary:**
+*   **Workflow Bootstrap:** Adopted a structured Claude Code workflow. Created `CURRENT_MODULE.md` (a "save-point" working-memory file tracking the active module, phase, sub-tasks, working context, next action, and review history) and followed the plan → gemini-coder → code-reviewer loop defined in `CLAUDE.md`.
+*   **Code Review of Phase 0 Migration:** Ran a focused review of the committed v7→v8 sync migration (`eef25d1`). It compiled and ran on a fresh DB, but the review surfaced **8 correctness bugs that only manifest on upgrade paths with existing data** — exactly the case the original fresh-DB test could not exercise.
+*   **Remediation (2 review cycles → PASS):**
+    *   **Crash-safety:** Verified in the `sqflite_common` source that `onUpgrade` already runs inside an exclusive transaction (a thrown exception rolls the whole migration back), so the block is atomic without a nested transaction. Documented this in-code rather than adding a misleading no-op.
+    *   **Derived-score consistency:** Restructured the migration to process `day_records` chronologically, rebuild `history`, and recompute `completion_score`/`visual_state` via `ScoringService` — scoped to `deleted = 0 AND is_active = 1` to match the live `getActiveTasksForDate` path. Prevents stale cached scores after orphaned (hard-deleted) task ids are dropped.
+    *   **`getTaskHistory`:** Rewrote it to query the normalized `task_status` table (DISTINCT date, `deleted = 0`) instead of `completed_task_ids LIKE '%sid%' OR cheat_used = 1`, which had returned every cheat day for any task and inflated history/streaks.
+    *   **Double-write guard:** `createOrUpdateDayRecord` now dedupes a sid present in both completed and skipped sets (completed wins), so it can't be written twice to `task_status`.
+    *   **Hardening:** robust int-id cast `(row['id'] as num).toInt()`; idempotent table creation (`DROP TABLE IF EXISTS` / `CREATE TABLE IF NOT EXISTS`); single migration-wide timestamp; new `_remapCsvToSids` / `_activeTasksFor` helpers.
+*   **Engineering:** `flutter analyze` clean throughout. Two code-reviewer cycles (cycle 1 caught a regression where archived tasks inflated the scoring denominator; cycle 2 confirmed PASS).
+*   **Source Control:** Committed the migration fix as `6643693` and pushed `experiment` to the hub (also flushing the two previously-unpushed Phase 0 commits). Then tracked the workflow files (`CLAUDE.md`, `CURRENT_MODULE.md`, `.claude/agents/*`) in git and gitignored the per-machine `.claude/settings.local.json`.
+*   **Next Steps:** Begin **Phase 1 — PocketBase up + auth** (run the binary locally, create the `tasks`/`task_status`/`day_meta` collections, add a login screen + connectivity service).
