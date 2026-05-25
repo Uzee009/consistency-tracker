@@ -314,3 +314,23 @@ We are no longer building a local tool; we are building a **Distributed Habit ID
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## Monday, 25 May 2026: The Courage to Delete
+
+Two weeks ago, we fell in love with an architecture. Today, we had the courage to walk away from most of it.
+
+### Re-examining the "Shielded-USN"
+The USN protocol we designed on 10 May was elegant on paper — Update Sequence Numbers, a transactional handshake, zero-knowledge encryption, a state machine to guard against split-brain. But *elegant* and *appropriate* are not the same word. Re-reading it with fresh eyes, we asked the only question that matters for a solo project: what does this actually buy one person syncing their own habits across four devices? The honest answer was complexity, and a hundred quiet ways to introduce bugs.
+
+So we performed surgery. We kept the unavoidable skeleton — stable IDs, tombstones, timestamps, last-write-wins — and cut everything else: the USN counters, the "finalize" handshake, the idempotency tokens, the 24-word recovery mnemonic. What remained was a roughly 300-line sync loop a human can hold in their head.
+
+### Choosing the Boring Backend
+We auditioned the glamorous options. Firebase syncs offline for free — but refuses to run on Linux, our primary machine. Supabase is powerful — but its free tier falls asleep after a week of quiet. We chose **PocketBase**: a single Go binary speaking SQLite, the same language our app already speaks. Not glamorous. Just right.
+
+### The Spike That Earned Our Trust
+Here is the part we are proud of: we didn't just believe the new plan, we *tested* it. We stood up a real PocketBase server and wrote a tiny pure-Dart client pretending to be two devices. Then we watched a change made on "device A" surface on "device B" in **73 milliseconds**. We tried to break it — stale offline edits, conflicting writes — and last-write-wins resolved every case correctly. The idea survived contact with reality before we wrote a single line of production code.
+
+*Learning:* The senior move isn't designing the most sophisticated system you can. It's deleting everything the problem doesn't actually need — and then proving what's left works before you build on it.
+
+---
+*Written for the Story Branch.*
