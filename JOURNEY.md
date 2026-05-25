@@ -334,3 +334,26 @@ Here is the part we are proud of: we didn't just believe the new plan, we *teste
 
 ---
 *Written for the Story Branch.*
+
+## Monday, 26 May 2026: Reviewing Our Own Work
+
+Last week we earned a small piece of pride: Phase 0 — the great rewrite that gave every task a real identity and split a single comma-jammed string into honest, row-per-tick tables — was done, committed, and the app ran exactly as before. It was tempting to call it finished and march on to PocketBase.
+
+Instead, we did the unglamorous thing. We pointed a reviewer at our own freshly-committed code and asked it to try to hurt us.
+
+### The Bug That Hides in the Happy Path
+The app launched fine. `flutter analyze` was clean. On a brand-new database, everything was perfect — and that was exactly the trap. A migration's whole job is to meet *old* data, and we had only ever watched it meet *new* data. The reviewer found eight cracks, every one of them invisible unless you arrive carrying history: a fragile cast that assumed a number's shape, a score cache left frozen at yesterday's truth after we quietly dropped a long-deleted task, a `LIKE '%id%'` query so eager it claimed every cheat day as belonging to every task. None of these would ever show up on a fresh install. All of them would show up on a *real user's* install.
+
+### Trusting, but Verifying the Framework
+One flagged "critical" sent us not to our own code but to the library's. The claim was that our migration wasn't wrapped in a transaction and a crash could leave the database in ruins. Before we wrote a defensive line, we read the source of `sqflite` itself — and found it already runs every upgrade inside an exclusive transaction. The safety we were about to add by hand was a safety we already had. So we did the rarer thing: we wrote a comment explaining *why no code was needed*, rather than adding code that only looked reassuring.
+
+### Two Honest Cycles
+The first round of fixes introduced a fresh mistake of its own — when we taught the migration to recompute scores, we let archived tasks sneak into the math and quietly drag every old score down. The reviewer caught it. We narrowed the lens to match exactly what the live app counts, and the second pass came back clean. Two cycles, no ego, a real PASS.
+
+### A Save Point for the Journey
+We also changed how we *work*. We started keeping a `CURRENT_MODULE.md` — a save point, written as if the session could vanish at any moment: where we are, what's done, what's next. Today we committed that discipline into the repo itself, alongside the workflow rules and the small crew of review agents that now check our work. The personal, machine-specific settings we left out, where they belong.
+
+*Learning:* "It compiles and runs" is the beginning of confidence, not the end of it. The dangerous bugs don't live in the path you tested — they wait in the data you didn't have when you tested it. Reviewing your own finished work, and being willing to find it wanting, is not doubt. It's the discipline that lets the next person — including future you — trust what you left behind.
+
+---
+*Written for the Story Branch.*
