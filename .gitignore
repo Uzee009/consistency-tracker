@@ -47,3 +47,6 @@ Error SS/
 
 .gemini/
 gha-creds-*.json
+
+# Throwaway cross-device sync experiment (PocketBase binary, pb_data, Dart spike client)
+sync_spike/

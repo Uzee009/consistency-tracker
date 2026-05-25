@@ -547,3 +547,28 @@
     *   Created two dedicated feature branches: `feature/historical-task-addition` and `feature/stable-task-sorting`.
     *   Verified all changes with `flutter analyze`, maintaining zero-error status in core logic.
     *   Resolved an import race condition in the `AddTaskBottomSheet` regarding the `DayRecord` model.
+
+## Sunday, 10 May 2026 - Session: Synchronization Strategy & Architecture
+
+**Summary:**
+*   **Sync Research & Strategy:** Conducted a deep dive into synchronization architectures, specifically analyzing the **Anki USN (Update Sequence Number)** protocol.
+*   **Architecture Design:** Formulated the **"Shielded-USN Protocol,"** a transactional, state-aware sync system designed for the Consistency Tracker.
+*   **Risk Mitigation:** Addressed critical distributed systems challenges, including concurrency (split-brain), network partial success (idempotency), schema drift (versioning), and tombstone bloat.
+*   **Privacy & Security:** Integrated **Zero-Knowledge Encryption (AES-GCM)** into the sync plan, ensuring user data remains private even on self-hosted servers.
+*   **Development Roadmap:** Updated `DEVELOPMENT_PLAN.md` with a new 5-phase implementation strategy for the synchronization system, replacing the high-level future goals with a concrete technical path.
+
+## Monday, 25 May 2026 - Session: Sync Re-architecture & PocketBase Spike
+
+**Summary:**
+*   **Strategic Pivot:** Re-evaluated the cross-device sync approach and deliberately set aside the **Shielded-USN Protocol** (10 May) as over-engineered and error-prone. Kept only the unavoidable skeleton (UUIDs, tombstones, timestamps, LWW, push/pull) and cut USN sequence numbers, the "finalize" handshake, session-id idempotency, zero-knowledge crypto (deferred to v2), and >90-day "zombie" reconciliation.
+*   **Requirements Reframe:** Free hosting, offline-capable, flawless ~realtime, cross-platform (Linux/Windows/macOS/Android). After analysis, dropped self-hosting as a v1 feature (still possible later).
+*   **Backend Decision:** Rejected **Firebase** (no Linux support; weak desktop offline) and **Supabase** (free project pauses after 7 days idle). Chose **PocketBase** — single Go binary, SQLite, realtime SSE, pure-Dart client (uniform across all platforms), free hosting via Oracle Cloud Always Free.
+*   **Architecture:** Local-first SQLite full mirror + a ~300-line push/pull sync loop with last-write-wins. Two key data-model fixes identified: switch task identity to a UUID (`sid`) to stop cross-device primary-key collisions, and normalize day completions into a `task_status` table (one row per tick) so concurrent edits never conflict. `completion_score`/`visual_state` become locally-derived (never synced).
+*   **Documentation:** Authored `SYNC_PLAN.md` (committed to `master`), which supersedes Step 13 of `DEVELOPMENT_PLAN.md`.
+*   **Tooling:** Configured GitHub SSH auth (ed25519) for this machine.
+*   **Proof-of-Concept Spike:** Built a throwaway harness (`sync_spike/`, git-ignored) running real **PocketBase v0.38.2** with a pure-Dart client simulating two devices. Results validated the core hypothesis:
+    *   **Realtime propagation: 73 ms** (target was 1–2s).
+    *   **Last-Write-Wins correct:** newer write wins; older write rejected (`SKIP-LWW`).
+    *   **Offline reconcile correct:** stale offline edits rejected by LWW; the latest offline edit syncs up cleanly.
+*   **Branching:** Work performed on the `experiment` branch.
+*   **Next Steps:** Execute **Phase 0** (UUID `sid` + `task_status`/`day_meta` split + derived scoring), then wire the PocketBase sync engine into the app. Development continues in the terminal.
