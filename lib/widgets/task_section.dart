@@ -134,9 +134,9 @@ class TaskSection extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final task = filteredTasks[index];
                       final isCompleted =
-                          dayRecord.completedTaskIds.contains(task.id);
+                          dayRecord.completedTaskIds.contains(task.sid);
                       final isSkipped =
-                          dayRecord.skippedTaskIds.contains(task.id);
+                          dayRecord.skippedTaskIds.contains(task.sid);
 
                       return TaskItem(
                         task: task,

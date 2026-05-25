@@ -87,17 +87,17 @@ class DashboardController extends ChangeNotifier {
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
 
-    final taskTypeMap = {for (var t in allTasks) t.id: t.type};
+    final taskTypeMap = {for (var t in allTasks) t.sid: t.type};
 
     if (focusedTask != null) {
-      heatmapData = ScoringService.mapTaskRecordsToHeatmapData(allRecords, focusedTask!.id);
-      analytics = ScoringService.calculateAnalytics(allRecords, taskId: focusedTask!.id, taskCreatedAt: focusedTask!.createdAt);
+      heatmapData = ScoringService.mapTaskRecordsToHeatmapData(allRecords, focusedTask!.sid);
+      analytics = ScoringService.calculateAnalytics(allRecords, taskSid: focusedTask!.sid, taskCreatedAt: focusedTask!.createdAt);
     } else {
       heatmapData = ScoringService.mapRecordsToHeatmapData(allRecords);
       analytics = ScoringService.calculateAnalytics(allRecords, taskTypeMap: taskTypeMap);
     }
 
-    momentumData = ScoringService.calculateMomentumData(allRecords, heatmapRange, taskId: focusedTask?.id);
+    momentumData = ScoringService.calculateMomentumData(allRecords, heatmapRange, taskSid: focusedTask?.sid);
     volumeData = ScoringService.calculateVolumeData(allRecords, heatmapRange, taskTypeMap);
 
     isLoading = false;
@@ -117,12 +117,12 @@ class DashboardController extends ChangeNotifier {
   }
 
   Future<void> toggleTaskCompletion(Task task, bool completed, {bool reclaimCheat = false}) async {
-    List<int> updatedCompletedIds = List.from(todayRecord.completedTaskIds);
-    List<int> updatedSkippedIds = List.from(todayRecord.skippedTaskIds);
+    List<String> updatedCompletedIds = List<String>.from(todayRecord.completedTaskIds);
+    List<String> updatedSkippedIds = List<String>.from(todayRecord.skippedTaskIds);
 
     if (completed) {
-      updatedCompletedIds.add(task.id);
-      updatedSkippedIds.remove(task.id);
+      updatedCompletedIds.add(task.sid);
+      updatedSkippedIds.remove(task.sid);
       
       if (todayRecord.cheatUsed) {
         final yearMonth = "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}";
@@ -130,23 +130,22 @@ class DashboardController extends ChangeNotifier {
         reclaimCheat = true;
       }
     } else {
-      updatedCompletedIds.remove(task.id);
+      updatedCompletedIds.remove(task.sid);
     }
 
     await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds, forceCheatOff: reclaimCheat);
-    // SILENT REFRESH: Update state without the loading spinner
     await initialize(selectedDate, showLoading: false);
   }
 
   Future<void> toggleTaskSkip(Task task) async {
-    List<int> updatedCompletedIds = List.from(todayRecord.completedTaskIds);
-    List<int> updatedSkippedIds = List.from(todayRecord.skippedTaskIds);
+    List<String> updatedCompletedIds = List<String>.from(todayRecord.completedTaskIds);
+    List<String> updatedSkippedIds = List<String>.from(todayRecord.skippedTaskIds);
 
-    if (updatedSkippedIds.contains(task.id)) {
-      updatedSkippedIds.remove(task.id);
+    if (updatedSkippedIds.contains(task.sid)) {
+      updatedSkippedIds.remove(task.sid);
     } else {
-      updatedSkippedIds.add(task.id);
-      updatedCompletedIds.remove(task.id);
+      updatedSkippedIds.add(task.sid);
+      updatedCompletedIds.remove(task.sid);
     }
 
     await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds);
@@ -182,13 +181,13 @@ class DashboardController extends ChangeNotifier {
     await initialize(selectedDate, showLoading: false);
   }
 
-  Future<void> deleteTask(int taskId) async {
-    await DatabaseService.instance.archiveTask(taskId);
+  Future<void> deleteTask(String sid) async {
+    await DatabaseService.instance.archiveTask(sid);
     await initialize(selectedDate, showLoading: false);
   }
 
-  Future<void> deleteTaskPermanently(int taskId) async {
-    await DatabaseService.instance.deleteTaskPermanently(taskId);
+  Future<void> deleteTaskPermanently(String sid) async {
+    await DatabaseService.instance.deleteTaskPermanently(sid);
     await initialize(selectedDate, showLoading: false);
   }
 
@@ -297,7 +296,7 @@ class DashboardController extends ChangeNotifier {
 
   // --- PRIVATE HELPERS ---
 
-  Future<void> _updateDayRecordInDb(List<int> completedIds, List<int> skippedIds, {bool? forceCheatOn, bool? forceCheatOff}) async {
+  Future<void> _updateDayRecordInDb(List<String> completedIds, List<String> skippedIds, {bool? forceCheatOn, bool? forceCheatOff}) async {
     bool isCheatUsed = todayRecord.cheatUsed;
     if (forceCheatOn == true) isCheatUsed = true;
     if (forceCheatOff == true) isCheatUsed = false;

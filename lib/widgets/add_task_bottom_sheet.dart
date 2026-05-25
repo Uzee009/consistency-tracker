@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
 import '../services/database_service.dart';
@@ -314,7 +315,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     if (widget.task != null) {
       // V8 UPDATE: Simple update logic for existing tasks
       final updated = Task(
-        id: widget.task!.id,
+        sid: widget.task!.sid,
         name: taskName,
         type: widget.task!.type,
         isPerpetual: widget.task!.type == TaskType.daily ? _isPerpetual : false,
@@ -364,7 +365,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
         if (action == 'revive') {
           // Revival: Just reactivate the existing task
           final revived = Task(
-            id: existing.id,
+            sid: existing.sid,
             name: existing.name,
             type: existing.type,
             durationDays: existing.durationDays,
@@ -375,9 +376,9 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             weeklyTarget: _weeklyTarget,
           );
           await DatabaseService.instance.updateTask(revived);
-          
+
           if (_autoCheck && widget.initialDate != null) {
-             await _handleAutoCheck(revived.id);
+             await _handleAutoCheck(revived.sid);
           }
 
           widget.onTaskAdded();
@@ -389,7 +390,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           // Restart: Rename the old one to avoid naming conflict
           final dateStr = DateTime.now().toIso8601String().split('T')[0];
           final archived = Task(
-            id: existing.id,
+            sid: existing.sid,
             name: "${existing.name} (Archived $dateStr)",
             type: existing.type,
             durationDays: existing.durationDays,
@@ -404,7 +405,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     }
 
     final newTask = Task(
-      id: DateTime.now().millisecondsSinceEpoch,
+      sid: const Uuid().v4(),
       name: taskName,
       type: widget.type,
       isPerpetual: widget.type == TaskType.daily ? _isPerpetual : false,
@@ -419,24 +420,24 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     await DatabaseService.instance.addTask(newTask);
 
     if (_autoCheck && widget.initialDate != null) {
-      await _handleAutoCheck(newTask.id);
+      await _handleAutoCheck(newTask.sid);
     }
 
     widget.onTaskAdded();
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _handleAutoCheck(int taskId) async {
+  Future<void> _handleAutoCheck(String taskSid) async {
     final date = widget.initialDate!;
     final dateFormatted = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    
-    final record = await DatabaseService.instance.getDayRecord(dateFormatted) ?? 
+
+    final record = await DatabaseService.instance.getDayRecord(dateFormatted) ??
                   DayRecord(date: dateFormatted, completedTaskIds: [], skippedTaskIds: []);
-    
-    if (!record.completedTaskIds.contains(taskId)) {
-      final updatedIds = List<int>.from(record.completedTaskIds)..add(taskId);
-      final updatedSkipped = List<int>.from(record.skippedTaskIds)..remove(taskId);
-      
+
+    if (!record.completedTaskIds.contains(taskSid)) {
+      final updatedIds = List<String>.from(record.completedTaskIds)..add(taskSid);
+      final updatedSkipped = List<String>.from(record.skippedTaskIds)..remove(taskSid);
+
       // We don't have direct access to DashboardController here easily without context,
       // but we can update the DB directly. The callback widget.onTaskAdded() will trigger the refresh.
       final updatedRecord = record.copyWith(

@@ -26,7 +26,7 @@ class ScoringService {
   static ScoreResult calculateDayScore({
     required List<Task> allTasks,
     required DayRecord dayRecord,
-    List<DayRecord> history = const [], // Optional history for weekly logic
+    List<DayRecord> history = const [],
   }) {
     // If it's a cheat day AND NO tasks were done, return cheat state
     if (dayRecord.cheatUsed && dayRecord.completedTaskIds.isEmpty) {
@@ -44,11 +44,11 @@ class ScoringService {
       return ScoreResult(completionScore: 0, visualState: VisualState.empty);
     }
 
-    final completedDailyCount = dailyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
-    final completedTempCount = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
-    final completedWeeklyCount = weeklyTasks.where((t) => dayRecord.completedTaskIds.contains(t.id)).length;
-    
-    final skippedDailyIds = dailyTasks.where((t) => dayRecord.skippedTaskIds.contains(t.id)).map((t) => t.id).toList();
+    final completedDailyCount = dailyTasks.where((t) => dayRecord.completedTaskIds.contains(t.sid)).length;
+    final completedTempCount = tempTasks.where((t) => dayRecord.completedTaskIds.contains(t.sid)).length;
+    final completedWeeklyCount = weeklyTasks.where((t) => dayRecord.completedTaskIds.contains(t.sid)).length;
+
+    final skippedDailySids = dailyTasks.where((t) => dayRecord.skippedTaskIds.contains(t.sid)).map((t) => t.sid).toList();
 
     // Weekly Requirement Logic
     int requiredWeeklyCount = 0;
@@ -56,13 +56,13 @@ class ScoringService {
 
     for (var task in weeklyTasks) {
       final progress = getWeeklyProgress(task, today, history);
-      if (progress.isRequiredToday && !dayRecord.skippedTaskIds.contains(task.id)) {
+      if (progress.isRequiredToday && !dayRecord.skippedTaskIds.contains(task.sid)) {
         requiredWeeklyCount++;
       }
     }
 
     // A skip is an "excuse", so we remove it from the required daily benchmark.
-    final activeDailyCount = dailyTasks.length - skippedDailyIds.length;
+    final activeDailyCount = dailyTasks.length - skippedDailySids.length;
     
     // Total Benchmark (Denominator)
     // Only includes Daily tasks and Weekly tasks that are strictly required today.
@@ -124,13 +124,11 @@ class ScoringService {
     final int daysRemaining = weekEnd.difference(today).inDays; // 0 to 6
 
     // 2. Count completions in this window [weekStart, today]
-    // Note: We include 'today' in the count if it's already recorded as completed in history 
-    // OR passed in the current record (but this function usually looks at past records).
     int completions = 0;
     for (var record in history) {
       final recordDate = DateTime.parse(record.date);
       if (recordDate.isAtSameMomentAs(weekStart) || (recordDate.isAfter(weekStart) && recordDate.isBefore(today.add(const Duration(seconds: 1))))) {
-        if (record.completedTaskIds.contains(task.id)) {
+        if (record.completedTaskIds.contains(task.sid)) {
           completions++;
         }
       }
@@ -211,24 +209,24 @@ class ScoringService {
     return data;
   }
 
-  static Map<DateTime, int> mapTaskRecordsToHeatmapData(List<DayRecord> records, int taskId) {
+  static Map<DateTime, int> mapTaskRecordsToHeatmapData(List<DayRecord> records, String taskSid) {
     final Map<DateTime, int> data = {};
     for (var record in records) {
       final date = DateTime.parse(record.date);
       final cleanDate = DateTime(date.year, date.month, date.day);
-      
-      if (record.completedTaskIds.contains(taskId)) {
-        data[cleanDate] = 5; // Success
+
+      if (record.completedTaskIds.contains(taskSid)) {
+        data[cleanDate] = 5;
       } else if (record.cheatUsed) {
-        data[cleanDate] = -1; // Cheat Day
+        data[cleanDate] = -1;
       } else {
-        data[cleanDate] = 0; // Miss
+        data[cleanDate] = 0;
       }
     }
     return data;
   }
 
-  static AnalyticsResult calculateAnalytics(List<DayRecord> records, {int? taskId, Map<int, TaskType>? taskTypeMap, DateTime? taskCreatedAt}) {
+  static AnalyticsResult calculateAnalytics(List<DayRecord> records, {String? taskSid, Map<String, TaskType>? taskTypeMap, DateTime? taskCreatedAt}) {
     if (records.isEmpty) return AnalyticsResult.empty();
 
     // 1. Sort and find the date range
@@ -267,17 +265,17 @@ class ScoringService {
       bool isSkipped = false;
 
       if (record != null) {
-        if (taskId != null) {
-          isSuccess = record.completedTaskIds.contains(taskId);
-          isSkipped = record.skippedTaskIds.contains(taskId);
+        if (taskSid != null) {
+          isSuccess = record.completedTaskIds.contains(taskSid);
+          isSkipped = record.skippedTaskIds.contains(taskSid);
         } else {
           isSuccess = record.completionScore >= 0.8;
           // Global totals: completions only
           if (taskTypeMap != null) {
-            for (var id in record.completedTaskIds) {
-              if (taskTypeMap[id] == TaskType.daily) {
+            for (var sid in record.completedTaskIds) {
+              if (taskTypeMap[sid] == TaskType.daily) {
                 totalDailyCompleted++;
-              } else if (taskTypeMap[id] == TaskType.temporary) {
+              } else if (taskTypeMap[sid] == TaskType.temporary) {
                 totalTempCompleted++;
               }
             }
@@ -317,13 +315,11 @@ class ScoringService {
       bool isCheat = false;
       bool isSkipped = false;
       if (record != null) {
-        if (taskId != null) {
-          isSuccess = record.completedTaskIds.contains(taskId);
-          isSkipped = record.skippedTaskIds.contains(taskId);
+        if (taskSid != null) {
+          isSuccess = record.completedTaskIds.contains(taskSid);
+          isSkipped = record.skippedTaskIds.contains(taskSid);
         } else {
           isSuccess = record.completionScore >= 0.8;
-          // GLOBAL SKIP: If ANY task was skipped today, treat the day as neutrally skipped globally
-          // to preserve the global streak (consistent with the 'Anti-Burnout' philosophy).
           isSkipped = record.skippedTaskIds.isNotEmpty;
         }
         isCheat = record.cheatUsed;
@@ -372,15 +368,14 @@ class ScoringService {
       bool isNeutral = false;
 
       if (record != null) {
-        if (taskId != null) {
-          isSuccess = record.completedTaskIds.contains(taskId);
-          isNeutral = record.skippedTaskIds.contains(taskId) || record.cheatUsed;
+        if (taskSid != null) {
+          isSuccess = record.completedTaskIds.contains(taskSid);
+          isNeutral = record.skippedTaskIds.contains(taskSid) || record.cheatUsed;
         } else {
           isSuccess = record.completionScore >= 0.8;
           isNeutral = record.skippedTaskIds.isNotEmpty || record.cheatUsed;
         }
       } else {
-        // If no record exists for a date within the habit's lifetime, it's a "Miss" (not neutral)
         isSuccess = false;
         isNeutral = false;
       }
@@ -417,9 +412,9 @@ class ScoringService {
   // --- Graph Data Generation ---
 
   static List<MomentumPoint> calculateMomentumData(
-    List<DayRecord> records, 
+    List<DayRecord> records,
     String range, {
-    int? taskId,
+    String? taskSid,
   }) {
     if (records.isEmpty) return [];
 
@@ -454,13 +449,12 @@ class ScoringService {
 
       double dailyPerformance = 0.0;
       if (record != null) {
-        if (taskId != null) {
-          dailyPerformance = record.completedTaskIds.contains(taskId) ? 1.0 : 0.0;
+        if (taskSid != null) {
+          dailyPerformance = record.completedTaskIds.contains(taskSid) ? 1.0 : 0.0;
         } else {
           dailyPerformance = record.completionScore;
         }
-        
-        // If cheat day, treat performance as current momentum (stays flat)
+
         if (record.cheatUsed && dailyPerformance < currentMomentum) {
           dailyPerformance = currentMomentum;
         }
@@ -477,9 +471,9 @@ class ScoringService {
   }
 
   static List<VolumePoint> calculateVolumeData(
-    List<DayRecord> records, 
+    List<DayRecord> records,
     String range,
-    Map<int, TaskType> taskTypeMap,
+    Map<String, TaskType> taskTypeMap,
   ) {
     if (records.isEmpty) return [];
 
@@ -508,8 +502,8 @@ class ScoringService {
 
       int tempCompleted = 0;
       if (record != null) {
-        for (var id in record.completedTaskIds) {
-          if (taskTypeMap[id] == TaskType.temporary) tempCompleted++;
+        for (var sid in record.completedTaskIds) {
+          if (taskTypeMap[sid] == TaskType.temporary) tempCompleted++;
         }
       }
       rawPoints.add(VolumePoint(date: date, count: tempCompleted));

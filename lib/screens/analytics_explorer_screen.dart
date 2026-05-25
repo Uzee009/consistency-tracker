@@ -100,7 +100,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
       if (!isRecent) {
         final recentActivity = _allRecordsForCache.where((r) {
           final d = DateTime.tryParse(r.date) ?? DateTime(2000);
-          return d.isAfter(oneYearAgo) && r.completedTaskIds.contains(task.id);
+          return d.isAfter(oneYearAgo) && r.completedTaskIds.contains(task.sid);
         });
         if (recentActivity.isNotEmpty) isRecent = true;
       }
@@ -112,23 +112,22 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
   Future<void> _refreshAnalytics() async {
     final selected = _selectedTaskNotifier.value;
-    // V8 FIX: Use the primary records cache instead of re-fetching 5000 rows
     final allRecords = _allRecordsForCache;
     final allTasks = await DatabaseService.instance.getAllTasks();
-    final taskTypeMap = {for (var t in allTasks) t.id: t.type};
+    final taskTypeMap = {for (var t in allTasks) t.sid: t.type};
 
     Map<DateTime, int> hData;
     AnalyticsResult res;
 
     if (selected != null) {
-      hData = ScoringService.mapTaskRecordsToHeatmapData(allRecords, selected.id);
-      res = ScoringService.calculateAnalytics(allRecords, taskId: selected.id, taskCreatedAt: selected.createdAt);
+      hData = ScoringService.mapTaskRecordsToHeatmapData(allRecords, selected.sid);
+      res = ScoringService.calculateAnalytics(allRecords, taskSid: selected.sid, taskCreatedAt: selected.createdAt);
     } else {
       hData = ScoringService.mapRecordsToHeatmapData(allRecords);
       res = ScoringService.calculateAnalytics(allRecords, taskTypeMap: taskTypeMap);
     }
 
-    final mData = ScoringService.calculateMomentumData(allRecords, _heatmapRange, taskId: selected?.id);
+    final mData = ScoringService.calculateMomentumData(allRecords, _heatmapRange, taskSid: selected?.sid);
     final vData = ScoringService.calculateVolumeData(allRecords, _heatmapRange, taskTypeMap);
 
     if (mounted) {
@@ -157,21 +156,21 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
 
   void _handleTaskToggle(Task t, bool comp) async {
     if (_inspectedRecord == null) return;
-    List<int> cIds = List.from(_inspectedRecord!.completedTaskIds);
-    List<int> sIds = List.from(_inspectedRecord!.skippedTaskIds);
-    if (comp) { cIds.add(t.id); sIds.remove(t.id); } else { cIds.remove(t.id); }
+    List<String> cIds = List<String>.from(_inspectedRecord!.completedTaskIds);
+    List<String> sIds = List<String>.from(_inspectedRecord!.skippedTaskIds);
+    if (comp) { cIds.add(t.sid); sIds.remove(t.sid); } else { cIds.remove(t.sid); }
     await _saveUpdate(cIds, sIds);
   }
 
   void _handleSkipToggle(Task t) async {
     if (_inspectedRecord == null) return;
-    List<int> cIds = List.from(_inspectedRecord!.completedTaskIds);
-    List<int> sIds = List.from(_inspectedRecord!.skippedTaskIds);
-    if (sIds.contains(t.id)) { sIds.remove(t.id); } else { sIds.add(t.id); cIds.remove(t.id); }
+    List<String> cIds = List<String>.from(_inspectedRecord!.completedTaskIds);
+    List<String> sIds = List<String>.from(_inspectedRecord!.skippedTaskIds);
+    if (sIds.contains(t.sid)) { sIds.remove(t.sid); } else { sIds.add(t.sid); cIds.remove(t.sid); }
     await _saveUpdate(cIds, sIds);
   }
 
-  Future<void> _saveUpdate(List<int> cIds, List<int> sIds) async {
+  Future<void> _saveUpdate(List<String> cIds, List<String> sIds) async {
     final scoreResult = ScoringService.calculateDayScore(allTasks: _inspectedTasks, dayRecord: DayRecord(date: _inspectedRecord!.date, completedTaskIds: cIds, skippedTaskIds: sIds, cheatUsed: _inspectedRecord!.cheatUsed));
     final updated = DayRecord(date: _inspectedRecord!.date, completedTaskIds: cIds, skippedTaskIds: sIds, cheatUsed: _inspectedRecord!.cheatUsed, completionScore: _inspectedRecord!.cheatUsed ? 0.0 : scoreResult.completionScore, visualState: _inspectedRecord!.cheatUsed ? VisualState.cheat : scoreResult.visualState);
     await DatabaseService.instance.createOrUpdateDayRecord(updated);
@@ -188,7 +187,17 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
           secondaryCache: _secondaryCache,
           selectedTaskNotifier: _selectedTaskNotifier,
           onToggleArchive: (task) async {
-            final updated = Task(id: task.id, name: task.name, type: task.type, durationDays: task.durationDays, isPerpetual: task.isPerpetual, createdAt: task.createdAt, isActive: !task.isActive);
+            final updated = Task(
+              sid: task.sid,
+              name: task.name,
+              type: task.type,
+              durationDays: task.durationDays,
+              isPerpetual: task.isPerpetual,
+              createdAt: task.createdAt,
+              isActive: !task.isActive,
+              frequencyType: task.frequencyType,
+              weeklyTarget: task.weeklyTarget,
+            );
             await DatabaseService.instance.updateTask(updated);
             _loadInitialData();
           },
@@ -225,7 +234,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
                         valueListenable: _visibleMonthNotifier,
                         builder: (context, vMonth, _) {
                           return ConsistencyHeatmap(
-                            key: ValueKey(_selectedTaskNotifier.value?.id ?? -1),
+                            key: ValueKey(_selectedTaskNotifier.value?.sid ?? ''),
                             heatmapData: _heatmapData, 
                             selectedDate: _inspectedDateNotifier.value, 
                             visibleMonth: vMonth,
@@ -406,8 +415,8 @@ class _SearchSidebarState extends State<_SearchSidebar> {
       return !t.isActive;
     }).toList();
     result.sort((a, b) {
-      final aP = widget.primaryCache.any((p) => p.id == a.id);
-      final bP = widget.primaryCache.any((p) => p.id == b.id);
+      final aP = widget.primaryCache.any((p) => p.sid == a.sid);
+      final bP = widget.primaryCache.any((p) => p.sid == b.sid);
       if (aP && !bP) return -1;
       if (!aP && bP) return 1;
       return a.name.compareTo(b.name);
@@ -452,8 +461,8 @@ class _SearchSidebarState extends State<_SearchSidebar> {
       valueListenable: widget.selectedTaskNotifier,
       builder: (context, current, _) {
         final isG = t == null;
-        final sel = isG ? current == null : current?.id == t.id;
-        final isPrimary = !isG && widget.primaryCache.any((p) => p.id == t.id);
+        final sel = isG ? current == null : current?.sid == t.sid;
+        final isPrimary = !isG && widget.primaryCache.any((p) => p.sid == t.sid);
         final String displayName = isG ? 'Global Performance' : _toTitleCase(t.name);
 
         return Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2), child: InkWell(
@@ -540,8 +549,8 @@ class _Inspector extends StatelessWidget {
   }
 
   Widget _tTile(BuildContext context, Task t) {
-    final c = record?.completedTaskIds.contains(t.id) ?? false;
-    final s = record?.skippedTaskIds.contains(t.id) ?? false;
+    final c = record?.completedTaskIds.contains(t.sid) ?? false;
+    final s = record?.skippedTaskIds.contains(t.sid) ?? false;
     return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withValues(alpha: 0.05))), child: Row(children: [
       Checkbox(value: c, onChanged: (v) => onToggleComp(t, v ?? false), activeColor: Colors.green),
       Expanded(child: Text(t.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c ? null : (s ? Colors.orange[700] : null), decoration: c ? TextDecoration.lineThrough : null))),

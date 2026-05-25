@@ -12,14 +12,12 @@ enum VisualState {
 }
 
 class DayRecord {
-  final String date; // YYYY-MM-DD format for easy storage and retrieval
-  final List<int> completedTaskIds; // IDs of tasks completed on this day
-  final List<int> skippedTaskIds; // IDs of tasks skipped on this day
+  final String date;
+  final List<String> completedTaskIds; // SIDs of completed tasks
+  final List<String> skippedTaskIds; // SIDs of skipped tasks
   final bool cheatUsed;
-  final double completionScore; // 0.0 to 1.0
+  final double completionScore;
   final VisualState visualState;
-  
-  // V8: Pomodoro focus sessions
   final int pomodoroSessionsCompleted;
   final int pomodoroGoal;
 
@@ -53,14 +51,14 @@ class DayRecord {
     return DayRecord(
       date: map['date'],
       completedTaskIds: map['completed_task_ids'] != null && map['completed_task_ids'].toString().isNotEmpty
-          ? List<int>.from(map['completed_task_ids'].toString().split(',').map((id) => int.parse(id)))
-          : [],
+          ? map['completed_task_ids'].toString().split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
+          : <String>[],
       skippedTaskIds: map['skipped_task_ids'] != null && map['skipped_task_ids'].toString().isNotEmpty
-          ? List<int>.from(map['skipped_task_ids'].toString().split(',').map((id) => int.parse(id)))
-          : [],
+          ? map['skipped_task_ids'].toString().split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
+          : <String>[],
       cheatUsed: map['cheat_used'] == 1,
-      completionScore: (map['completion_score'] is int) 
-          ? (map['completion_score'] as int).toDouble() 
+      completionScore: (map['completion_score'] is int)
+          ? (map['completion_score'] as int).toDouble()
           : (map['completion_score'] ?? 0.0),
       visualState: _mapStringToVisualState(map['visual_state']),
       pomodoroSessionsCompleted: map['pomodoro_sessions'] ?? 0,
@@ -89,8 +87,8 @@ class DayRecord {
 
   DayRecord copyWith({
     String? date,
-    List<int>? completedTaskIds,
-    List<int>? skippedTaskIds,
+    List<String>? completedTaskIds,
+    List<String>? skippedTaskIds,
     bool? cheatUsed,
     double? completionScore,
     VisualState? visualState,

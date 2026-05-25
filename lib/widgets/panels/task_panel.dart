@@ -185,7 +185,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
         );
 
         if (result == 'archive') {
-          widget.controller.deleteTask(t.id); // This now calls archiveTask
+          widget.controller.deleteTask(t.sid); // This now calls archiveTask
         } else if (result == 'deletePermanently') {
           if (!mounted) return;
           final confirmPermanentDelete = await showDialog<bool>(
@@ -206,7 +206,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
             ),
           );
           if (confirmPermanentDelete == true) {
-            widget.controller.deleteTaskPermanently(t.id);
+            widget.controller.deleteTaskPermanently(t.sid);
           }
         }
       },      onTaskFocusRequested: (_) {}, showTitle: false, isEmbedded: true,

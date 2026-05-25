@@ -3,6 +3,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:io';
 import 'dart:math';
 import '../models/user_model.dart';
@@ -16,7 +17,9 @@ class DatabaseService {
 
   final String usersTable = 'users';
   final String tasksTable = 'tasks';
-  final String dayRecordsTable = 'day_records';
+  final String taskStatusTable = 'task_status';
+  final String dayMetaTable = 'day_meta';
+  final String dayRecordsTable = 'day_records'; // Local derived cache
   final String monthlyUsageTable = 'monthly_usage';
 
   DatabaseService._constructor();
@@ -36,7 +39,7 @@ class DatabaseService {
     String path = join(documentsDirectory.path, dbName);
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -53,7 +56,7 @@ class DatabaseService {
     ''');
     await db.execute('''
       CREATE TABLE $tasksTable (
-        id INTEGER PRIMARY KEY,
+        sid TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         type TEXT NOT NULL,
         duration_days INTEGER NOT NULL,
@@ -61,7 +64,32 @@ class DatabaseService {
         created_at TEXT NOT NULL,
         is_active INTEGER NOT NULL,
         frequency_type TEXT DEFAULT 'daily',
-        weekly_target INTEGER DEFAULT 1
+        weekly_target INTEGER DEFAULT 1,
+        updated_at INTEGER NOT NULL DEFAULT 0,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        dirty INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $taskStatusTable (
+        date TEXT NOT NULL,
+        task_sid TEXT NOT NULL,
+        status TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        dirty INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(date, task_sid)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $dayMetaTable (
+        date TEXT PRIMARY KEY,
+        cheat_used INTEGER NOT NULL DEFAULT 0,
+        pomodoro_sessions INTEGER NOT NULL DEFAULT 0,
+        pomodoro_goal INTEGER NOT NULL DEFAULT 4,
+        updated_at INTEGER NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        dirty INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('''
@@ -109,6 +137,156 @@ class DatabaseService {
     if (oldVersion < 7) {
       await db.execute("ALTER TABLE $tasksTable ADD COLUMN frequency_type TEXT DEFAULT 'daily'");
       await db.execute("ALTER TABLE $tasksTable ADD COLUMN weekly_target INTEGER DEFAULT 1");
+    }
+    if (oldVersion < 8) {
+      // PHASE 0: Migrate to sid identity + task_status/day_meta
+      // Step 1: Rebuild tasks table with sid PK, backfill UUIDs
+      const uuid = Uuid();
+      final oldTasks = await db.query(tasksTable);
+      final Map<int, String> oldIntIdToSid = {};
+
+      // Create tasks_new with new schema
+      await db.execute('''
+        CREATE TABLE tasks_new (
+          sid TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          duration_days INTEGER NOT NULL,
+          is_perpetual INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          is_active INTEGER NOT NULL,
+          frequency_type TEXT DEFAULT 'daily',
+          weekly_target INTEGER DEFAULT 1,
+          updated_at INTEGER NOT NULL DEFAULT 0,
+          deleted INTEGER NOT NULL DEFAULT 0,
+          dirty INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+
+      // Backfill tasks with UUIDs and copy to tasks_new
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (var row in oldTasks) {
+        final newSid = uuid.v4();
+        oldIntIdToSid[row['id'] as int] = newSid;
+        await db.execute('''
+          INSERT INTO tasks_new
+          (sid, name, type, duration_days, is_perpetual, created_at, is_active, frequency_type, weekly_target, updated_at, deleted, dirty)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+        ''', [
+          newSid,
+          row['name'],
+          row['type'],
+          row['duration_days'],
+          row['is_perpetual'],
+          row['created_at'],
+          row['is_active'],
+          row['frequency_type'] ?? 'daily',
+          row['weekly_target'] ?? 1,
+          now,
+        ]);
+      }
+
+      // Drop old, rename new
+      await db.execute("DROP TABLE $tasksTable");
+      await db.execute("ALTER TABLE tasks_new RENAME TO $tasksTable");
+
+      // Step 2: Create task_status and day_meta tables
+      await db.execute('''
+        CREATE TABLE $taskStatusTable (
+          date TEXT NOT NULL,
+          task_sid TEXT NOT NULL,
+          status TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted INTEGER NOT NULL DEFAULT 0,
+          dirty INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY(date, task_sid)
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE $dayMetaTable (
+          date TEXT PRIMARY KEY,
+          cheat_used INTEGER NOT NULL DEFAULT 0,
+          pomodoro_sessions INTEGER NOT NULL DEFAULT 0,
+          pomodoro_goal INTEGER NOT NULL DEFAULT 4,
+          updated_at INTEGER NOT NULL,
+          deleted INTEGER NOT NULL DEFAULT 0,
+          dirty INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+
+      // Step 3: Migrate day_records data into task_status + day_meta
+      final oldRecords = await db.query(dayRecordsTable);
+      for (var rec in oldRecords) {
+        final dateStr = rec['date'] as String;
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        // Parse old int CSVs and remap to sids
+        final completedStr = (rec['completed_task_ids'] as String?) ?? '';
+        final skippedStr = (rec['skipped_task_ids'] as String?) ?? '';
+        final newCompletedSids = <String>[];
+        final newSkippedSids = <String>[];
+
+        if (completedStr.isNotEmpty) {
+          for (var idStr in completedStr.split(',')) {
+            final trimmed = idStr.trim();
+            if (trimmed.isNotEmpty) {
+              final intId = int.tryParse(trimmed);
+              if (intId != null && oldIntIdToSid.containsKey(intId)) {
+                newCompletedSids.add(oldIntIdToSid[intId]!);
+              }
+            }
+          }
+        }
+        if (skippedStr.isNotEmpty) {
+          for (var idStr in skippedStr.split(',')) {
+            final trimmed = idStr.trim();
+            if (trimmed.isNotEmpty) {
+              final intId = int.tryParse(trimmed);
+              if (intId != null && oldIntIdToSid.containsKey(intId)) {
+                newSkippedSids.add(oldIntIdToSid[intId]!);
+              }
+            }
+          }
+        }
+
+        // Insert into task_status
+        for (var sid in newCompletedSids) {
+          await db.execute('''
+            INSERT OR REPLACE INTO $taskStatusTable
+            (date, task_sid, status, updated_at, deleted, dirty)
+            VALUES (?, ?, 'completed', ?, 0, 0)
+          ''', [dateStr, sid, now]);
+        }
+        for (var sid in newSkippedSids) {
+          await db.execute('''
+            INSERT OR REPLACE INTO $taskStatusTable
+            (date, task_sid, status, updated_at, deleted, dirty)
+            VALUES (?, ?, 'skipped', ?, 0, 0)
+          ''', [dateStr, sid, now]);
+        }
+
+        // Insert into day_meta
+        await db.execute('''
+          INSERT OR REPLACE INTO $dayMetaTable
+          (date, cheat_used, pomodoro_sessions, pomodoro_goal, updated_at, deleted, dirty)
+          VALUES (?, ?, ?, ?, ?, 0, 0)
+        ''', [
+          dateStr,
+          rec['cheat_used'],
+          rec['pomodoro_sessions'] ?? 0,
+          rec['pomodoro_goal'] ?? 4,
+          now,
+        ]);
+
+        // Update day_records cache: remap CSVs from int -> sid
+        final newCompletedCSV = newCompletedSids.join(',');
+        final newSkippedCSV = newSkippedSids.join(',');
+        await db.execute('''
+          UPDATE $dayRecordsTable
+          SET completed_task_ids = ?, skipped_task_ids = ?
+          WHERE date = ?
+        ''', [newCompletedCSV, newSkippedCSV, dateStr]);
+      }
     }
   }
 
@@ -158,56 +336,77 @@ class DatabaseService {
   // --- Task Management ---
   Future<int> addTask(Task task) async {
     Database db = await instance.database;
-    return await db.insert(tasksTable, task.toMap());
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final taskMap = task.toMap();
+    taskMap['updated_at'] = now;
+    taskMap['dirty'] = 1;
+    return await db.insert(tasksTable, taskMap);
   }
 
   Future<int> updateTask(Task task) async {
     Database db = await instance.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final taskMap = task.toMap();
+    taskMap['updated_at'] = now;
+    taskMap['dirty'] = 1;
     return await db.update(
       tasksTable,
-      task.toMap(),
-      where: 'id = ?',
-      whereArgs: [task.id],
+      taskMap,
+      where: 'sid = ?',
+      whereArgs: [task.sid],
     );
   }
 
-  Future<int> archiveTask(int id) async {
+  Future<int> archiveTask(String sid) async {
     Database db = await instance.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
     return await db.update(
       tasksTable,
-      {'is_active': 0},
-      where: 'id = ?',
-      whereArgs: [id],
+      {'is_active': 0, 'updated_at': now, 'dirty': 1},
+      where: 'sid = ?',
+      whereArgs: [sid],
     );
   }
 
-  Future<int> unarchiveTask(int id) async {
+  Future<int> unarchiveTask(String sid) async {
     Database db = await instance.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
     return await db.update(
       tasksTable,
-      {'is_active': 1},
-      where: 'id = ?',
-      whereArgs: [id],
+      {'is_active': 1, 'updated_at': now, 'dirty': 1},
+      where: 'sid = ?',
+      whereArgs: [sid],
     );
   }
 
-  Future<int> deleteTaskPermanently(int id) async {
+  Future<int> deleteTaskPermanently(String sid) async {
     Database db = await instance.database;
-    return await db.delete(
+    final now = DateTime.now().millisecondsSinceEpoch;
+    // Tombstone: never hard-delete
+    await db.update(
       tasksTable,
-      where: 'id = ?',
-      whereArgs: [id],
+      {'deleted': 1, 'updated_at': now, 'dirty': 1},
+      where: 'sid = ?',
+      whereArgs: [sid],
     );
+    // Also tombstone task_status rows for this task
+    await db.update(
+      taskStatusTable,
+      {'deleted': 1, 'updated_at': now, 'dirty': 1},
+      where: 'task_sid = ?',
+      whereArgs: [sid],
+    );
+    return 1;
   }
 
   Future<List<Task>> getActiveTasksForDate(DateTime date, {bool includeArchived = false}) async {
     Database db = await instance.database;
-    
-    String whereClause = 'is_active = ?';
+
+    String whereClause = 'deleted = 0 AND is_active = ?';
     List<dynamic> whereArgs = [1];
-    
+
     if (includeArchived) {
-      whereClause = '1 = 1';
+      whereClause = 'deleted = 0';
       whereArgs = [];
     }
 
@@ -237,7 +436,7 @@ class DatabaseService {
 
   Future<List<Task>> getAllTasks({bool includeArchived = true}) async {
     Database db = await instance.database;
-    String whereClause = includeArchived ? '1 = 1' : 'is_active = ?';
+    String whereClause = includeArchived ? 'deleted = 0' : 'deleted = 0 AND is_active = ?';
     List<dynamic> whereArgs = includeArchived ? [] : [1];
 
     List<Map<String, dynamic>> maps = await db.query(
@@ -254,7 +453,7 @@ class DatabaseService {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(
       tasksTable,
-      where: 'is_active = ?',
+      where: 'deleted = 0 AND is_active = ?',
       whereArgs: [0],
     );
     return List.generate(maps.length, (i) {
@@ -275,11 +474,66 @@ class DatabaseService {
   // --- DayRecord Management ---
   Future<int> createOrUpdateDayRecord(DayRecord record) async {
     Database db = await instance.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final dateStr = record.date;
+
+    // STEP 1: Diff current task_status rows (non-deleted) to find what to insert/update/tombstone
+    final existingStatus = await db.query(
+      taskStatusTable,
+      where: 'date = ? AND deleted = 0',
+      whereArgs: [dateStr],
+    );
+    final existingSids = existingStatus.map((r) => r['task_sid'] as String).toSet();
+    final newCompletedSids = record.completedTaskIds.toSet();
+    final newSkippedSids = record.skippedTaskIds.toSet();
+    final newAllSids = {...newCompletedSids, ...newSkippedSids};
+
+    // Insert/update completed and skipped rows
+    for (var sid in newCompletedSids) {
+      await db.execute('''
+        INSERT OR REPLACE INTO $taskStatusTable
+        (date, task_sid, status, updated_at, deleted, dirty)
+        VALUES (?, ?, 'completed', ?, 0, 1)
+      ''', [dateStr, sid, now]);
+    }
+    for (var sid in newSkippedSids) {
+      await db.execute('''
+        INSERT OR REPLACE INTO $taskStatusTable
+        (date, task_sid, status, updated_at, deleted, dirty)
+        VALUES (?, ?, 'skipped', ?, 0, 1)
+      ''', [dateStr, sid, now]);
+    }
+
+    // Tombstone sids no longer present
+    for (var sid in existingSids) {
+      if (!newAllSids.contains(sid)) {
+        await db.execute('''
+          UPDATE $taskStatusTable
+          SET deleted = 1, updated_at = ?, dirty = 1
+          WHERE date = ? AND task_sid = ?
+        ''', [now, dateStr, sid]);
+      }
+    }
+
+    // STEP 2: Upsert day_meta
+    await db.execute('''
+      INSERT OR REPLACE INTO $dayMetaTable
+      (date, cheat_used, pomodoro_sessions, pomodoro_goal, updated_at, deleted, dirty)
+      VALUES (?, ?, ?, ?, ?, 0, 1)
+    ''', [
+      dateStr,
+      record.cheatUsed ? 1 : 0,
+      record.pomodoroSessionsCompleted,
+      record.pomodoroGoal,
+      now,
+    ]);
+
+    // STEP 3: Write the derived day_records cache row
     int count = await db.update(
       dayRecordsTable,
       record.toMap(),
       where: 'date = ?',
-      whereArgs: [record.date],
+      whereArgs: [dateStr],
     );
     if (count == 0) {
       return await db.insert(dayRecordsTable, record.toMap());
@@ -312,14 +566,13 @@ class DatabaseService {
     });
   }
 
-  Future<List<DayRecord>> getTaskHistory(int taskId) async {
+  Future<List<DayRecord>> getTaskHistory(String taskSid) async {
     Database db = await instance.database;
-    final String tId = taskId.toString();
 
     List<Map<String, dynamic>> maps = await db.query(
       dayRecordsTable,
       where: "completed_task_ids LIKE ? OR skipped_task_ids LIKE ? OR cheat_used = 1",
-      whereArgs: ['%$tId%', '%$tId%'],
+      whereArgs: ['%$taskSid%', '%$taskSid%'],
       orderBy: 'date ASC',
     );
 
@@ -383,10 +636,12 @@ class DatabaseService {
   // --- Seeding Logic ---
   Future<void> seedData() async {
     final db = await database;
-    
+
     // 1. Clear existing data
     await db.delete(usersTable);
     await db.delete(tasksTable);
+    await db.delete(taskStatusTable);
+    await db.delete(dayMetaTable);
     await db.delete(dayRecordsTable);
     await db.delete(monthlyUsageTable);
 
@@ -402,18 +657,19 @@ class DatabaseService {
     // 3. Define Tasks
     final startDate = DateTime.now().subtract(const Duration(days: 180));
     final random = Random();
+    const uuid = Uuid();
 
     // A. Daily Habits (Perpetual)
     final habits = [
-      Task(id: 1, name: 'Morning Meditation', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate),
-      Task(id: 2, name: 'Reading (30m)', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate),
-      Task(id: 3, name: 'Journaling', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate.add(const Duration(days: 30))),
+      Task(sid: uuid.v4(), name: 'Morning Meditation', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(sid: uuid.v4(), name: 'Reading (30m)', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(sid: uuid.v4(), name: 'Journaling', type: TaskType.daily, durationDays: 0, isPerpetual: true, createdAt: startDate.add(const Duration(days: 30))),
     ];
 
     // B. Weekly Tasks (Flexible)
     final weeklyTasks = [
-      Task(id: 4, name: 'Gym Workout', type: TaskType.daily, frequencyType: FrequencyType.weekly, weeklyTarget: 3, durationDays: 0, isPerpetual: true, createdAt: startDate),
-      Task(id: 5, name: 'Weekly Review', type: TaskType.daily, frequencyType: FrequencyType.weekly, weeklyTarget: 1, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(sid: uuid.v4(), name: 'Gym Workout', type: TaskType.daily, frequencyType: FrequencyType.weekly, weeklyTarget: 3, durationDays: 0, isPerpetual: true, createdAt: startDate),
+      Task(sid: uuid.v4(), name: 'Weekly Review', type: TaskType.daily, frequencyType: FrequencyType.weekly, weeklyTarget: 1, durationDays: 0, isPerpetual: true, createdAt: startDate),
     ];
 
     for (var t in habits) { await addTask(t); }
@@ -431,7 +687,7 @@ class DatabaseService {
       List<Task> activeTasksForDay = List.from(allPermanentTasks.where((t) => !currentDate.isBefore(t.createdAt)));
       if (random.nextDouble() < 0.3) {
         final tempTask = Task(
-          id: 1000 + i,
+          sid: uuid.v4(),
           name: 'Temp Task $i',
           type: TaskType.temporary,
           durationDays: 1,
@@ -442,8 +698,8 @@ class DatabaseService {
         activeTasksForDay.add(tempTask);
       }
 
-      List<int> completedIds = [];
-      List<int> skippedIds = [];
+      List<String> completedIds = [];
+      List<String> skippedIds = [];
       bool isCheatDay = false;
 
       // Decide if it's a cheat day (max 3 per month)
@@ -455,21 +711,21 @@ class DatabaseService {
 
       if (!isCheatDay) {
         for (var task in activeTasksForDay) {
-          double completionProbability = 0.8; 
-          
+          double completionProbability = 0.8;
+
           if (task.frequencyType == FrequencyType.weekly) {
-             final progress = ScoringService.getWeeklyProgress(task, currentDate, history);
-             if (progress.isGoalMet) {
-                completionProbability = 0.1;
-             } else if (progress.isRequiredToday) {
-                completionProbability = 0.95;
-             }
+            final progress = ScoringService.getWeeklyProgress(task, currentDate, history);
+            if (progress.isGoalMet) {
+              completionProbability = 0.1;
+            } else if (progress.isRequiredToday) {
+              completionProbability = 0.95;
+            }
           }
 
           if (random.nextDouble() < completionProbability) {
-            completedIds.add(task.id);
+            completedIds.add(task.sid);
           } else if (random.nextDouble() < 0.2) {
-            skippedIds.add(task.id);
+            skippedIds.add(task.sid);
           }
         }
       }
