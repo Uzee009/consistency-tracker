@@ -496,23 +496,24 @@
     *   Resolved `use_build_context_synchronously` warnings and modernized deprecated `activeColor` usage.
     *   Cleaned up unused imports and verified project health with `flutter analyze`.
 
-    ## Tuesday, 31 March 2026 - Current Session (Pomodoro Intelligence)
+## Tuesday, 31 March 2026 - Current Session (Pomodoro Intelligence)
 
-    **Summary:**
-    *   **Branch Management:** Created and switched to the `feature/pomodoro-auto-switch` branch.
-    *   **Feature: Pomodoro Auto-Switching:**
-        *   Implemented session tracking in `DashboardController` using `_consecutiveSessions`.
-        *   Automated transition logic: Work session completion now triggers an automatic switch to **Short Break** (odd sessions) or **Long Break** (every 2nd session).
-        *   Cycle completion: Break completion automatically resets the mode to **Focus**.
-        *   Manual Control: Ensured the timer pauses after auto-switching, allowing the user to start the next phase on their own terms.
-    *   **Stability: Audio Engine Restoration:**
-        *   Identified and resolved `MissingPluginException` and GStreamer stream errors introduced by a remote pull.
-        *   Restored the **confirmed stable** configuration: `audioplayers` 5.2.1 using **OGG Vorbis (.ogg)** assets.
-        *   Verified that the "Step Back" approach successfully restored cross-platform audio functionality (Linux/Windows/macOS).
-    *   **Engineering:**
-        *   Performed `flutter clean` to purge inconsistent plugin registrations.
-        *   Maintained full compatibility with the existing sound pack and preview system.
-        *   Verified the fix empirically on Linux.
+**Summary:**
+*   **Branch Management:** Created and switched to the `feature/pomodoro-auto-switch` branch.
+*   **Feature: Pomodoro Auto-Switching:**
+    *   Implemented session tracking in `DashboardController` using `_consecutiveSessions`.
+    *   Automated transition logic: Work session completion now triggers an automatic switch to **Short Break** (odd sessions) or **Long Break** (every 2nd session).
+    *   Cycle completion: Break completion automatically resets the mode to **Focus**.
+    *   Manual Control: Ensured the timer pauses after auto-switching, allowing the user to start the next phase on their own terms.
+*   **Stability: Audio Engine Restoration:**
+    *   Identified and resolved `MissingPluginException` and GStreamer stream errors introduced by a remote pull.
+    *   Restored the **confirmed stable** configuration: `audioplayers` 5.2.1 using **OGG Vorbis (.ogg)** assets.
+    *   Verified that the "Step Back" approach successfully restored cross-platform audio functionality (Linux/Windows/macOS).
+*   **Engineering:**
+    *   Performed `flutter clean` to purge inconsistent plugin registrations.
+    *   Maintained full compatibility with the existing sound pack and preview system.
+    *   Verified the fix empirically on Linux.
+
 ## Tuesday, 31 March 2026 - Current Session (Windows Build Fix & Audio Engine Refinement)
 
 **Summary:**
@@ -587,3 +588,18 @@
 *   **Engineering:** `flutter analyze` clean throughout. Two code-reviewer cycles (cycle 1 caught a regression where archived tasks inflated the scoring denominator; cycle 2 confirmed PASS).
 *   **Source Control:** Committed the migration fix as `6643693` and pushed `experiment` to the hub (also flushing the two previously-unpushed Phase 0 commits). Then tracked the workflow files (`CLAUDE.md`, `CURRENT_MODULE.md`, `.claude/agents/*`) in git and gitignored the per-machine `.claude/settings.local.json`.
 *   **Next Steps:** Begin **Phase 1 — PocketBase up + auth** (run the binary locally, create the `tasks`/`task_status`/`day_meta` collections, add a login screen + connectivity service).
+
+## Tuesday, 26 May 2026 - Session: Cross-Device Sync — Phase 1 (Auth) & Phase 2 (Manual Sync)
+
+**Summary:**
+* **Phase 1 — PocketBase up + auth (COMPLETE, committed `657b371`):** Stood up PocketBase v0.38.2 locally and created `tasks`/`task_status`/`day_meta` collections via a tracked JS migration (`1748260800_init_sync_collections.js`) with an `owner` relation, owner-scoped access rules, and unique indexes. Added a non-blocking, local-first login screen (`lib/screens/login_screen.dart`, reached from Settings → Sync Account), a `PocketBaseService` singleton (auth state via ValueNotifier, `AsyncAuthStore` token persistence in shared_preferences), and a `ConnectivityService` (online/offline via connectivity_plus + `/api/health` probe against the live server URL). Dev-mode auto-login wired through a gitignored `config/dev.json` (+ tracked `config/dev.json.example`).
+* **Phase 1 review (2 cycles → PASS):** Cycle 1 caught 4 issues — token never persisted (in-memory AuthStore), hardcoded health-check URL, leaked `onChange` subscription on `setServerUrl()`, and migration field ids set equal to field names. All fixed; cycle 2 PASS, flutter analyze clean, built and ran on Linux.
+* **Phase 2 — Manual sync (Tasks 0–2 COMPLETE, committed `e6aaf97`):** Built the sync engine `lib/services/sync_service.dart` (~300 lines) per the A.5 spec: push dirty rows (LWW folded into push via natural-key lookup) then pull changed remote rows, then a full chronological recompute of the derived `day_records` cache. Added a "Sync Now" button in Settings → Sync Account (spinner + result snackbar, disabled when offline or signed out, shows last-synced time).
+* **Phase 2 review + live-debug fixes (all code-reviewed):**
+    * Sync-engine review cycle 1 → fixed (full day_records rebuild so tombstoned dates leave no phantom rows; `>=` pull cursor that is LWW-idempotent at the boundary; `ConflictAlgorithm.replace` on insert; push counts only real writes; PB filter values escape embedded quotes); cycle 2 PASS.
+    * **PB number-required-0 bug:** PocketBase treated a `required` NUMBER value of 0 as blank, so `duration_days: 0` (valid for daily/perpetual tasks) failed validation. Removed `required` from all NUMBER fields; text fields and the owner relation stay required.
+    * **Per-device cursor bug:** the pull cursor lived in shared_preferences, which two same-machine dev instances share, so they poisoned each other's cursor. Moved the cursor into a per-device DB table `sync_state` (DB bumped v8→v9); empty cursor → full pull, so a new/cleared instance self-heals and pulls everything.
+    * **Dev reseed-on-every-launch bug:** main.dart reseeded the dev DB on every launch via a hard-delete + new UUID sids, pushing fresh task generations each run → duplicate/zombie tasks and endless re-pushes. Now seeds only when the dev DB is empty. Added post-sync UI refresh (`SyncService.dataChanged` ValueNotifier → HomeScreen reload) plus a manual Refresh button in the global header.
+* **Server-side smoke test (headless curl as a regular dev user): PASS** — owner-scoped create/list/PATCH(LWW)/delete all correct, duplicate `(owner, sid)` rejected by the unique index, and unauthenticated list leaks nothing.
+* **Remaining:** Phase 2 Task 3 (live two-device proof per A.10) is the one open item. Server records and both dev DBs were wiped clean for a fresh retest. Then Phase 3 (automatic + realtime: dirty-on-write debounce + SSE + safety poll) and Phase 4 (deploy to a free VM + hardening).
+* **Source control:** Phase 1 and Phase 2 committed and pushed to `origin/experiment` as `657b371` and `e6aaf97`; working tree clean at session end.
