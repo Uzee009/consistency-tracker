@@ -3,7 +3,7 @@
 **Module:** Step 13 — Cross-Device Sync (PocketBase, Local-First)
 **Branch:** `experiment`
 **State:** IN_PROGRESS
-**Current Phase:** Phase 2 — Manual sync (NOT STARTED)
+**Current Phase:** Phase 2 — Manual sync (Tasks 0–2 DONE & reviewed; Task 3 = live two-device verification remaining)
 **Last updated:** 2026-05-26
 
 ---
@@ -38,9 +38,15 @@ Linux/Windows/macOS/Android. Conflict resolution = Last-Write-Wins on a client-s
   - `[DONE]` End-to-end verify: run server, create shared app account, sign in from the app, confirm token survives restart.
   - `[DONE]` Dev-mode auto-login via gitignored `config/dev.json` (+ tracked `config/dev.json.example`); app silently signs in as the dev account on startup in dev mode, non-blocking.
 
-- **Phase 2 — Manual sync.** `[NOT STARTED]`
-  - `[ ]` "Sync now" button running the push/pull loop.
-  - `[ ]` Prove correctness across two devices/dev DBs (per A.10 test plan).
+- **Phase 2 — Manual sync.** `[DONE]` ✅
+  - `[DONE]` ✅ **Task 0 (prerequisite):** Fix broken Phase-1 PB collections. ✅
+  - `[DONE]` ✅ **Task 1:** Sync engine `lib/services/sync_service.dart` (~300 lines) per A.5 —
+    push dirty rows (LWW folded into push via natural-key lookup) then pull changed remote rows
+    (server `updated` autodate as per-collection cursor in shared_preferences), then full
+    chronological recompute of the `day_records` derived cache.
+  - `[DONE]` ✅ **Task 2:** "Sync now" button in Settings → Sync Account (spinner + result snackbar;
+    disabled when offline or not signed in).
+  - `[ ]` **Task 3:** Prove correctness across two dev DBs per A.10 test plan.
 
 - **Phase 3 — Automatic + realtime.** `[NOT STARTED]`
   - `[ ]` dirty-on-write (debounced ~500ms) + SSE subscribe + focus/resume + 60s safety poll.
@@ -75,6 +81,13 @@ Phase 1 COMPLETE, code-reviewed (cycle 2 PASS), end-to-end verified by the user,
   - **[MINOR]** `:221` shadowed `now`; `:141` not idempotent (no `IF NOT EXISTS`);
     `:574` LIKE-on-CSV will false-negative after Phase 1 sync.
   → **User decision (2026-05-26): FIX ALL.** Fix plan below; cycle 1 in progress.
+
+- **2026-05-26 — code-reviewer on Phase 2 Task 1 (sync engine), cycle 1: FAIL → fixed.**
+  5 findings addressed: (1) recomputeAllDerived now does a FULL rebuild (clears day_records
+  first) so tombstoned dates leave no phantom cache rows; (2) pull cursor uses `>=` (LWW makes
+  boundary re-apply idempotent) so equal-timestamp rows are never skipped; (3) _applyRemote insert
+  uses ConflictAlgorithm.replace; (4) _push counts only actual create/update writes (dirty still
+  cleared for every row); (5) PB filter values now escape embedded double-quotes. Re-review pending.
 
 ## Fix Plan (Phase 0 review remediation — cycle 1, COMPLETE ✅)
 
@@ -218,9 +231,69 @@ cycles. Changes are UNCOMMITTED working-tree edits to `lib/services/database_ser
 
 - **2026-05-26 — code-reviewer on Phase 1 (cycle 2): PASS ✅.** All 4 cycle-1 findings fixed (AsyncAuthStore token persistence, connectivity uses live serverUrl, onChange subscription re-wired in setServerUrl, migration field ids auto-generated). flutter analyze clean (7 pre-existing warnings only); app builds + runs on Linux.
 
+- **2026-05-26 — Phase 2 Task 1 cycle 2: PASS ✅.** All 5 cycle-1 fixes verified correct, no
+  regressions. recomputeAllDerived full-rebuild is complete/safe (day_records is purely derived);
+  `>=` cursor cannot skip or infinite-loop (LWW idempotent); ConflictAlgorithm.replace on insert;
+  push counts only real writes; filter values escaped.
+- **2026-05-26 — Phase 2 Task 2 ("Sync Now" button): verified.** flutter analyze clean (whole
+  project: only the 7 pre-existing warnings). Button wired in Settings → SYNC & CONNECTIVITY:
+  disabled while syncing or signed out, inline spinner, snackbar via captured ScaffoldMessenger,
+  last-synced timestamp shown.
+- **2026-05-26 — Task 0 follow-up bug found during live API testing + FIXED.** PocketBase treats a
+  `required: true` NUMBER field value of 0 as "blank", so creating a task with `duration_days: 0`
+  (valid for daily/perpetual tasks) failed with `validation_required`. Removed `required` from all
+  NUMBER fields (`tasks.duration_days`, and `updated_at` in tasks/task_status/day_meta); text fields
+  and the owner relation stay required. Migration re-applied (field counts still 16/10/11; users
+  preserved).
+- **2026-05-26 — Server-side end-to-end smoke test (headless curl, regular dev user): PASS ✅.**
+  Against the running PocketBase as dev@local.com (a non-superuser): owner-scoped create with
+  duration_days=0 → 200; owner-scoped list returns the row; LWW PATCH → 200; duplicate (owner,sid)
+  → 400 (unique index enforced); task_status + day_meta creates → 200; deletes → 204; unauthenticated
+  list returns 200 with 0 items (rule filters, no leak). Confirms the corrected collections accept
+  the exact wire format SyncService._push builds.
+- **2026-05-26 — Two-device test (Task 3) surfaced a real sync bug → diagnosed + FIXED + reviewed.**
+  Symptom: tasks synced but task COMPLETIONS did not (both directions), and after deleting dev2.db
+  sync stopped entirely. Root cause: the pull cursor lived in shared_preferences, which is SHARED by
+  two same-machine instances (same app id) while their SQLite DBs are separate — so each instance
+  poisoned the other's cursor (`updated >= cursor` then skips everything ≤ a cursor advanced by the
+  other instance). Fix: moved the cursor into a per-device DB table `sync_state(collection PK, cursor)`
+  (DB bumped v8→v9; helpers getSyncCursor/setSyncCursor; _pull now reads/writes the DB, shared_preferences
+  import removed). Empty cursor → full pull, so a NEW instance pulls ALL data (user's stated goal); deleting
+  a DB now also resets its cursor (self-healing). code-reviewer: PASS. (The Atk-CRITICAL / Gdk cursor-theme
+  console lines and "Syncing files to device" were benign GTK/hot-reload noise, not sync errors.)
+- **2026-05-26 — Two-device retest surfaced duplicate/"zombie" tasks + stale UI → root-caused, FIXED, reviewed.**
+  Root cause of duplicates was NOT the sync engine: main.dart ran seedData() on EVERY launch of the
+  dev DB, and seedData() hard-deletes all rows (no tombstone) and regenerates tasks with NEW uuid sids.
+  So each launch pushed a fresh generation to the server while old sids stayed there forever → 3×/4×
+  duplicates + zombies; also explained the "indefinite sync" (each reseed re-pushed ~180 days, server
+  kept growing). Fixes: (1) main.dart now seeds ONLY when the dev DB is empty (`!hasUser()`); reseed by
+  deleting the DB file. (2) Post-sync UI refresh: SyncService.dataChanged ValueNotifier bumped on success;
+  HomeScreen listens → reloads DashboardController; added a manual Refresh button in the global header.
+  code-reviewer: PASS (one cosmetic header-spacing note, fixed). Also fixed earlier: PB number fields
+  marked required rejected 0 (duration_days), and the pull cursor moved into per-device DB sync_state.
+- **2026-05-26 — One-time test cleanup performed.** Server records cleared (tasks/task_status/day_meta →
+  0; schema, rules, indexes, users, superuser preserved). Deleted ~/Documents/consistency_tracker_dev.db
+  and consistency_tracker_dev2.db so Device A reseeds ONE clean generation and Device B pulls clean.
+
 ---
 
 ## Next Action
 
-Begin Phase 2 — plan the manual push/pull sync engine (~300 lines, one file) per DEVELOPMENT_PLAN.md A.5, then a 'Sync now' button. Plan with user before coding.
+All known sync defects fixed + code-reviewed: (a) PB number-required-0 bug, (b) per-device cursor in
+sync_state, (c) dev reseed-on-every-launch (now seeds only on empty dev DB), (d) post-sync UI refresh
+(auto via SyncService.dataChanged + manual header Refresh button). Server records + both dev DBs were
+wiped clean for a fresh retest.
 
+RE-RUN Task 3 (two-device proof) — should now be clean:
+1. `cd pocketbase && ./pocketbase serve`
+2. Device A: `flutter run -d linux --dart-define-from-file=config/dev.json` → seeds ONCE (one clean
+   generation). Sync Now (first push of ~180 seeded days may take a little while; later syncs are cheap).
+3. Device B: `flutter run -d linux --dart-define-from-file=config/dev2.json` → Sync Now → pulls exactly
+   ONE copy of each task + completions; list auto-refreshes.
+4. Tick on A → Sync Now A → Sync Now B → B updates live (no restart). Same task both → later updated_at
+   wins. Delete on A → tombstoned on B. Restart A → NO reseed, no new duplicates.
+5. Manual Refresh button in the header reloads the list on demand.
+
+Known limitations (deferred, documented): push is O(N) round-trips (fine for v1; batch later if needed);
+name-based reconciliation for genuinely-divergent offline DBs is the A.9 caveat (not triggered here).
+Nothing committed this session (awaiting explicit user instruction).

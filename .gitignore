@@ -61,4 +61,5 @@ pocketbase/*
 
 # Local dev config — contains credentials. Use config/dev.json.example as a template.
 config/dev.json
+config/dev2.json
 

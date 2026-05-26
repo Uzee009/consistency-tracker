@@ -7,6 +7,7 @@ import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/services/connectivity_service.dart';
+import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'package:consistency_tracker_v1/screens/login_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -266,6 +267,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
+                    const SizedBox(height: 24),
+                    _buildLabel('Synchronization'),
+                    const SizedBox(height: 8),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: SyncService.instance.isSyncing,
+                      builder: (context, isSyncing, _) {
+                        return ValueListenableBuilder<bool>(
+                          valueListenable: PocketBaseService.instance.authState,
+                          builder: (context, isAuthed, __) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: (isSyncing || !isAuthed) ? null : _handleSyncNow,
+                                  icon: isSyncing
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.sync, size: 18),
+                                  label: Text(isSyncing ? 'Syncing…' : 'Sync Now'),
+                                ),
+                                if (!isAuthed) ...[
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Sign in to enable sync.',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ] else if (SyncService.instance.lastSyncedAt != null) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Last synced: ${_formatLastSynced(SyncService.instance.lastSyncedAt!)}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ]),
 
                   const SizedBox(height: 48),
@@ -390,5 +433,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSyncNow() async {
+    // Capture the messenger before the await to avoid using context across async gaps.
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await SyncService.instance.sync();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(result.summary)),
+    );
+  }
+
+  String _formatLastSynced(DateTime dt) {
+    final local = dt.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
   }
 }

@@ -8,6 +8,8 @@ import '../widgets/user_menu.dart';
 import '../widgets/app_logo.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
+import '../services/sync_service.dart';
+import '../services/connectivity_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,10 +27,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _dataController.initialize(DateTime.now());
+    SyncService.instance.dataChanged.addListener(_onSyncDataChanged);
+  }
+
+  void _onSyncDataChanged() {
+    if (!mounted) return;
+    _dataController.initialize(_dataController.selectedDate, showLoading: false);
   }
 
   @override
   void dispose() {
+    SyncService.instance.dataChanged.removeListener(_onSyncDataChanged);
     _dataController.dispose();
     _layoutController.dispose();
     super.dispose();
@@ -47,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // 1. GLOBAL HEADER
               _buildGlobalHeader(context),
               Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-              
+
               // 2. INTERNAL NAVBAR (Left aligned above grid)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -55,14 +64,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     _buildInLayoutNavBar(isDark),
                     const Spacer(),
-                    if (_activeTabIndex == 0) _buildCustomizeButton(context),
+                    if (_activeTabIndex == 0) ...[
+                      _buildOnlineStatus(),
+                      const SizedBox(width: 8),
+                      _buildSyncButton(context),
+                      const SizedBox(width: 8),
+                      _buildCustomizeButton(context),
+                    ],
                   ],
                 ),
               ),
 
               // 3. MAIN WORKSPACE
               Expanded(
-                child: _dataController.isLoading 
+                child: _dataController.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _buildActiveView(),
               ),
@@ -80,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_activeTabIndex == 2) {
       return const SettingsScreen(isEmbedded: true);
     }
-    
+
     // DEFAULT: DASHBOARD
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -94,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMiniTimer(BuildContext context) {
     final mode = _dataController.timerMode;
     final color = mode == 'focus' ? const Color(0xFFE11D48) : (mode == 'shortBreak' ? const Color(0xFF10B981) : const Color(0xFF3B82F6));
-    
+
     final int mins = _dataController.timerSecondsRemaining ~/ 60;
     final int secs = _dataController.timerSecondsRemaining % 60;
     final String timeStr = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
@@ -136,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final dayName = weekdays[date.weekday - 1];
     final dateStr = "${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20), // Increased vertical space
       color: isDark ? const Color(0xFF09090B) : Colors.white,
@@ -157,15 +172,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          
-          // RIGHT: TIMER & USER MENU
+
+          // RIGHT: TIMER, REFRESH & USER MENU
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_dataController.isTimerRunning || _dataController.timerSecondsRemaining < _dataController.timerDurations[_dataController.timerMode]!) ...[
                 _buildMiniTimer(context),
-                const SizedBox(width: 16), // Margin between timer and user menu
+                const SizedBox(width: 16), // Margin between timer and refresh/user menu
               ],
+              TextButton.icon(
+                onPressed: () => _dataController.initialize(_dataController.selectedDate),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text(
+                  'REFRESH',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(width: 8),
               SizedBox(
                 width: 40,
                 child: Align(
@@ -247,5 +274,81 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildOnlineStatus() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: ConnectivityService.instance.isOnline,
+      builder: (context, isOnline, _) {
+        final color = isOnline ? Colors.green : Colors.orange;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isOnline ? 'ONLINE' : 'OFFLINE',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.5),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSyncButton(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return ValueListenableBuilder<bool>(
+      valueListenable: SyncService.instance.isSyncing,
+      builder: (context, isSyncing, _) {
+        return Material(
+          color: primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: isSyncing ? null : _handleSync,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  isSyncing
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                        )
+                      : Icon(Icons.sync, size: 18, color: primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    isSyncing ? 'SYNCING…' : 'SYNC',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: primary, letterSpacing: 0.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleSync() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await SyncService.instance.sync();
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(content: Text(result.summary)));
   }
 }

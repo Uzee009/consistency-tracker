@@ -1,5 +1,3 @@
-// lib/services/database_service.dart
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +19,7 @@ class DatabaseService {
   final String dayMetaTable = 'day_meta';
   final String dayRecordsTable = 'day_records'; // Local derived cache
   final String monthlyUsageTable = 'monthly_usage';
+  final String syncStateTable = 'sync_state';
 
   DatabaseService._constructor();
 
@@ -33,13 +32,13 @@ class DatabaseService {
   Future<Database> _initDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String dbName = const String.fromEnvironment(
-      'DATABASE_NAME', 
+      'DATABASE_NAME',
       defaultValue: 'consistency_tracker.db'
     );
     String path = join(documentsDirectory.path, dbName);
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -108,6 +107,12 @@ class DatabaseService {
       CREATE TABLE $monthlyUsageTable (
         year_month TEXT PRIMARY KEY,
         cheat_days_used INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $syncStateTable (
+        collection TEXT PRIMARY KEY,
+        cursor TEXT NOT NULL
       )
     ''');
   }
@@ -303,6 +308,14 @@ class DatabaseService {
         history.add(finalRecord);
       }
     }
+    if (oldVersion < 9) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $syncStateTable (
+          collection TEXT PRIMARY KEY,
+          cursor TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   // Parse a legacy comma-joined int-id CSV into sids, dropping any id that no
@@ -340,6 +353,118 @@ class DatabaseService {
     }).toList();
   }
 
+  // --- Sync cursor (per-device, stored in this DB so two instances on one
+  // machine don't share cursors via shared_preferences). ---
+  Future<String?> getSyncCursor(String collection) async {
+    final db = await database;
+    final rows = await db.query(
+      syncStateTable,
+      columns: ['cursor'],
+      where: 'collection = ?',
+      whereArgs: [collection],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['cursor'] as String?;
+  }
+
+  Future<void> setSyncCursor(String collection, String cursor) async {
+    final db = await database;
+    await db.insert(
+      syncStateTable,
+      {'collection': collection, 'cursor': cursor},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Recomputes the entire day_records cache from raw task_status and day_meta tables.
+  /// Used after a sync to ensure the dashboard reflects the newly-merged reality.
+  Future<void> recomputeAllDerived() async {
+    final db = await database;
+
+    // Clear the entire day_records cache to ensure no phantom rows persist
+    await db.delete(dayRecordsTable);
+
+    // 1. Load active tasks (non-deleted, is_active=1)
+    final taskMaps =
+        await db.query(tasksTable, where: 'deleted = 0 AND is_active = 1');
+    final tasks = taskMaps.map((m) => Task.fromMap(m)).toList();
+
+    // 2. Collect DISTINCT dates from task_status and day_meta where deleted=0
+    final statusDates = await db
+        .rawQuery('SELECT DISTINCT date FROM $taskStatusTable WHERE deleted = 0');
+    final metaDates = await db
+        .rawQuery('SELECT DISTINCT date FROM $dayMetaTable WHERE deleted = 0');
+
+    final allDates = <String>{};
+    for (var r in statusDates) {
+      allDates.add(r['date'] as String);
+    }
+    for (var r in metaDates) {
+      allDates.add(r['date'] as String);
+    }
+
+    // 3. Sort ascending
+    final sortedDates = allDates.toList()..sort();
+
+    final List<DayRecord> history = [];
+
+    // 4. For each date chronologically:
+    for (final dateStr in sortedDates) {
+      // Load completed/skipped sids from task_status where deleted=0
+      final statusMaps = await db.query(taskStatusTable,
+          where: 'date = ? AND deleted = 0', whereArgs: [dateStr]);
+      final completedSids = statusMaps
+          .where((m) => m['status'] == 'completed')
+          .map((m) => m['task_sid'] as String)
+          .toList();
+      final skippedSids = statusMaps
+          .where((m) => m['status'] == 'skipped')
+          .map((m) => m['task_sid'] as String)
+          .toList();
+
+      // Load day_meta row
+      final metaMaps = await db.query(dayMetaTable,
+          where: 'date = ? AND deleted = 0', whereArgs: [dateStr]);
+      final meta = metaMaps.isNotEmpty ? metaMaps.first : null;
+
+      // Compute tempRecord
+      final tempRecord = DayRecord(
+        date: dateStr,
+        completedTaskIds: completedSids,
+        skippedTaskIds: skippedSids,
+        cheatUsed: meta != null ? (meta['cheat_used'] == 1) : false,
+        pomodoroSessionsCompleted:
+            meta != null ? (meta['pomodoro_sessions'] as int? ?? 0) : 0,
+        pomodoroGoal: meta != null ? (meta['pomodoro_goal'] as int? ?? 4) : 4,
+      );
+
+      // Get activeTasks = _activeTasksFor(date, tasks)
+      final activeTasks = _activeTasksFor(DateTime.parse(dateStr), tasks);
+
+      // Compute scoreResult = ScoringService.calculateDayScore(allTasks: activeTasks, dayRecord: tempRecord, history: history)
+      final scoreResult = ScoringService.calculateDayScore(
+        allTasks: activeTasks,
+        dayRecord: tempRecord,
+        history: history,
+      );
+
+      // Insert into day_records with final scores
+      final finalRecord = tempRecord.copyWith(
+        completionScore: scoreResult.completionScore,
+        visualState: scoreResult.visualState,
+      );
+
+      await db.insert(
+        dayRecordsTable,
+        finalRecord.toMap(),
+      );
+
+      // Add to history list
+      history.add(finalRecord);
+    }
+  }
+
   // --- User Management ---
   Future<int> createUser(User user) async {
     Database db = await instance.database;
@@ -374,7 +499,7 @@ class DatabaseService {
     List<Map<String, dynamic>> maps = await db.query(usersTable, limit: 1);
     return maps.isNotEmpty;
   }
-  
+
   Future<List<User>> getAllUsers() async {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(usersTable);
@@ -591,7 +716,7 @@ class DatabaseService {
     }
     return count;
   }
-  
+
   Future<DayRecord?> getDayRecord(String date) async {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(
@@ -660,7 +785,7 @@ class DatabaseService {
   Future<void> incrementCheatDaysUsed(String yearMonth) async {
     final db = await database;
     final currentUsed = await getCheatDaysUsed(yearMonth);
-    
+
     final result = await db.query(
       monthlyUsageTable,
       where: 'year_month = ?',
@@ -744,7 +869,7 @@ class DatabaseService {
     for (int i = 0; i < 180; i++) {
       final currentDate = startDate.add(Duration(days: i));
       final dateStr = currentDate.toIso8601String().split('T')[0];
-      
+
       // Randomly add Temporary Tasks (approx every 3 days)
       List<Task> activeTasksForDay = List.from(allPermanentTasks.where((t) => !currentDate.isBefore(t.createdAt)));
       if (random.nextDouble() < 0.3) {

@@ -19,7 +19,7 @@ final ValueNotifier<VisualStyle> styleNotifier = ValueNotifier(VisualStyle.minim
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -42,16 +42,19 @@ void main() async {
 
   // Load saved preferences
   final prefs = await SharedPreferences.getInstance();
-  
+
   final themeIndex = prefs.getInt('theme_mode') ?? 0; // 0: system, 1: light, 2: dark
   themeNotifier.value = ThemeMode.values[themeIndex];
 
   final styleIndex = prefs.getInt('visual_style') ?? 0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
 
-  // SEED DATA ONLY IN DEV MODE
-  if (const String.fromEnvironment('DATABASE_NAME') == 'consistency_tracker_dev.db') {
-    debugPrint('DatabaseService: Seeding development data...');
+  // SEED DATA ONLY IN DEV MODE, and ONLY on a fresh (empty) dev DB.
+  // Re-seeding on every launch would wipe + regenerate task sids and break sync.
+  // To intentionally reseed during dev, delete the dev DB file.
+  if (const String.fromEnvironment('DATABASE_NAME') == 'consistency_tracker_dev.db'
+      && !await DatabaseService.instance.hasUser()) {
+    debugPrint('DatabaseService: Seeding development data (empty dev DB)...');
     await DatabaseService.instance.seedData();
   }
 
@@ -115,7 +118,7 @@ class _MyAppState extends State<MyApp> {
     _isDark = _currentThemeMode == ThemeMode.dark ||
               (_currentThemeMode == ThemeMode.system &&
                WidgetsBinding.instance.window.platformBrightness == Brightness.dark);
-    
+
     // Also set _isFirstRun here as it depends on DatabaseService which needs init
     _isFirstRun = _checkFirstRun();
     await _isFirstRun; // Wait for first run check to complete
