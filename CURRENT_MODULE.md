@@ -3,7 +3,7 @@
 **Module:** Step 13 — Cross-Device Sync (PocketBase, Local-First)
 **Branch:** `experiment`
 **State:** IN_PROGRESS
-**Current Phase:** Phase 1 — PocketBase up + auth (NOT STARTED)
+**Current Phase:** Phase 2 — Manual sync (NOT STARTED)
 **Last updated:** 2026-05-26
 
 ---
@@ -30,11 +30,13 @@ Linux/Windows/macOS/Android. Conflict resolution = Last-Write-Wins on a client-s
   - `[DONE]` DB migration v7 → v8, automatic on first launch.
   - `[DONE]` Verified: app runs identically on Linux with dev DB; no user-visible change.
 
-- **Phase 1 — PocketBase up + auth.** `[NOT STARTED]` ← **NEXT**
-  - `[ ]` Run PocketBase binary locally (validated v0.38.2 in the spike).
-  - `[ ]` Create collections mirroring local tables: `tasks`, `task_status`, `day_meta` (with `owner` field for future multi-user).
-  - `[ ]` Add a login screen (single PocketBase account; all devices share it).
-  - `[ ]` Add a connectivity service (online/offline detection).
+- **Phase 1 — PocketBase up + auth.** `[DONE]` ✅
+  - `[DONE]` Run PocketBase binary locally (v0.38.2; migration applied via `./pocketbase migrate up`).
+  - `[DONE]` Create collections mirroring local tables (JS migration `1748260800_init_sync_collections.js` creates `tasks`, `task_status`, `day_meta` with `owner` relation + owner-scoped rules + unique indexes).
+  - `[DONE]` Add a login screen (`lib/screens/login_screen.dart`, reachable from Settings → Sync Account; non-blocking / local-first).
+  - `[DONE]` Add a connectivity service (`lib/services/connectivity_service.dart` + `lib/services/pocketbase_service.dart` with AsyncAuthStore token persistence).
+  - `[DONE]` End-to-end verify: run server, create shared app account, sign in from the app, confirm token survives restart.
+  - `[DONE]` Dev-mode auto-login via gitignored `config/dev.json` (+ tracked `config/dev.json.example`); app silently signs in as the dev account on startup in dev mode, non-blocking.
 
 - **Phase 2 — Manual sync.** `[NOT STARTED]`
   - `[ ]` "Sync now" button running the push/pull loop.
@@ -49,31 +51,7 @@ Linux/Windows/macOS/Android. Conflict resolution = Last-Write-Wins on a client-s
 
 ---
 
-## Working Context
-
-Phase 0 (the local data-model refactor) is complete AND its code-review remediation is
-done — all pushed to `origin/experiment`. Commits: `eef25d1` (migration) + `c1b7441`
-(docs) + `6643693` (the review-hardening fix). The v7→v8 migration is now crash-safe
-(sqflite wraps onUpgrade in a transaction), recomputes derived scores chronologically,
-and `getTaskHistory` reads `task_status` instead of the old CSV-LIKE hack. The app
-behaves identically to before and is verified on Linux with the dev DB.
-
-A throwaway spike (`sync_spike/`, git-ignored) already validated the whole approach
-against real PocketBase v0.38.2: 73 ms realtime propagation, correct LWW, and correct
-offline reconcile. So the strategy is de-risked; what remains is wiring a real PocketBase
-backend + sync engine into the actual app.
-
-No network/sync code exists in the app yet — **Phase 1 has not been started.** The
-workflow files (`CLAUDE.md`, `CURRENT_MODULE.md`, `.claude/agents/*`) are now tracked in
-git; `.claude/settings.local.json` is gitignored (per-machine).
-
-## Next Action
-
-Begin **Phase 1**. Suggested first step: stand up the PocketBase binary locally and
-create the three collections (`tasks`, `task_status`, `day_meta`) mirroring the local
-schema (including an `owner` field). Then, with the user, plan the login screen +
-connectivity service before writing any code (per the Coding Workflow: plan → approve →
-gemini-coder → code-reviewer). Confirm Dev vs. Consult mode with the user at session start.
+Phase 1 COMPLETE, code-reviewed (cycle 2 PASS), end-to-end verified by the user, and committed+pushed to origin/experiment as a checkpoint. PocketBase auth + token persistence + connectivity + login screen all working; dev auto-login wired via config/dev.json (gitignored). No sync engine yet. Ready to begin Phase 2 (manual 'Sync now' push/pull loop per DEVELOPMENT_PLAN.md A.5).
 
 ---
 
@@ -144,3 +122,105 @@ chain intact; `git diff` shows only intended changes; `flutter analyze` clean.
 cycles. Changes are UNCOMMITTED working-tree edits to `lib/services/database_service.dart`
 (awaiting user decision to commit). The fixes go *beyond* commit `eef25d1`, so the
 "Phase 0 ✅ committed" status above now has follow-up fixes not yet committed.
+
+---
+
+## Session 2026-05-26: Phase 1 Complete
+
+**Deliverables completed:**
+
+1. **`.gitignore`** — Updated to track `pocketbase/pb_migrations/` while ignoring the binary and data.
+2. **Dependencies** — Added `pocketbase ^0.24.0` and `connectivity_plus ^7.1.1` via `flutter pub add`.
+3. **PocketBase migration** `1748260800_init_sync_collections.js` — Creates `tasks`, `task_status`, `day_meta` base collections with `owner` relation, access rules (list/view/create/update/delete restricted to authenticated owner), and unique indexes.
+4. **`PocketBaseService.instance`** — Singleton managing auth state (ValueNotifier), login/logout, server URL persistence, token restoration via PocketBase's default auth store.
+5. **`ConnectivityService.instance`** — Singleton tracking online/offline status via `connectivity_plus`, re-checks on connectivity change and on-demand via HTTP GET to `/api/health`.
+6. **`LoginScreen`** — StatefulWidget with email, password, optional Advanced server URL field; shows loading spinner, error messages, logs user in and returns to settings.
+7. **Settings screen "Sync Account" section** — Displays auth status (signed in/out with email), login/logout buttons, online/offline indicator (green/orange dot).
+8. **`main.dart`** — Initializes both services before `runApp()`. App remains fully offline-capable (local-first).
+
+**Verification:**
+- `flutter pub get`: All dependencies resolved.
+- `flutter analyze`: 7 pre-existing warnings/info (not new); 0 Phase 1 errors.
+- `pocketbase migrate up`: Migration applies cleanly (no SQL errors).
+- Code compiles: All imports and method calls resolve.
+
+**Status: Phase 1 READY FOR PHASE 2.** The app now has:
+- ✅ PocketBase backend configured
+- ✅ Auth UI (login screen)
+- ✅ Connectivity detection
+- ✅ Auth state management
+- ❌ Sync engine (Phase 2)
+
+**Next action:** Begin Phase 2 — plan the manual push/pull sync engine (~300 lines, one file) per DEVELOPMENT_PLAN.md A.5, then a 'Sync now' button. Plan with user before coding.
+
+---
+
+## Phase 1 Review Cycle 1 (2026-05-26)
+
+- **2026-05-26 — code-reviewer on Phase 1 (cycle 1): FAIL.** 4 findings:
+  - **[CRITICAL]** `pocketbase_service.dart:27` — auth token is never persisted; uses default in-memory AuthStore so token lost on restart.
+  - **[MAJOR]** `connectivity_service.dart:31-32` — health check hardcodes `http://127.0.0.1:8090/api/health`; should read live server URL from PocketBaseService.
+  - **[MAJOR]** `pocketbase_service.dart:30,74` — `onChange` subscription leaks/goes stale on `setServerUrl()`; new client built without re-subscribing.
+  - **[MINOR]** `pocketbase/pb_migrations/1748260800_init_sync_collections.js` — field `id` set equal to field name instead of auto-generated or unique ids.
+
+## Fix Cycle 1 Applied (2026-05-26)
+
+**FIX 1 (CRITICAL) — `pocketbase_service.dart:23-43` (lines changed)**
+- Added `import 'dart:async'` for `StreamSubscription`.
+- Added `_authSub` field to store the auth change subscription.
+- Rewrote `init()`: creates `AsyncAuthStore` with shared_preferences backing (`save` and `initial` callbacks), passes it to `PocketBase(...)`, calls new `_subscribeToAuthChanges()` helper, sets initial auth state.
+- Added `_subscribeToAuthChanges()` private method to subscribe and update `authState.value` on token changes.
+- **Result:** Auth token now persists across app restarts via shared_preferences; `isAuthenticated` returns true on fresh start if user previously logged in.
+
+**FIX 2 (MAJOR) — `connectivity_service.dart:6,31-34` (lines changed)**
+- Added `import 'pocketbase_service.dart'` at top.
+- Changed hardcoded `'http://127.0.0.1:8090/api/health'` to `'${PocketBaseService.instance.serverUrl}/api/health'`.
+- Added comment documenting dependency on PocketBaseService initialization (guaranteed by main.dart).
+- **Result:** Health checks now use live server URL; respects user-set custom server URLs.
+
+**FIX 3 (MAJOR) — `pocketbase_service.dart:82-99` (lines changed)**
+- Rewrote `setServerUrl()`: cancels old `_authSub` before URL change, rebuilds client preserving `authStore`, re-subscribes via `_subscribeToAuthChanges()`, updates `authState.value`.
+- **Result:** Subscription no longer leaks; auth state updates work correctly after URL change.
+
+**FIX 4 (MINOR) — `pocketbase/pb_migrations/1748260800_init_sync_collections.js:15-29, 41-49, 61-69` (all 3 schemas)**
+- Removed all `id:` keys from field definitions in `tasks`, `task_status`, `day_meta` schemas.
+- Kept `name` and all other field properties (type, required, presentable, collectionId, maxSelect, cascadeDelete) unchanged.
+- Owner relation, indexes, and access rules unchanged.
+- **Result:** PocketBase now auto-generates field IDs instead of hardcoding them to field names.
+
+## Validation Results
+
+1. **Migration validation:** Deleted `pb_data/` (dev-only, git-ignored), ran `pocketbase migrate up` from pocketbase/:
+   ```
+   Applied 1748260800_init_sync_collections.js
+   ```
+   ✅ Clean apply, no errors.
+
+2. **Flutter analysis:** Ran `flutter pub get` then `flutter analyze`:
+   ```
+   7 issues found (all pre-existing, unrelated to Phase 1 fixes):
+   - 1 warning: missing flutter_lints include
+   - 2 info: deprecated window API usage
+   - 4 warnings: unused local var, unused param, unused import, unused field
+   ```
+   ✅ No new Phase 1 errors.
+
+3. **Diff summary:**
+   - **pocketbase_service.dart:** Added async/StreamSubscription import; added _authSub field; rewrote init() to use AsyncAuthStore (30-50 loc change); added _subscribeToAuthChanges(); rewrote setServerUrl() to cancel/re-subscribe (82-99 loc).
+   - **connectivity_service.dart:** Added pocketbase_service import; updated health check URL read; added dependency comment (6 loc change).
+   - **1748260800_init_sync_collections.js:** Removed `id:` from all 28 field definitions across 3 schemas (3 × ~14 lines each).
+
+**Status: Fix Cycle 1 COMPLETE — ALL 4 ISSUES RESOLVED.** Code compiles; migration applies cleanly; no new lint errors. Ready for next code-reviewer cycle or Phase 2 work.
+
+---
+
+## Phase 1 Review Cycle 2 (2026-05-26)
+
+- **2026-05-26 — code-reviewer on Phase 1 (cycle 2): PASS ✅.** All 4 cycle-1 findings fixed (AsyncAuthStore token persistence, connectivity uses live serverUrl, onChange subscription re-wired in setServerUrl, migration field ids auto-generated). flutter analyze clean (7 pre-existing warnings only); app builds + runs on Linux.
+
+---
+
+## Next Action
+
+Begin Phase 2 — plan the manual push/pull sync engine (~300 lines, one file) per DEVELOPMENT_PLAN.md A.5, then a 'Sync now' button. Plan with user before coding.
+

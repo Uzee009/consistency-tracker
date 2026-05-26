@@ -1,0 +1,7 @@
+{
+  "DATABASE_NAME": "consistency_tracker_dev.db",
+  "SYNC_ADMIN_EMAIL": "admin@example.com",
+  "SYNC_ADMIN_PASSWORD": "changeme",
+  "SYNC_DEV_EMAIL": "dev@example.com",
+  "SYNC_DEV_PASSWORD": "changeme"
+}

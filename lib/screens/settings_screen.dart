@@ -5,6 +5,9 @@ import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
+import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
+import 'package:consistency_tracker_v1/services/connectivity_service.dart';
+import 'package:consistency_tracker_v1/screens/login_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -183,8 +186,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     ]),
 
+                  const SizedBox(height: 40),
+
+                  _buildSectionHeader('SYNC & CONNECTIVITY', 'Manage cloud synchronization across devices.'),
+                  _buildCard(context, [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: PocketBaseService.instance.authState,
+                      builder: (context, isAuthenticated, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Account Status'),
+                            const SizedBox(height: 8),
+                            if (!isAuthenticated)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Not signed in',
+                                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                    ),
+                                    child: const Text('Sign In'),
+                                  ),
+                                ],
+                              )
+                            else
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Signed in as ${PocketBaseService.instance.userEmail ?? 'unknown'}',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () => PocketBaseService.instance.logout(),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red.withValues(alpha: 0.1),
+                                      foregroundColor: Colors.red,
+                                    ),
+                                    child: const Text('Sign Out'),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    _buildLabel('Connection Status'),
+                    const SizedBox(height: 8),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: ConnectivityService.instance.isOnline,
+                      builder: (context, isOnline, _) {
+                        return Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isOnline ? Colors.green : Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isOnline ? 'Online' : 'Offline',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isOnline ? Colors.green : Colors.orange,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ]),
+
                   const SizedBox(height: 48),
-                  
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [

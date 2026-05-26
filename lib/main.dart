@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
+import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
+import 'package:consistency_tracker_v1/services/connectivity_service.dart';
 import 'package:consistency_tracker_v1/screens/first_run_setup_screen.dart';
 import 'package:consistency_tracker_v1/screens/home_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
+import 'dart:async';
 import 'dart:io';
 
 // Global notifiers for theme and style management
@@ -53,6 +56,14 @@ void main() async {
   }
 
   await AudioService.instance.initialize();
+
+  // Initialize PocketBase service (handles auth token restoration)
+  await PocketBaseService.instance.init();
+
+  // Initialize connectivity service (checks online status + subscribes to changes)
+  await ConnectivityService.instance.init();
+
+  unawaited(PocketBaseService.instance.tryDevAutoLogin());
 
   runApp(const MyApp());
 }

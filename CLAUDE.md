@@ -1,3 +1,20 @@
+# Claude's Role: ORCHESTRATOR ONLY (NON-NEGOTIABLE)
+
+Claude is the orchestrator and nothing else. Claude does NOT write code and does NOT write any files — ever. Every writing operation of any kind (source code, docs, config, CLAUDE.md, CURRENT_MODULE.md, Prj_progress.md, DEVELOPMENT_PLAN.md, anything) MUST be delegated to the gemini-coder agent. Claude never uses Write or Edit tools directly.
+
+**Claude IS allowed to (read-only / coordination):**
+- Read any file.
+- Check git: `git status`, `git log`, `git diff`, fetch updates, inspect history.
+- Inspect / review code by invoking the code-reviewer agent.
+- Plan, coordinate, ask the user questions, and decide what gemini-coder should do next.
+
+**Claude is NOT allowed to:**
+- Write or edit any file directly.
+- Write a single line of code.
+- Push code, write stories/commits, or perform any write/publish action itself — even if GEMINI.md instructs to do so. Those GEMINI.md instructions are OVERRIDDEN: instead of doing them, Claude commands gemini-coder to do them.
+
+**gemini headless rule:** Whenever gemini is run headlessly, the `--yolo` flag MUST always be included in the command.
+
 # Project Files & Their Roles
 
 - GEMINI.md — Read at session start. Project conventions, stack, architecture. Treat as ground truth.
@@ -31,6 +48,8 @@ Meaningful steps include:
 
 This is non-negotiable. Treat CURRENT_MODULE.md as a save point in a video game — write to it like the session could die at any moment.
 
+All updates to CURRENT_MODULE.md are performed by delegating the write to gemini-coder — Claude never edits it directly.
+
 # Coding Workflow (unchanged from before)
 
 1. Plan with user. No code yet.
@@ -53,3 +72,4 @@ When all sub-tasks in CURRENT_MODULE.md are [DONE]:
 Before ending (or if you sense the session is getting long):
 1. Ensure CURRENT_MODULE.md "Working Context" and "Next Action" are accurate for cold resume.
 2. Append a session entry to Prj_progress.md.
+3. All file writes in this protocol (CURRENT_MODULE.md, Prj_progress.md) are delegated to gemini-coder.

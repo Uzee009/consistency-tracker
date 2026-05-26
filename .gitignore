@@ -53,3 +53,12 @@ sync_spike/
 
 # Claude Code per-machine settings (local permission grants — not shared)
 .claude/settings.local.json
+
+# PocketBase runtime (binary + data are local-only; migrations are tracked)
+pocketbase/*
+!pocketbase/pb_migrations/
+!pocketbase/pb_migrations/**
+
+# Local dev config — contains credentials. Use config/dev.json.example as a template.
+config/dev.json
+
