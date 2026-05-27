@@ -3,8 +3,8 @@
 **Module:** Step 13 — Cross-Device Sync (PocketBase, Local-First)
 **Branch:** `experiment`
 **State:** IN_PROGRESS
-**Current Phase:** Phase 4 — Deploy + harden (NOT STARTED)
-**Last updated:** 2026-05-27 (Phase 3 COMPLETE — race-condition fix verified two-device)
+**Current Phase:** Phase 4 — Cleanup pass (IN_PROGRESS), then Deploy
+**Last updated:** 2026-05-27 (Phase 4 cleanup A/B/C/D all DONE + reviewed; uncommitted)
 
 ---
 
@@ -87,9 +87,14 @@ During live two-device realtime verification, ghost tasks (deleted but tombstone
 
 **Next action:** Restart live two-device monitoring to verify the bugfixes prevent ghost-task reappearance.
 
-- **Phase 4 — Deploy + harden.** `[NOT STARTED]`
-  - `[ ]` Deploy to free VM (Oracle Cloud Always Free preferred), point app at it.
-  - `[ ]` Retry/backoff, tombstone cleanup, multi-device soak test. Optional: E2E encryption (deferred from v1).
+- **Phase 4 — Deploy + harden.** `[IN_PROGRESS]` (cleanup pass order A→C→B→D)
+
+  ### Phase 4 Cleanup (Dev Mode, order A→C→B→D)
+
+  - `[DONE] A — Lint hygiene: make flutter analyze green (remove dangling flutter_lints include, fix 2 deprecated window uses, remove 4 unused symbols).`
+  - `[ ] C — Pre-deploy safety audit: confirm dev gating is compile-time only (no code change expected).`
+  - `[DONE] B — Tombstone pruning: local prune deleted=1 AND dirty=0 older than 30d; server prune deleted tombstones older than 90d; daily-guarded; documented resurrection caveat. Code-reviewed PASS (2026-05-27).`
+  - `[DONE] D — Retry/backoff: exponential backoff (2s→cap 60s) in SyncService: _isTransient classifies ClientException (0/5xx/429=transient, other 4xx=permanent), _runScheduled schedules retry only on transient error, _cancelRetry on success/offline/permanent, retry timer cancelled in stopAuto. — code-reviewer PASS (7 axes incl. in-flight-retry chain survival via _pendingSync), flutter analyze clean.`
 
 ---
 
@@ -371,4 +376,10 @@ Bare `flutter run` uses production — never use it for two-device testing.
 
 ## Next Action
 
-Phase 3 COMPLETE. Begin Phase 4 — Deploy + harden: deploy PocketBase to a free VM (Oracle Cloud Always Free preferred) and point the app at it; add retry/backoff + tombstone cleanup; multi-device soak test. OPTIONAL Phase 4 item logged this session: tighten the sync pull→recompute path (run recompute synchronously right after each pull-apply inside the write-mutex) to remove the ±1 ~1.5s lag seen during simultaneous dual-device editing. Also pending: commit the uncommitted Phase 2/3 working-tree changes when the user approves.
+Phase 4 cleanup COMPLETE — all four items code-reviewed PASS, flutter analyze clean:
+- A (lint hygiene): analyzer now zero issues (removed dangling flutter_lints include, fixed 2 deprecated window uses, removed 4 unused symbols).
+- C (pre-deploy safety): audit PASS, NO code change — dev seed + dev auto-login are compile-time gated on String.fromEnvironment('DATABASE_NAME'); a release build with no --dart-define gets '' so both no-op; dev creds only in gitignored config/dev.json.
+- B (tombstone pruning): DatabaseService.pruneLocalTombstones (deleted=1 AND dirty=0 AND >30d) + SyncService._maybePrune (server prune deleted=true AND >90d, owner-scoped, getFullList batched, 404-ignored) guarded once/day via sync_state '__last_prune__'; errors swallowed so sync never fails from pruning. Documented caveat: a device offline >90d that saw create-but-not-delete can resurrect that row on next edit.
+- D (retry/backoff): SyncService exponential backoff 2s→cap60s; _isTransient classifies ClientException (statusCode 0 / >=500 / 429 = transient, other 4xx = permanent), non-ClientException = transient; _runScheduled schedules retry only on transient error, _cancelRetry on success/offline/notSignedIn/permanent; retry timer cancelled in stopAuto; manual 'Sync Now' never arms a retry.
+
+ALL CHANGES UNCOMMITTED (awaiting user approval to commit). NEXT: plan deployment — deploy PocketBase to a free VM (Oracle Cloud Always Free preferred) and repoint the app's default server URL from 127.0.0.1:8090 to the deployed host. Deferred: pull→recompute ±1 ~1.5s lag fix.

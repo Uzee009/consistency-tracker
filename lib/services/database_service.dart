@@ -26,6 +26,8 @@ class DatabaseService {
   /// to prevent read-then-write skew.
   static final Lock _writeLock = Lock();
 
+  static const String lastPruneKey = '__last_prune__';
+
   /// Bumped after every local write that sets dirty=1, so the sync coordinator
   /// can schedule a debounced push.
   final ValueNotifier<int> localChanges = ValueNotifier<int>(0);
@@ -396,6 +398,34 @@ class DatabaseService {
       {'collection': collection, 'cursor': cursor},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  /// Hard-deletes local tombstones (deleted=1) that are already pushed (dirty=0)
+  /// and older than [retentionMs]. The server retains the canonical tombstone longer,
+  /// so a later re-pull harmlessly re-inserts it as deleted=1. Returns rows deleted.
+  Future<int> pruneLocalTombstones(int retentionMs) async {
+    final db = await database;
+    final cutoff = DateTime.now().millisecondsSinceEpoch - retentionMs;
+    int total = 0;
+
+    final tables = [tasksTable, taskStatusTable, dayMetaTable];
+    for (final table in tables) {
+      total += await db.delete(
+        table,
+        where: 'deleted = 1 AND dirty = 0 AND updated_at < ?',
+        whereArgs: [cutoff],
+      );
+    }
+    return total;
+  }
+
+  Future<int?> getLastPruneAt() async {
+    final v = await getSyncCursor(lastPruneKey);
+    return v == null || v.isEmpty ? null : int.tryParse(v);
+  }
+
+  Future<void> setLastPruneAt(int epochMs) async {
+    await setSyncCursor(lastPruneKey, epochMs.toString());
   }
 
   /// Recomputes the entire day_records cache from raw task_status and day_meta tables.

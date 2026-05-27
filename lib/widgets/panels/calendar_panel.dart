@@ -22,7 +22,6 @@ class CalendarPanel extends StatefulWidget {
 }
 
 class _CalendarPanelState extends State<CalendarPanel> {
-  DateTime _viewedMonth = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +30,7 @@ class _CalendarPanelState extends State<CalendarPanel> {
       heatmapData: widget.controller.heatmapData,
       selectedDate: widget.controller.selectedDate,
       onDateSelected: (date) => widget.controller.setSelectedDate(date, showLoading: false),
-      onMonthChanged: (m) => setState(() => _viewedMonth = m),
+      onMonthChanged: (_) {},
       selectedRange: '1M', 
       onRangeChanged: (_) {},
       hideControls: true,

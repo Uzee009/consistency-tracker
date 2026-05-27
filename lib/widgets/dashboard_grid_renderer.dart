@@ -191,7 +191,7 @@ class DashboardGridRenderer extends StatelessWidget {
     );
   }
 
-  Widget _buildPanelShell(BuildContext context, PanelDefinition def, {bool isFeedback = false}) {
+  Widget _buildPanelShell(BuildContext context, PanelDefinition def) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEdit = layoutController.isEditMode;
     final style = styleNotifier.value;

@@ -13,8 +13,9 @@ class SyncResult {
   final int pushed;
   final int pulled;
   final String? message;
+  final bool transient;
 
-  const SyncResult(this.status, {this.pushed = 0, this.pulled = 0, this.message});
+  const SyncResult(this.status, {this.pushed = 0, this.pulled = 0, this.message, this.transient = false});
 
   String get summary => _buildSummary();
 
@@ -61,6 +62,8 @@ class SyncService {
 
   Timer? _debounceTimer;
   Timer? _pollTimer;
+  Timer? _retryTimer;
+  int _retryAttempt = 0;
   bool _pendingSync = false;
   bool _autoStarted = false;
   bool _wasOnline = false;
@@ -68,6 +71,12 @@ class SyncService {
   Future<void> _realtimeLock = Future<void>.value();
   static const Duration _debounceDuration = Duration(milliseconds: 500);
   static const Duration _pollInterval = Duration(seconds: 60);
+  static const int _retryBaseSeconds = 2;   // 2,4,8,16,32 ...
+  static const int _retryCapSeconds = 60;    // capped at the poll interval
+
+  static const int _localRetentionMs = 30 * 24 * 60 * 60 * 1000;  // 30 days
+  static const int _serverRetentionMs = 90 * 24 * 60 * 60 * 1000; // 90 days
+  static const int _pruneIntervalMs = 24 * 60 * 60 * 1000;         // once per day
 
   final List<_Col> _configs = [
     const _Col(
@@ -121,13 +130,66 @@ class SyncService {
         await DatabaseService.instance.recomputeAllDerived();
         dataChanged.value++;
       }
-      lastSyncedAt = DateTime.now();
 
+      await _maybePrune(ownerId);
+
+      lastSyncedAt = DateTime.now();
+      _cancelRetry();  // manual "Sync Now" success also clears pending backoff
       return SyncResult(SyncStatus.success, pushed: pushed, pulled: pulled);
     } catch (e) {
-      return SyncResult(SyncStatus.error, message: e.toString());
+      return SyncResult(SyncStatus.error, message: e.toString(), transient: _isTransient(e));
     } finally {
       isSyncing.value = false;
+    }
+  }
+
+  /// Transient = worth retrying with backoff (network down, server hiccup).
+  /// Permanent = don't auto-retry (bad creds / validation); wait for next natural trigger.
+  bool _isTransient(Object e) {
+    if (e is ClientException) {
+      final code = e.statusCode;
+      if (code == 0) return true;        // no HTTP response = network/connection error
+      if (code >= 500) return true;      // server error
+      if (code == 429) return true;      // rate limited
+      return false;                      // other 4xx (400 validation, 401/403 auth, 404) = permanent
+    }
+    return true;                         // SocketException/TimeoutException/etc = transient
+  }
+
+  Future<void> _maybePrune(String ownerId) async {
+    final lastPrune = await DatabaseService.instance.getLastPruneAt();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (lastPrune != null && (now - lastPrune) < _pruneIntervalMs) return;
+
+    try {
+      // Local prune
+      await DatabaseService.instance.pruneLocalTombstones(_localRetentionMs);
+
+      // Server prune
+      final client = PocketBaseService.instance.client;
+      final serverCutoff = now - _serverRetentionMs;
+
+      for (final cfg in _configs) {
+        final filter =
+            'owner = "${_esc(ownerId)}" && deleted = true && updated_at < $serverCutoff';
+        final stale = await client
+            .collection(cfg.name)
+            .getFullList(batch: 200, filter: filter);
+
+        for (final rec in stale) {
+          try {
+            await client.collection(cfg.name).delete(rec.id);
+          } on ClientException catch (e) {
+            if (e.statusCode != 404) rethrow;
+          }
+        }
+      }
+
+      // On success, update the last-prune timestamp
+      await DatabaseService.instance.setLastPruneAt(now);
+    } catch (e) {
+      debugPrint('Tombstone prune skipped: $e');
     }
   }
 
@@ -145,7 +207,39 @@ class SyncService {
       _pendingSync = true;
       return;
     }
-    await sync();
+    final result = await sync();
+    switch (result.status) {
+      case SyncStatus.success:
+      case SyncStatus.notSignedIn:
+        _cancelRetry();              // healthy or nothing-to-do: stop backoff
+        break;
+      case SyncStatus.offline:
+        _cancelRetry();              // reconnect listener will re-trigger sync; don't hammer offline
+        break;
+      case SyncStatus.busy:
+        break;                       // another sync running; leave any retry as-is
+      case SyncStatus.error:
+        if (result.transient) {
+          _scheduleRetry();          // network/5xx/429: retry with backoff
+        } else {
+          _cancelRetry();            // permanent (auth/validation): don't auto-retry
+        }
+        break;
+    }
+  }
+
+  void _cancelRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _retryAttempt = 0;
+  }
+
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    // 2,4,8,16,32,60(cap)... using current attempt, then advance
+    final secs = (_retryBaseSeconds * (1 << _retryAttempt)).clamp(_retryBaseSeconds, _retryCapSeconds);
+    if (_retryAttempt < 16) _retryAttempt++; // avoid shift overflow; capped delay anyway
+    _retryTimer = Timer(Duration(seconds: secs), () => _runScheduled());
   }
 
   void _onSyncingChange() {
@@ -225,6 +319,8 @@ class SyncService {
   void stopAuto() {
     _debounceTimer?.cancel();
     _pollTimer?.cancel();
+    _retryTimer?.cancel();
+    _retryAttempt = 0;
     DatabaseService.instance.localChanges.removeListener(_onLocalChange);
     ConnectivityService.instance.isOnline.removeListener(_onConnectivityChange);
     PocketBaseService.instance.authState.removeListener(_onAuthOrClientChange);

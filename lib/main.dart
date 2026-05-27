@@ -129,7 +129,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Calculate initial _isDark based on system brightness if ThemeMode.system
     _isDark = _currentThemeMode == ThemeMode.dark ||
               (_currentThemeMode == ThemeMode.system &&
-               WidgetsBinding.instance.window.platformBrightness == Brightness.dark);
+               WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
 
     // Also set _isFirstRun here as it depends on DatabaseService which needs init
     _isFirstRun = _checkFirstRun();
@@ -144,7 +144,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // Recalculate _isDark based on the new values
         _isDark = _currentThemeMode == ThemeMode.dark ||
                   (_currentThemeMode == ThemeMode.system &&
-                   WidgetsBinding.instance.window.platformBrightness == Brightness.dark);
+                   WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
       });
     }
   }

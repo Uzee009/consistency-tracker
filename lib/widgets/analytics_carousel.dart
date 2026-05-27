@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/scoring_service.dart';
-import '../services/style_service.dart';
-import '../main.dart';
 
 class AnalyticsCarousel extends StatefulWidget {
   final List<MomentumPoint> momentumData;
@@ -33,8 +31,6 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final style = styleNotifier.value;
-    final containerBg = StyleService.getHeatmapBg(style, isDark);
 
     final content = Column(
       children: [

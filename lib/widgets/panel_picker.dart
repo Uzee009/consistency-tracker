@@ -1,7 +1,6 @@
 // lib/widgets/panel_picker.dart
 import 'package:flutter/material.dart';
 import '../controllers/dashboard_layout_controller.dart';
-import '../models/panel_definition.dart';
 import '../models/dashboard_slot.dart';
 
 class PanelPicker extends StatelessWidget {
