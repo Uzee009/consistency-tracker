@@ -4,7 +4,7 @@
 **Branch:** `experiment`
 **State:** IN_PROGRESS
 **Current Phase:** Phase 4 — live server UP (https://consistancy.duckdns.org on GCP free tier, TLS verified healthy). Now doing client cutover + opt-in signup.
-**Last updated:** 2026-05-28 (CI/CD pipeline FULLY GREEN on master — run 26531907776: analyze + Linux + Windows + macOS all pass, 3 artifacts produced. CI work committed and pushed (feature/sync-engine == master == 6eacc13). Sync-module functional work unchanged; live two-device verification + deploy-guide GCP update still pending.)
+**Last updated:** 2026-05-28 (CI/CD fully automated: master pushes build all 3 platforms AND auto-publish a rolling "Latest Build" release with installers — verified run 26532804739. master == 9b97bdc; feature/sync-engine is ahead by docs commits only. Sync-module functional work unchanged; live two-device verification + deploy-guide GCP update still pending.)
 
 ---
 

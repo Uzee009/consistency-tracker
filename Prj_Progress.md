@@ -706,3 +706,8 @@ The "Build and Release Application" workflow is now fully green on `master` (run
 3. **6eacc13** — macOS → `macos-15` + pin Xcode `26.1.1` (the SDK connectivity_plus documents as required). Built clean → full green.
 
 Housekeeping: branch `experiment` renamed to `feature/sync-engine`; stale `origin/experiment` deleted; the old stuck macos-13 run cancelled. Caveat: macOS `.dmg` architecture (universal vs arm64-only) not yet verified.
+
+### Automated releases wired up (2026-05-28): DONE ✅
+
+The release job was previously gated to `v*.*.*` tags only, so pushes to master built artifacts but never published them (the "release" job showed "skipped"). Per the user's choice (rolling-latest model), the `release` job in `release_artifacts.yml` now also runs on master pushes and, via the `gh` CLI, delete-recreates a single `latest` pre-release ("Latest Build") carrying the three installers. Permanent versioned releases still happen on `v*.*.*` tags (softprops/action-gh-release). The `latest` tag does not match the `v*.*.*` push trigger, so there is no workflow re-trigger loop. Verified live on run 26532804739 (commit 9b97bdc): all five jobs green (analyze + 3 builds + release), and the `latest` release now carries ConsistencyTracker-macOS.dmg (71.5 MB), ConsistencyTracker-Windows.zip (14.4 MB), ConsistencyTracker-Linux.tar.gz (20.8 MB). Stable share link: https://github.com/Uzee009/consistency-tracker/releases/tag/latest . Net result: every push to master now auto-publishes fresh installers with zero manual steps. (Open caveat unchanged: macOS .dmg universal-vs-arm64 not yet verified.)
+
