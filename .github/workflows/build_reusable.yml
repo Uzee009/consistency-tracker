@@ -15,9 +15,15 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ (inputs.platform == 'macos' && 'macos-14') || (inputs.platform == 'linux' && 'ubuntu-24.04') || (inputs.platform == 'windows' && 'windows-2022') }}
+    runs-on: ${{ (inputs.platform == 'macos' && 'macos-15') || (inputs.platform == 'linux' && 'ubuntu-24.04') || (inputs.platform == 'windows' && 'windows-2022') }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select Xcode 26 (macOS 26 SDK required by connectivity_plus)
+        if: inputs.platform == 'macos'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.1.1'
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
