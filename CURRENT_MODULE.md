@@ -4,7 +4,7 @@
 **Branch:** `experiment`
 **State:** IN_PROGRESS
 **Current Phase:** Phase 4 — Cleanup pass (IN_PROGRESS), then Deploy
-**Last updated:** 2026-05-27 (Phase 4 cleanup A/B/C/D all DONE + reviewed; uncommitted)
+**Last updated:** 2026-05-27 (SESSION CONCLUDED — Phase 4 cleanup + seed removal pushed; deploy guide at deploy/DEPLOYMENT_GUIDE.md; awaiting user infra provisioning)
 
 ---
 
@@ -385,3 +385,5 @@ Phase 4 cleanup COMPLETE — all four items code-reviewed PASS, flutter analyze 
 ALL CHANGES UNCOMMITTED (awaiting user approval to commit). NEXT: plan deployment — deploy PocketBase to a free VM (Oracle Cloud Always Free preferred) and repoint the app's default server URL from 127.0.0.1:8090 to the deployed host. Deferred: pull→recompute ±1 ~1.5s lag fix.
 
 PRE-DEPLOY DECISIONS (2026-05-27): (1) Removed all dev data-seeding logic (DatabaseService.seedData + main.dart seed gate) — a fresh dev DB now goes through normal first-run setup, no fake 'Test Pilot'/180-day data. (2) TLS via free DuckDNS subdomain + PocketBase built-in Let's Encrypt. (3) Server starts FRESH/EMPTY — existing local history is NOT migrated up; the server fills naturally from new edits. (Implication: because dirty defaults to 0, pre-existing local rows won't auto-push; that's acceptable given the start-fresh decision.) Still TODO before/at deploy: repoint default _serverUrl from 127.0.0.1:8090 to the DuckDNS https URL, and reset the per-device pull cursor in setServerUrl() so switching servers does a clean full pull.
+
+SESSION PAUSE (2026-05-27): Phase 4 cleanup (A/B/C/D) committed as 765cb58; dev seed removal committed as b55e0fa. Both LOCAL on branch experiment, NOT pushed (2 commits ahead of origin). Deployment decisions: Oracle Cloud Always Free Ampere A1 (ARM/aarch64) Ubuntu; TLS via DuckDNS + PocketBase built-in Let's Encrypt; server starts FRESH/EMPTY (no data migration). User is provisioning infra themselves first. WHEN USER RETURNS they will bring: DuckDNS hostname, reserved public IP, confirmation ports 80/443 open (both Oracle security list AND in-VM iptables — Oracle Ubuntu images DROP inbound by default), and CPU arch. THEN do: (1) gemini-coder creates deploy/ kit — systemd unit for PocketBase, setup script (fetch PB v0.38.2 linux/arm64 binary + pb_migrations/, serve --http=0.0.0.0:80 --https=0.0.0.0:443 for Let's Encrypt on the DuckDNS host), backup cron, deploy/README.md runbook (incl. exact iptables commands for 80/443). (2) Code: repoint default _serverUrl in lib/services/pocketbase_service.dart (lines 14 & 32) from http://127.0.0.1:8090 to https://<duckdns-host>; and reset the per-device pull cursor inside setServerUrl() (clear sync_state rows) so switching servers does a clean full pull. (3) PB admin: create superuser + app login account. (4) Verify two-device against live server. Workflow reminder: each code change → code-reviewer → flutter analyze clean; all writes via gemini-coder; commit only when user says so; --yolo on headless gemini.

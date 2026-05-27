@@ -620,3 +620,17 @@ Fixes (all code-reviewed PASS; `flutter analyze` clean; `flutter build linux` OK
 Verification (live DB monitors on dev DBs): single-device rapid-toggle → count moves ±1, cache == authoritative, no swings (user confirmed on-screen stability). Two-device (correct dart-define harness) → bidirectional realtime propagation; at true rest "CONVERGED+CONSISTENT" (devices equal, caches match). Accepted caveat: ±1 ~1.5s pull-path lag during SIMULTANEOUS dual-device storms (eventual-consistency; heals at rest; data never corrupted) — pull-path tightening deferred to Phase 4.
 
 Status: Phase 3 ✅ COMPLETE. Changes uncommitted (awaiting user approval to commit). Next: Phase 4 deploy + harden.
+
+## Session 2026-05-27 (cont.): Phase 4 cleanup + seed removal + deploy planning
+Phase 4 cleanup completed in Dev Mode (order A->C->B->D), each gemini-coder + code-reviewer PASS, `flutter analyze` clean, `flutter build linux --release` verified:
+- A (lint hygiene): analyzer 0 issues (was 7) — removed dangling flutter_lints include, migrated 2 deprecated `window` uses to `platformDispatcher`, removed 4 unused symbols.
+- C (pre-deploy safety): audit only, NO code change — dev seed + dev auto-login are compile-time gated on String.fromEnvironment('DATABASE_NAME'); release build no-ops both.
+- B (tombstone pruning): DatabaseService.pruneLocalTombstones (deleted=1 AND dirty=0 AND >30d) + SyncService._maybePrune (server deleted=true AND >90d, owner-scoped, batched, 404-ignored), guarded once/day via sync_state '__last_prune__'; errors swallowed. Caveat: device offline >90d that saw create-but-not-delete may resurrect on edit.
+- D (retry/backoff): exponential 2s->cap 60s; _isTransient classifies ClientException (0/5xx/429 transient, other 4xx permanent), non-ClientException transient; manual Sync Now never arms a retry; timer cancelled in stopAuto.
+Committed as **765cb58**.
+
+Also removed all dev DATA SEEDING (DatabaseService.seedData + main.dart seed gate + now-unused dart:math import); a fresh dev DB now uses the normal first-run setup flow. Committed as **b55e0fa**.
+
+Deployment plan finalized + written to `deploy/DEPLOYMENT_GUIDE.md`: Oracle Cloud Always Free Ampere A1 (ARM) + DuckDNS + Let's Encrypt, server starts empty. User is provisioning infra. NEXT SESSION (after user returns with DuckDNS host + public IP + ports-open confirmation + arch): repoint default _serverUrl to the https DuckDNS host and reset the per-device cursor in setServerUrl(); create PB superuser + app account; two-device verify against the live server.
+
+Branch `experiment` pushed to origin at session end.
