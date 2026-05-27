@@ -50,15 +50,6 @@ void main() async {
   final styleIndex = prefs.getInt(DatabaseService.prefixedKey('visual_style')) ?? 0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
 
-  // SEED DATA ONLY IN DEV MODE, and ONLY on a fresh (empty) dev DB.
-  // Re-seeding on every launch would wipe + regenerate task sids and break sync.
-  // To intentionally reseed during dev, delete the dev DB file.
-  if (const String.fromEnvironment('DATABASE_NAME') == 'consistency_tracker_dev.db'
-      && !await DatabaseService.instance.hasUser()) {
-    debugPrint('DatabaseService: Seeding development data (empty dev DB)...');
-    await DatabaseService.instance.seedData();
-  }
-
   await AudioService.instance.initialize();
 
   // Initialize PocketBase service (handles auth token restoration)
