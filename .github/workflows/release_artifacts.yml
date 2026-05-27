@@ -9,6 +9,85 @@ on:
   workflow_dispatch:
 
 jobs:
+  version:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+      tag: ${{ steps.compute.outputs.tag }}
+      skip: ${{ steps.compute.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute version
+        id: compute
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          # Determine the highest existing semver tag
+          LATEST_TAG=$(git tag -l 'v*.*.*' | sort -V | tail -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.0.9"
+          fi
+          echo "Latest tag: $LATEST_TAG"
+
+          # Extract major, minor, patch from the latest tag (strip leading 'v')
+          VERSION_WITHOUT_V="${LATEST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_WITHOUT_V"
+
+          # Determine if this is a tag push or a master push
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tag push: use the tag version as-is
+            COMPUTED_TAG="${{ github.ref_name }}"
+            COMPUTED_VERSION="${COMPUTED_TAG#v}"
+            SKIP="false"
+            echo "Tag push detected: using $COMPUTED_TAG"
+          elif [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+            # Master push: read commit message and decide bump
+            echo "Commit message: $COMMIT_MSG"
+
+            # Decide bump size
+            if [[ "$COMMIT_MSG" == *"[skip release]"* ]]; then
+              SKIP="true"
+              COMPUTED_VERSION="$VERSION_WITHOUT_V"
+              COMPUTED_TAG="$LATEST_TAG"
+              echo "Skip release directive found"
+            else
+              SKIP="false"
+              if [[ "$COMMIT_MSG" == *"#major"* ]]; then
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                echo "Major bump: $MAJOR.0.0"
+              elif [[ "$COMMIT_MSG" == *"#minor"* ]]; then
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                echo "Minor bump: $MAJOR.$MINOR.0"
+              else
+                PATCH=$((PATCH + 1))
+                echo "Patch bump: $MAJOR.$MINOR.$PATCH"
+              fi
+              COMPUTED_VERSION="$MAJOR.$MINOR.$PATCH"
+              COMPUTED_TAG="v$MAJOR.$MINOR.$PATCH"
+            fi
+          else
+            # Other triggers (workflow_dispatch): default to patch
+            SKIP="false"
+            PATCH=$((PATCH + 1))
+            COMPUTED_VERSION="$MAJOR.$MINOR.$PATCH"
+            COMPUTED_TAG="v$MAJOR.$MINOR.$PATCH"
+            echo "Other trigger: patch bump to $COMPUTED_TAG"
+          fi
+
+          echo "version=$COMPUTED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$COMPUTED_TAG" >> "$GITHUB_OUTPUT"
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+          echo "Computed version=$COMPUTED_VERSION, tag=$COMPUTED_TAG, skip=$SKIP"
+
   analyze:
     runs-on: ubuntu-24.04
     steps:
@@ -28,29 +107,32 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
   build_macos:
-    needs: analyze
+    needs: [version, analyze]
     uses: ./.github/workflows/build_reusable.yml
     with:
       platform: macos
       output_name: ConsistencyTracker-macOS
+      build_name: ${{ needs.version.outputs.version }}
 
   build_linux:
-    needs: analyze
+    needs: [version, analyze]
     uses: ./.github/workflows/build_reusable.yml
     with:
       platform: linux
       output_name: ConsistencyTracker-Linux
+      build_name: ${{ needs.version.outputs.version }}
 
   build_windows:
-    needs: analyze
+    needs: [version, analyze]
     uses: ./.github/workflows/build_reusable.yml
     with:
       platform: windows
       output_name: ConsistencyTracker-Windows
+      build_name: ${{ needs.version.outputs.version }}
 
   release:
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
-    needs: [analyze, build_macos, build_linux, build_windows]
+    if: (github.ref == 'refs/heads/master' && needs.version.outputs.skip != 'true') || startsWith(github.ref, 'refs/tags/v')
+    needs: [version, analyze, build_macos, build_linux, build_windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -58,18 +140,20 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
-      - name: Publish rolling "Latest" release (every push to master)
+      - name: Create auto-tagged stable release (on master push)
         if: github.ref == 'refs/heads/master'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
-          gh release create latest \
+          if gh release view "${{ needs.version.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${{ needs.version.outputs.tag }} already exists — skipping."
+            exit 0
+          fi
+          gh release create "${{ needs.version.outputs.tag }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Latest Build" \
-            --notes "Automated rolling build from the latest commit on master ($GITHUB_SHA). Updated on every push to master." \
-            --prerelease \
+            --title "${{ needs.version.outputs.tag }}" \
+            --generate-notes \
             ConsistencyTracker-macOS/ConsistencyTracker-macOS.dmg \
             ConsistencyTracker-Linux/ConsistencyTracker-Linux.tar.gz \
             ConsistencyTracker-Windows/ConsistencyTracker-Windows.zip

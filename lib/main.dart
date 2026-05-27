@@ -11,12 +11,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
+import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'dart:async';
 import 'dart:io';
 
 // Global notifiers for theme and style management
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
-final ValueNotifier<VisualStyle> styleNotifier = ValueNotifier(VisualStyle.minimalist);
+final ValueNotifier<VisualStyle> styleNotifier =
+    ValueNotifier(VisualStyle.minimalist);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +31,8 @@ void main() async {
     await windowManager.ensureInitialized();
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1400, 900),
-      minimumSize: Size(1250, 850), // Increased from 700 to accommodate 2x 400px panels
+      minimumSize:
+          Size(1250, 850), // Increased from 700 to accommodate 2x 400px panels
       center: true,
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
@@ -44,10 +47,13 @@ void main() async {
   // Load saved preferences
   final prefs = await SharedPreferences.getInstance();
 
-  final themeIndex = prefs.getInt(DatabaseService.prefixedKey('theme_mode')) ?? 0; // 0: system, 1: light, 2: dark
+  final themeIndex = prefs.getInt(DatabaseService.prefixedKey('theme_mode')) ??
+      0; // 0: system, 1: light, 2: dark
   themeNotifier.value = ThemeMode.values[themeIndex];
 
-  final styleIndex = prefs.getInt(DatabaseService.prefixedKey('visual_style')) ?? 0; // 0: minimalist, 1: vibrant
+  final styleIndex =
+      prefs.getInt(DatabaseService.prefixedKey('visual_style')) ??
+          0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
 
   await AudioService.instance.initialize();
@@ -57,6 +63,8 @@ void main() async {
 
   // Initialize connectivity service (checks online status + subscribes to changes)
   await ConnectivityService.instance.init();
+
+  unawaited(UpdateService.instance.checkForUpdate());
 
   unawaited(PocketBaseService.instance.tryDevAutoLogin());
 
@@ -100,6 +108,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       SyncService.instance.requestSync();
+      unawaited(UpdateService.instance.checkForUpdate());
     }
   }
 
@@ -108,9 +117,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsFlutterBinding.ensureInitialized();
     // Re-check and set notifiers if main didn't
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt(DatabaseService.prefixedKey('theme_mode')) ?? 0;
+    final themeIndex =
+        prefs.getInt(DatabaseService.prefixedKey('theme_mode')) ?? 0;
     themeNotifier.value = ThemeMode.values[themeIndex];
-    final styleIndex = prefs.getInt(DatabaseService.prefixedKey('visual_style')) ?? 0;
+    final styleIndex =
+        prefs.getInt(DatabaseService.prefixedKey('visual_style')) ?? 0;
     styleNotifier.value = VisualStyle.values[styleIndex];
 
     // Initialize state variables *after* notifiers are guaranteed set
@@ -119,8 +130,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // Calculate initial _isDark based on system brightness if ThemeMode.system
     _isDark = _currentThemeMode == ThemeMode.dark ||
-              (_currentThemeMode == ThemeMode.system &&
-               WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+        (_currentThemeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
 
     // Also set _isFirstRun here as it depends on DatabaseService which needs init
     _isFirstRun = _checkFirstRun();
@@ -134,8 +146,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _currentVisualStyle = styleNotifier.value;
         // Recalculate _isDark based on the new values
         _isDark = _currentThemeMode == ThemeMode.dark ||
-                  (_currentThemeMode == ThemeMode.system &&
-                   WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+            (_currentThemeMode == ThemeMode.system &&
+                WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                    Brightness.dark);
       });
     }
   }
@@ -156,21 +169,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           return ColoredBox(
             color: (themeNotifier.value == ThemeMode.dark ||
                     (themeNotifier.value == ThemeMode.system &&
-                     MediaQuery.platformBrightnessOf(context) == Brightness.dark))
-                   ? const Color(0xFF09090B) // Dark background
-                   : Colors.white, // Light background
+                        MediaQuery.platformBrightnessOf(context) ==
+                            Brightness.dark))
+                ? const Color(0xFF09090B) // Dark background
+                : Colors.white, // Light background
             child: const Center(child: CircularProgressIndicator()),
           );
         } else if (snapshot.hasError) {
           return MaterialApp(
             home: Scaffold(
-              body: Center(child: Text('Error initializing app: ${snapshot.error}')),
+              body: Center(
+                  child: Text('Error initializing app: ${snapshot.error}')),
             ),
           );
         }
 
         // Only build MaterialApp once initialization is complete
-        final primaryColor = StyleService.getPrimaryColor(_currentVisualStyle, _isDark);
+        final primaryColor =
+            StyleService.getPrimaryColor(_currentVisualStyle, _isDark);
 
         return MaterialApp(
           title: 'Consistency Tracker',
@@ -212,17 +228,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 borderRadius: BorderRadius.circular(4),
                 borderSide: BorderSide(color: primaryColor, width: 1),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              hintStyle: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              hintStyle:
+                  const TextStyle(color: Color(0xFFA1A1AA), fontSize: 14),
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
-                foregroundColor: _currentVisualStyle == VisualStyle.vibrant ? Colors.white : Colors.white,
+                foregroundColor: _currentVisualStyle == VisualStyle.vibrant
+                    ? Colors.white
+                    : Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                textStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    letterSpacing: 0.5),
               ),
             ),
             dividerTheme: const DividerThemeData(
@@ -269,17 +294,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 borderRadius: BorderRadius.circular(4),
                 borderSide: BorderSide(color: primaryColor, width: 1),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              hintStyle: const TextStyle(color: Color(0xFF27272A), fontSize: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              hintStyle:
+                  const TextStyle(color: Color(0xFF27272A), fontSize: 14),
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
-                foregroundColor: _isDark && _currentVisualStyle == VisualStyle.minimalist ? const Color(0xFF09090B) : Colors.white,
+                foregroundColor:
+                    _isDark && _currentVisualStyle == VisualStyle.minimalist
+                        ? const Color(0xFF09090B)
+                        : Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 0.5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                textStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    letterSpacing: 0.5),
               ),
             ),
             dividerTheme: const DividerThemeData(

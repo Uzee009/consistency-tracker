@@ -1,426 +1,50 @@
 # CURRENT_MODULE.md
 
-**Module:** Step 13 — Cross-Device Sync (PocketBase, Local-First)
-**Branch:** `experiment`
+**Module:** Step 14 — In-App Updates & Auto-Release
+**Branch:** feature/sync-engine
 **State:** IN_PROGRESS
-**Current Phase:** Phase 4 — live server UP (https://consistancy.duckdns.org on GCP free tier, TLS verified healthy). Now doing client cutover + opt-in signup.
-**Last updated:** 2026-05-28 (CI/CD fully automated: master pushes build all 3 platforms AND auto-publish a rolling "Latest Build" release with installers — verified run 26532804739. master == 9b97bdc; feature/sync-engine is ahead by docs commits only. Sync-module functional work unchanged; live two-device verification + deploy-guide GCP update still pending.)
+**Current Phase:** Part B — Client updater
+**Last updated:** 2026-05-28
 
 ---
 
 ## Goal
 
-Tick a task on one device, see it on the others in ~1–2s while online; work fully
-offline and reconcile automatically on reconnect; never lose data.
+The app notifies users when a newer stable release exists and offers a one-click download. CI auto-bumps the version and cuts a real vX.Y.Z GitHub release on every push to master so the app has a clean semver channel to track. 
 
-Architecture: Local-first SQLite (full mirror) + dumb central server (PocketBase) +
-a small hand-rolled push/pull sync loop. Pure-Dart client (HTTP + SSE) — same code on
-Linux/Windows/macOS/Android. Conflict resolution = Last-Write-Wins on a client-set
-`updated_at`. Full spec in `DEVELOPMENT_PLAN.md` → "Appendix: Cross-Device Sync".
+Note: Prior module (Step 13 sync, Phase 4 deploy) was archived to `.archive/CURRENT_MODULE_2026-05-28_step13-sync.md` and can be resumed from there.
 
 ---
 
 ## Phases & Sub-tasks
 
-- **Phase 0 — Local refactor (no network).** `[DONE]` ✅ (2026-05-26, committed)
-  - `[DONE]` Task identity migrated from auto-increment `int id` → client-generated UUID `sid TEXT`.
-  - `[DONE]` Split `day_records.completed_task_ids` into `task_status` (one row per completion/skip) + `day_meta` (per-day single-value state).
-  - `[DONE]` `completion_score` / `visual_state` now derived locally from `task_status` via `ScoringService`.
-  - `[DONE]` Added sync columns (`updated_at`, `deleted`, `dirty`) to `tasks`, `task_status`, `day_meta`.
-  - `[DONE]` DB migration v7 → v8, automatic on first launch.
-  - `[DONE]` Verified: app runs identically on Linux with dev DB; no user-visible change.
+- **Part A — CI:** [DONE]
+  - A1 version job (compute next semver tag, handle #major/#minor/[skip release] directives)
+  - A2 build_name threading (wire version into flutter build via --build-name)
+  - A3 auto-tagged release (replace rolling prerelease with stable vX.Y.Z releases)
 
-- **Phase 1 — PocketBase up + auth.** `[DONE]` ✅
-  - `[DONE]` Run PocketBase binary locally (v0.38.2; migration applied via `./pocketbase migrate up`).
-  - `[DONE]` Create collections mirroring local tables (JS migration `1748260800_init_sync_collections.js` creates `tasks`, `task_status`, `day_meta` with `owner` relation + owner-scoped rules + unique indexes).
-  - `[DONE]` Add a login screen (`lib/screens/login_screen.dart`, reachable from Settings → Sync Account; non-blocking / local-first).
-  - `[DONE]` Add a connectivity service (`lib/services/connectivity_service.dart` + `lib/services/pocketbase_service.dart` with AsyncAuthStore token persistence).
-  - `[DONE]` End-to-end verify: run server, create shared app account, sign in from the app, confirm token survives restart.
-  - `[DONE]` Dev-mode auto-login via gitignored `config/dev.json` (+ tracked `config/dev.json.example`); app silently signs in as the dev account on startup in dev mode, non-blocking.
-
-- **Phase 2 — Manual sync.** `[DONE]` ✅
-  - `[DONE]` ✅ **Task 0 (prerequisite):** Fix broken Phase-1 PB collections. ✅
-  - `[DONE]` ✅ **Task 1:** Sync engine `lib/services/sync_service.dart` (~300 lines) per A.5 —
-    push dirty rows (LWW folded into push via natural-key lookup) then pull changed remote rows
-    (server `updated` autodate as per-collection cursor in shared_preferences), then full
-    chronological recompute of the `day_records` derived cache.
-  - `[DONE]` ✅ **Task 2:** "Sync now" button in Settings → Sync Account (spinner + result snackbar;
-    disabled when offline or not signed in).
-  - `[ ]` **Task 3:** Prove correctness across two dev DBs per A.10 test plan.
-
-- **Phase 3 — Automatic + realtime.** `[DONE]` ✅ (2026-05-27)
-  - `[DONE]` dirty-on-write trigger (DatabaseService.localChanges notifier → SyncService debounced 500ms)
-  - `[DONE]` PocketBase SSE realtime subscribe on all 3 collections → debounced pull
-  - `[DONE]` app focus/resume (WidgetsBindingObserver) + 60s safety poll
-  - `[DONE]` connectivity reconnect (offline→online) → re-subscribe realtime + flush dirty
-  - `[DONE]` always-on (no settings toggle); efficiency: recompute/dataChanged only when pushed+pulled>0
-  - `[DONE]` ghost-task bugfix (Fixes A + C)
-  - `[DONE]` race-condition fix: atomic recomputeAllDerived + transactional createOrUpdateDayRecord + WAL + optimistic/debounced UI refresh + write-mutex (synchronized Lock). Code-reviewed PASS.
-  - `[DONE]` verified single-device (no random HABITS COMPLETED swings) and two-device (CONVERGED+CONSISTENT at rest). Accepted caveat: ±1 ~1.5s pull-path lag during simultaneous dual-device storms (eventual-consistency, heals at rest) — deferred to Phase 4.
-
-## Session 2026-05-27: Phase 3 ghost-task bugfix
-
-During live two-device realtime verification, ghost tasks (deleted but tombstoned) appeared momentarily with stale completion states ("1 day left") during rapid GUI clicks. Root cause analysis identified two bugs:
-
-**Bug 1 (transient):** Eventual consistency lag on weak connections — deleted task stays visible ~1-2s until tombstone SSE arrives (self-heals).
-
-**Bug 2 (data corruption):** `deleteTaskPermanently()` tombstones task + task_status but NOT day_records cache CSV; next `createOrUpdateDayRecord()` uses stale `completedTaskIds` and resurrects deleted task_status rows with deleted=0, dirty=1.
-
-**Fixes implemented:**
-
-**Fix A (comprehensive cache cleanup):**
-- Location: `lib/services/database_service.dart` lines 577-624
-- When `deleteTaskPermanently(sid)` tombstones a task, now comprehensively removes the sid from ALL `day_records` cache rows (not just creation date)
-- Iterates all day_records, removes sid from both `completed_task_ids` and `skipped_task_ids` CSVs, updates only changed rows
-- Code-reviewer: PASS ✅
-
-**Fix C (SharedPreferences namespacing):**
-- Locations: database_service.dart (helper), main.dart, pocketbase_service.dart, audio_service.dart, settings_screen.dart, first_run_setup_screen.dart
-- All SharedPreferences keys now namespaced by DATABASE_NAME via `DatabaseService.prefixedKey(key)` helper
-- Prevents Device A and Device B from cross-contaminating cache state when running on same machine
-- Code-reviewer: PASS ✅
-
-**Verification:**
-- `flutter analyze`: PASS (0 new errors; 7 pre-existing unrelated warnings)
-- App builds and runs without crashes
-- Ready for live two-device re-verification
-
-**Next action:** Restart live two-device monitoring to verify the bugfixes prevent ghost-task reappearance.
-
-- **Phase 4 — Deploy + harden.** `[IN_PROGRESS]` (cleanup pass order A→C→B→D)
-
-  ### Phase 4 Cleanup (Dev Mode, order A→C→B→D)
-
-  - `[DONE] A — Lint hygiene: make flutter analyze green (remove dangling flutter_lints include, fix 2 deprecated window uses, remove 4 unused symbols).`
-  - `[ ] C — Pre-deploy safety audit: confirm dev gating is compile-time only (no code change expected).`
-  - `[DONE] B — Tombstone pruning: local prune deleted=1 AND dirty=0 older than 30d; server prune deleted tombstones older than 90d; daily-guarded; documented resurrection caveat. Code-reviewed PASS (2026-05-27).`
-  - `[DONE] D — Retry/backoff: exponential backoff (2s→cap 60s) in SyncService: _isTransient classifies ClientException (0/5xx/429=transient, other 4xx=permanent), _runScheduled schedules retry only on transient error, _cancelRetry on success/offline/permanent, retry timer cancelled in stopAuto. — code-reviewer PASS (7 axes incl. in-flight-retry chain survival via _pendingSync), flutter analyze clean.`
+- **Part B — Client updater:** [DONE]
+  - Dependencies (package_info_plus, url_launcher, http) [DONE]
+  - update_service.dart (singleton with checkForUpdate, semver comparison, GitHub API polling) [DONE]
+  - Settings UPDATES section (current version, update status, check button, download button) [DONE]
+  - Startup hook (main.dart check on init) [DONE]
+  - Home banner (show update notification when available) [DONE]
 
 ---
 
-Phase 1 COMPLETE, code-reviewed (cycle 2 PASS), end-to-end verified by the user, and committed+pushed to origin/experiment as a checkpoint. PocketBase auth + token persistence + connectivity + login screen all working; dev auto-login wired via config/dev.json (gitignored). No sync engine yet. Ready to begin Phase 2 (manual 'Sync now' push/pull loop per DEVELOPMENT_PLAN.md A.5).
+## Working Context
+
+The UI wiring for in-app updates is now complete. The client handles background update checks on startup and lifecycle resume, provides a dismissible notification banner on the home screen, and includes a dedicated management section in Settings.
+
+---
+
+## Next Action
+
+Finalize code-review of the update integration and proceed with local verification of the end-to-end update flow.
 
 ---
 
 ## Review History
 
-- **2026-05-26 — code-reviewer on Phase 0 migration (commit `eef25d1`): FAIL.**
-  App compiles (`flutter analyze` clean) and runs on a fresh DB, but the v7→v8
-  migration has correctness bugs on real upgrade paths. Findings (prioritized):
-  - **[CRITICAL]** `database_service.dart:141-290` — migration not wrapped in a
-    transaction; crash mid-migration leaves DB permanently broken.
-  - **[CRITICAL]** `database_service.dart:170` — `row['id'] as int` cast fragile;
-    use `(row['id'] as num).toInt()`.
-  - **[MAJOR]** `database_service.dart:218-289` — `day_records` cache CSV updated but
-    `completion_score`/`visual_state` NOT recomputed → stale cached score after
-    migration when orphaned (hard-deleted) task ids are silently dropped.
-  - **[MAJOR]** `database_service.dart:569-582` — `getTaskHistory` still uses
-    `LIKE '%sid%' OR cheat_used = 1`; returns ALL cheat days for any task, inflating
-    history/streaks. Should query `task_status` directly.
-  - **[MAJOR]** `database_service.dart:487-489` — a sid in both completed+skipped sets
-    gets written twice to `task_status` (skipped wins), contradicting the cache row.
-  - **[MINOR]** `:221` shadowed `now`; `:141` not idempotent (no `IF NOT EXISTS`);
-    `:574` LIKE-on-CSV will false-negative after Phase 1 sync.
-  → **User decision (2026-05-26): FIX ALL.** Fix plan below; cycle 1 in progress.
-
-- **2026-05-26 — code-reviewer on Phase 2 Task 1 (sync engine), cycle 1: FAIL → fixed.**
-  5 findings addressed: (1) recomputeAllDerived now does a FULL rebuild (clears day_records
-  first) so tombstoned dates leave no phantom cache rows; (2) pull cursor uses `>=` (LWW makes
-  boundary re-apply idempotent) so equal-timestamp rows are never skipped; (3) _applyRemote insert
-  uses ConflictAlgorithm.replace; (4) _push counts only actual create/update writes (dirty still
-  cleared for every row); (5) PB filter values now escape embedded double-quotes. Re-review pending.
-
-## Fix Plan (Phase 0 review remediation — cycle 1, COMPLETE ✅)
-
-Single file: `lib/services/database_service.dart`.
-
-**Applied all 8 fixes:**
-
-1. ✅ **#1 transaction** — Added comment documenting sqflite's exclusive transaction guarantee.
-2. ✅ **#2 cast** — Changed `row['id'] as int` → `(row['id'] as num).toInt()`.
-3. ✅ **#3 stale score** — Restructured migration day-loop: process `day_records` in ASC date
-   order, maintain chronological `history`, recompute `completion_score`/`visual_state`
-   via `ScoringService.calculateDayScore`, write full `finalRecord.toMap()` to cache.
-4. ✅ **#4/#8 getTaskHistory** — Rewrote to query `task_status` (DISTINCT dates) then fetch
-   `day_records` by `date IN (...)`. Eliminates `LIKE`/CSV-based `cheat_used` false-positives.
-5. ✅ **#5 double-write** — In `createOrUpdateDayRecord`, deduped skipped against completed
-   (`newSkippedSids..removeAll(record.completedTaskIds)`); completed wins.
-6. ✅ **#6 shadow** — Single migration-wide `now` at line 149; removed inner shadowing.
-7. ✅ **#7 idempotency** — Added `DROP TABLE IF EXISTS tasks_new` before create; used
-   `CREATE TABLE IF NOT EXISTS` for `task_status`/`day_meta`.
-8. ✅ **Helper methods** — Added `_remapCsvToSids()` (drop orphaned ids) and
-   `_activeTasksFor()` (in-memory date-window filter for score re-derivation).
-
-**Verification:**
-- `flutter analyze`: PASS (zero database_service.dart errors; 7 pre-existing unrelated warnings).
-- File compiles and all imports/methods resolve correctly.
-
-**Cycle 1 code-reviewer result: FAIL (1 new issue).** All 8 original fixes confirmed
-correct. New regression introduced by fix #3: the recompute loads `migratedTasks` via
-`db.query(tasksTable)` with NO filter, so archived (`is_active=0`) tasks are passed to
-`_activeTasksFor` → inflates the scoring denominator → migrated-day scores lower than the
-live path. Live `getActiveTasksForDate` filters `deleted = 0 AND is_active = 1`.
-
-## Fix Plan — cycle 2 (gemini-coder)
-
-- Change the `migratedTasks` load to `db.query(tasksTable, where: 'deleted = 0 AND
-  is_active = 1')` so the migration recompute matches the live scoring path. Re-run
-  code-reviewer (cycle 2 of max 3).
-
-**Cycle 2 code-reviewer result: PASS ✅ (2026-05-26).** WHERE clause matches the live
-`getActiveTasksForDate` path; CSV remap / `task_status` population unaffected (built from
-the full `oldIntIdToSid` map, not the filtered list); chronological `history` + recompute
-chain intact; `git diff` shows only intended changes; `flutter analyze` clean.
-
-**Status: Phase 0 migration review remediation COMPLETE.** All 8 findings fixed across 2
-cycles. Changes are UNCOMMITTED working-tree edits to `lib/services/database_service.dart`
-(awaiting user decision to commit). The fixes go *beyond* commit `eef25d1`, so the
-"Phase 0 ✅ committed" status above now has follow-up fixes not yet committed.
-
----
-
-## Session 2026-05-26: Phase 1 Complete
-
-**Deliverables completed:**
-
-1. **`.gitignore`** — Updated to track `pocketbase/pb_migrations/` while ignoring the binary and data.
-2. **Dependencies** — Added `pocketbase ^0.24.0` and `connectivity_plus ^7.1.1` via `flutter pub add`.
-3. **PocketBase migration** `1748260800_init_sync_collections.js` — Creates `tasks`, `task_status`, `day_meta` base collections with `owner` relation, access rules (list/view/create/update/delete restricted to authenticated owner), and unique indexes.
-4. **`PocketBaseService.instance`** — Singleton managing auth state (ValueNotifier), login/logout, server URL persistence, token restoration via PocketBase's default auth store.
-5. **`ConnectivityService.instance`** — Singleton tracking online/offline status via `connectivity_plus`, re-checks on connectivity change and on-demand via HTTP GET to `/api/health`.
-6. **`LoginScreen`** — StatefulWidget with email, password, optional Advanced server URL field; shows loading spinner, error messages, logs user in and returns to settings.
-7. **Settings screen "Sync Account" section** — Displays auth status (signed in/out with email), login/logout buttons, online/offline indicator (green/orange dot).
-8. **`main.dart`** — Initializes both services before `runApp()`. App remains fully offline-capable (local-first).
-
-**Verification:**
-- `flutter pub get`: All dependencies resolved.
-- `flutter analyze`: 7 pre-existing warnings/info (not new); 0 Phase 1 errors.
-- `pocketbase migrate up`: Migration applies cleanly (no SQL errors).
-- Code compiles: All imports and method calls resolve.
-
-**Status: Phase 1 READY FOR PHASE 2.** The app now has:
-- ✅ PocketBase backend configured
-- ✅ Auth UI (login screen)
-- ✅ Connectivity detection
-- ✅ Auth state management
-- ❌ Sync engine (Phase 2)
-
-**Next action:** Begin Phase 2 — plan the manual push/pull sync engine (~300 lines, one file) per DEVELOPMENT_PLAN.md A.5, then a 'Sync now' button. Plan with user before coding.
-
----
-
-## Phase 1 Review Cycle 1 (2026-05-26)
-
-- **2026-05-26 — code-reviewer on Phase 1 (cycle 1): FAIL.** 4 findings:
-  - **[CRITICAL]** `pocketbase_service.dart:27` — auth token is never persisted; uses default in-memory AuthStore so token lost on restart.
-  - **[MAJOR]** `connectivity_service.dart:31-32` — health check hardcodes `http://127.0.0.1:8090/api/health`; should read live server URL from PocketBaseService.
-  - **[MAJOR]** `pocketbase_service.dart:30,74` — `onChange` subscription leaks/goes stale on `setServerUrl()`; new client built without re-subscribing.
-  - **[MINOR]** `pocketbase/pb_migrations/1748260800_init_sync_collections.js` — field `id` set equal to field name instead of auto-generated or unique ids.
-
-## Fix Cycle 1 Applied (2026-05-26)
-
-**FIX 1 (CRITICAL) — `pocketbase_service.dart:23-43` (lines changed)**
-- Added `import 'dart:async'` for `StreamSubscription`.
-- Added `_authSub` field to store the auth change subscription.
-- Rewrote `init()`: creates `AsyncAuthStore` with shared_preferences backing (`save` and `initial` callbacks), passes it to `PocketBase(...)`, calls new `_subscribeToAuthChanges()` helper, sets initial auth state.
-- Added `_subscribeToAuthChanges()` private method to subscribe and update `authState.value` on token changes.
-- **Result:** Auth token now persists across app restarts via shared_preferences; `isAuthenticated` returns true on fresh start if user previously logged in.
-
-**FIX 2 (MAJOR) — `connectivity_service.dart:6,31-34` (lines changed)**
-- Added `import 'pocketbase_service.dart'` at top.
-- Changed hardcoded `'http://127.0.0.1:8090/api/health'` to `'${PocketBaseService.instance.serverUrl}/api/health'`.
-- Added comment documenting dependency on PocketBaseService initialization (guaranteed by main.dart).
-- **Result:** Health checks now use live server URL; respects user-set custom server URLs.
-
-**FIX 3 (MAJOR) — `pocketbase_service.dart:82-99` (lines changed)**
-- Rewrote `setServerUrl()`: cancels old `_authSub` before URL change, rebuilds client preserving `authStore`, re-subscribes via `_subscribeToAuthChanges()`, updates `authState.value`.
-- **Result:** Subscription no longer leaks; auth state updates work correctly after URL change.
-
-**FIX 4 (MINOR) — `pocketbase/pb_migrations/1748260800_init_sync_collections.js:15-29, 41-49, 61-69` (all 3 schemas)**
-- Removed all `id:` keys from field definitions in `tasks`, `task_status`, `day_meta` schemas.
-- Kept `name` and all other field properties (type, required, presentable, collectionId, maxSelect, cascadeDelete) unchanged.
-- Owner relation, indexes, and access rules unchanged.
-- **Result:** PocketBase now auto-generates field IDs instead of hardcoding them to field names.
-
-## Validation Results
-
-1. **Migration validation:** Deleted `pb_data/` (dev-only, git-ignored), ran `pocketbase migrate up` from pocketbase/:
-   ```
-   Applied 1748260800_init_sync_collections.js
-   ```
-   ✅ Clean apply, no errors.
-
-2. **Flutter analysis:** Ran `flutter pub get` then `flutter analyze`:
-   ```
-   7 issues found (all pre-existing, unrelated to Phase 1 fixes):
-   - 1 warning: missing flutter_lints include
-   - 2 info: deprecated window API usage
-   - 4 warnings: unused local var, unused param, unused import, unused field
-   ```
-   ✅ No new Phase 1 errors.
-
-3. **Diff summary:**
-   - **pocketbase_service.dart:** Added async/StreamSubscription import; added _authSub field; rewrote init() to use AsyncAuthStore (30-50 loc change); added _subscribeToAuthChanges(); rewrote setServerUrl() to cancel/re-subscribe (82-99 loc).
-   - **connectivity_service.dart:** Added pocketbase_service import; updated health check URL read; added dependency comment (6 loc change).
-   - **1748260800_init_sync_collections.js:** Removed `id:` from all 28 field definitions across 3 schemas (3 × ~14 lines each).
-
-**Status: Fix Cycle 1 COMPLETE — ALL 4 ISSUES RESOLVED.** Code compiles; migration applies cleanly; no new lint errors. Ready for next code-reviewer cycle or Phase 2 work.
-
----
-
-## Phase 1 Review Cycle 2 (2026-05-26)
-
-- **2026-05-26 — code-reviewer on Phase 1 (cycle 2): PASS ✅.** All 4 cycle-1 findings fixed (AsyncAuthStore token persistence, connectivity uses live serverUrl, onChange subscription re-wired in setServerUrl, migration field ids auto-generated). flutter analyze clean (7 pre-existing warnings only); app builds + runs on Linux.
-
-- **2026-05-26 — Phase 2 Task 1 cycle 2: PASS ✅.** All 5 cycle-1 fixes verified correct, no
-  regressions. recomputeAllDerived now does a FULL rebuild (clears day_records
-  first) so tombstoned dates leave no phantom cache rows;
-  `>=` cursor cannot skip or infinite-loop (LWW idempotent); ConflictAlgorithm.replace on insert;
-  push counts only real writes; filter values escaped.
-- **2026-05-26 — Phase 2 Task 2 ("Sync Now" button): verified.** flutter analyze clean (whole
-  project: only the 7 pre-existing warnings). Button wired in Settings → SYNC & CONNECTIVITY:
-  disabled while syncing or signed out, inline spinner, snackbar via captured ScaffoldMessenger,
-  last-synced timestamp shown.
-- **2026-05-26 — Task 0 follow-up bug found during live API testing + FIXED.** PocketBase treats a
-  `required: true` NUMBER field value of 0 as "blank", so creating a task with `duration_days: 0`
-  (valid for daily/perpetual tasks) failed with `validation_required`. Removed `required` from all
-  NUMBER fields (`tasks.duration_days`, and `updated_at` in tasks/task_status/day_meta); text fields
-  and the owner relation stay required. Migration re-applied (field counts still 16/10/11; users
-  preserved).
-- **2026-05-26 — Server-side end-to-end smoke test (headless curl, regular dev user): PASS ✅.**
-  Against the running PocketBase as dev@local.com (a non-superuser): owner-scoped create with
-  duration_days=0 → 200; owner-scoped list returns the row; LWW PATCH → 200; duplicate (owner,sid)
-  → 400 (unique index enforced); task_status + day_meta creates → 200; deletes → 204; unauthenticated
-  list returns 200 with 0 items (rule filters, no leak). Confirms the corrected collections accept
-  the exact wire format SyncService._push builds.
-- **2026-05-26 — Two-device test (Task 3) surfaced a real sync bug → diagnosed + FIXED + reviewed.**
-  Symptom: tasks synced but task COMPLETIONS did not (both directions), and after deleting dev2.db
-  sync stopped entirely. Root cause: the pull cursor lived in shared_preferences, which is SHARED by
-  two same-machine instances (same app id) while their SQLite DBs are separate — so each instance
-  poisoned the other's cursor (`updated >= cursor` then skips everything ≤ a cursor advanced by the
-  other instance). Fix: moved the cursor into a per-device DB table `sync_state(collection PK, cursor)`
-  (DB bumped v8→v9; helpers getSyncCursor/setSyncCursor; _pull now reads/writes the DB, shared_preferences
-  import removed). Empty cursor → full pull, so a NEW instance pulls ALL data (user's stated goal); deleting
-  a DB now also resets its cursor (self-healing). code-reviewer: PASS. (The Atk-CRITICAL / Gdk cursor-theme
-  console lines and "Syncing files to device" were benign GTK/hot-reload noise, not sync errors.)
-- **2026-05-26 — Two-device retest surfaced duplicate/"zombie" tasks + stale UI → root-caused, FIXED, reviewed.**
-  Root cause of duplicates was NOT the sync engine: main.dart ran seedData() on EVERY launch of the
-  dev DB, and seedData() hard-deletes all rows (no tombstone) and regenerates tasks with NEW uuid sids.
-  So each launch pushed a fresh generation to the server while old sids stayed there forever → 3×/4×
-  duplicates + zombies; also explained the "indefinite sync" (each reseed re-pushed ~180 days, server
-  kept growing). Fixes: (1) main.dart now seeds ONLY when the dev DB is empty (`!hasUser()`); reseed by
-  deleting the DB file. (2) Post-sync UI refresh: SyncService.dataChanged ValueNotifier bumped on success;
-  HomeScreen listens → reloads DashboardController; added a manual Refresh button in the global header.
-  code-reviewer: PASS (one cosmetic header-spacing note, fixed). Also fixed earlier: PB number fields
-  marked required rejected 0 (duration_days), and the pull cursor moved into per-device DB sync_state.
-- **2026-05-26 — One-time test cleanup performed.** Server records cleared (tasks/task_status/day_meta →
-  0; schema, rules, indexes, users, superuser preserved). Deleted ~/Documents/consistency_tracker_dev.db
-  and consistency_tracker_dev2.db so Device A reseeds ONE clean generation and Device B pulls clean.
-
-Known limitations (deferred, documented): push is O(N) round-trips (fine for v1; batch later if needed);
-name-based reconciliation for genuinely-divergent offline DBs is the A.9 caveat (not triggered here).
-Nothing committed this session (awaiting explicit user instruction).
-
----
-
-## Session 2026-05-27: Phase 3 implementation
-
-Implemented automatic and realtime sync triggers by:
-1. Adding a `localChanges` notifier to `DatabaseService` triggered by every local write.
-2. Adding a `clientRevision` notifier to `PocketBaseService` to handle client/auth changes.
-3. Implementing a coordinator in `SyncService` that listens to local changes, connectivity, auth, and PocketBase realtime SSE (SSE subscriptions for tasks, task_status, and day_meta).
-4. Adding `WidgetsBindingObserver` to `lib/main.dart` to trigger sync on app resume, and starting the auto-sync engine on startup.
-5. Optimized `SyncService.sync()` to skip expensive cache recomputes when no data has changed.
-
----
-
-## Session 2026-05-27 (cont.): Phase 3 sync race-condition fix
-
-**Real root cause found.** The "ghost task (Gym Workout, 1 day left)" reported earlier was NOT a
-product bug — it was a broken test harness: two app instances were launched with bare `flutter run`
-(no `--dart-define`), so BOTH opened the DEFAULT production DB `consistency_tracker.db` and raced
-each other, producing `database is locked (code 5)` errors. "Gym Workout" is a legitimate active
-task in production and does not appear when production runs alone.
-
-**The actual reproducible bug:** rapidly toggling a single task makes the dashboard "HABITS
-COMPLETED" stat jump to random values (122 → 27 → 1072 → 372 → 142…), even in a single instance.
-
-Cause: `DatabaseService.recomputeAllDerived()` did `db.delete(dayRecordsTable)` then rebuilt ~180
-rows one await at a time, NOT in a transaction. Each toggle marks rows dirty → Phase-3 sync fires
-(500ms debounce) → runs recompute, while each toggle ALSO ran a full `initialize()` that reads all
-366 day_records to compute the stat. Reads landing mid-rebuild saw a partially-populated cache.
-
-**Fixes (full hardening, all code-reviewed PASS 2026-05-27):**
-- **Fix 1:** `recomputeAllDerived()` wrapped in a single `db.transaction` (atomic delete+rebuild).
-  `lib/services/database_service.dart`.
-- **Fix 2:** `createOrUpdateDayRecord()` STEP 1–3 wrapped in one `db.transaction`;
-  `_notifyLocalChange()` moved to after commit; return semantics preserved.
-- **Fix 3:** WAL mode enabled via `onConfigure` (`PRAGMA journal_mode=WAL; busy_timeout=5000;`) in
-  `_initDatabase()`.
-- **Fix 4:** `lib/controllers/dashboard_controller.dart` — `toggleTaskCompletion`/`toggleTaskSkip`
-  now do an optimistic in-memory `todayRecord` update + `notifyListeners()` for instant feedback,
-  then a 280ms DEBOUNCED `initialize()` (`_scheduleRefresh()`) instead of a full re-read on every
-  click. `dispose()` cancels the debounce timer.
-
-Verification: `flutter analyze` clean (7 pre-existing warnings only); `flutter build linux` OK;
-code-reviewer confirmed no nested-transaction deadlock and DayRecord field preservation in the
-optimistic update.
-
-**Test harness correction:** DB selection is COMPILE-TIME via
-`--dart-define=DATABASE_NAME=...` (database_service.dart:14), NOT an env var. Correct launch:
-- Device A: `flutter run -d linux --dart-define=DATABASE_NAME=consistency_tracker_dev.db`
-- Device B: `flutter run -d linux --dart-define=DATABASE_NAME=consistency_tracker_dev2.db`
-Bare `flutter run` uses production — never use it for two-device testing.
-
----
-
-## Session 2026-05-27 (cont.): CI/CD pipeline fix (pre-push to master)
-
-Before pushing `experiment` → `master` (which triggers the "Build and Release Application"
-GitHub Actions workflow), fixed the workflow that had been red on every recent run.
-
-**Root cause (confirmed):** the Linux job failed at `flutter build linux --release` because the
-`audioplayers` plugin's Linux native code (`audioplayers_linux/CMakeLists.txt`) hard-requires the
-GStreamer dev headers (`gstreamer-1.0`, `-app`, `-audio`, all marked REQUIRED), but CI installed
-only GTK/lzma/mesa — no GStreamer. macOS/Windows were unaffected. Last green run was tag v1.0.9
-(2026-04-01), before the audio/sync deps landed.
-
-**Fixes (gemini-coder, code-reviewer PASS):**
-- `.github/workflows/build_reusable.yml`: added `libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev`
-  to the Linux apt install (the actual fix); pinned `flutter-version: '3.41.4'` (matches local dev);
-  pinned runner OS `macos-13` / `ubuntu-24.04` / `windows-2022` (stops "randomly broke, no code change"
-  drift from `*-latest`).
-- `.github/workflows/release_artifacts.yml`: added a fast `analyze` job (`flutter pub get` +
-  `flutter analyze --no-fatal-infos`, verified clean locally → exit 0) that the three build jobs and
-  release now `needs:`, so Dart errors fail fast before the slow platform builds; pinned the release
-  job to `ubuntu-24.04` too.
-
-**Verification status:** YAML valid; code-reviewer PASS; `flutter analyze` clean locally. The only
-true proof is a real CI run — PENDING: push to `master` and confirm `analyze` + all three `build_*`
-jobs go green and three artifacts (macOS .dmg / Linux .tar.gz / Windows .zip) are produced. A local
-`flutter build linux` cannot reproduce the failure (dev machine already has GStreamer).
-
----
-
-### CI/CD fix — OUTCOME: RESOLVED ✅ (2026-05-28)
-
-Took three pushes to master (each: gemini-coder edit, orchestrator-verified via GitHub API):
-1. `e466345` — added GStreamer dev deps to the Linux apt step + pinned Flutter 3.41.4 + pinned runner OS + added a fast `analyze` gate. Result: analyze/Linux/Windows ✅; macOS stuck in queue (Intel `macos-13` runners are retiring → no runner for 45+ min).
-2. `b0e54a0` — macOS runner `macos-13` → `macos-14`. Result: runner picked up immediately, but the build FAILED: `connectivity_plus` 7.1.1 uses `NWPath.isUltraConstrained` (macOS 26 SDK) and macos-14 ships no Xcode 26.
-3. `6eacc13` — macOS runner `macos-14` → `macos-15` + select Xcode `26.1.1` (macos-15 ships Xcode 26.x; its default 16.4 lacks the macOS 26 SDK). Result: **run 26531907776 fully green** — analyze + build_linux (20.7 MB .tar.gz) + build_windows (14.4 MB .zip) + build_macos (69.5 MB .dmg), all ✅; `release` correctly skipped (runs on `v*.*.*` tags only).
-
-Branch `experiment` was renamed to `feature/sync-engine`, the stale `origin/experiment` was deleted, and the earlier stuck macos-13 run was cancelled.
-
-Open caveat: the macOS `.dmg` was built on Apple-Silicon `macos-15`; whether it is a universal binary (also runs on Intel Macs) or arm64-only has NOT been verified (would need `lipo -info` / `file` on the binary inside the .dmg).
-
-## Next Action
-
-**Live server is operational and verified.** Client cutover (pocketbase_service.dart: _serverUrl → https://consistancy.duckdns.org + clearSyncCursors() on setServerUrl + login hint) + opt-in signup (new signUp() method + signup_screen.dart with email/password/confirm validation + "Create Account" link on login) + 3-state sync-status UX (new sync_status.dart: SyncReadiness enum + color/tooltip mappers; SYNC button moved to header with green/orange/red dot; Settings shows "Sync Status"; Sync Now disabled when unsigned; snackbar guidance + SETTINGS action) — all bundles PASS code-review (cycles 1-2) + flutter analyze clean + live smoke check (UX 2).
-
-**Files touched:** lib/services/pocketbase_service.dart, lib/services/database_service.dart, lib/screens/login_screen.dart, lib/screens/signup_screen.dart (new), lib/screens/settings_screen.dart, lib/screens/home_screen.dart, lib/services/sync_service.dart, lib/widgets/sync_status.dart (new).
-
-**Sync architecture:** opt-in, local-first; backend fully multi-user (owner relation + owner-scoped rules); per-user data isolation complete; sync engine stamps owner on push, filters by owner on pull; users collection already allows public signup (confirmed safe probe).
-
-**PENDING:** (1) Interactive live verification — two-device convergence test (live server), signup → admin UI, green/orange/red dot color transitions; (2) Update deploy/DEPLOYMENT_GUIDE.md (currently describes Oracle/ARM, needs to reflect GCP free tier + TLS + duckdns); (3) Commit decision (one commit vs split-by-feature; awaiting user approval); (4) JOURNEY.md story (reserved for explicit session conclusion only). Email verification deferred (v1).
-
-
+(empty — Part A review cycle not yet started)
+2026-05-28 — Part A code-reviewer: FAIL→PASS. Cycle 1 fixed: CRITICAL shell-injection (commit msg moved to env var), MAJOR empty --build-name guard, MAJOR tag-push now uses github.ref_name, MINOR idempotent gh release create. Verified by orchestrator.

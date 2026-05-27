@@ -12,6 +12,11 @@ on:
         required: true
         type: string
         description: 'The name to use for the output artifact'
+      build_name:
+        required: false
+        type: string
+        default: ''
+        description: 'The version string to embed in the binary (e.g. 1.0.10)'
 
 jobs:
   build:
@@ -42,7 +47,13 @@ jobs:
         shell: bash
 
       - name: Build ${{ inputs.platform }}
-        run: flutter build ${{ inputs.platform }} --release
+        run: |
+          BUILD_NAME_FLAG=""
+          if [ -n "${{ inputs.build_name }}" ]; then
+            BUILD_NAME_FLAG="--build-name=${{ inputs.build_name }}"
+          fi
+          flutter build ${{ inputs.platform }} --release $BUILD_NAME_FLAG --build-number=${{ github.run_number }}
+        shell: bash
 
       - name: Package macOS (DMG)
         if: inputs.platform == 'macos'
