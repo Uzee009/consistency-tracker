@@ -697,3 +697,12 @@ Branch `experiment` pushed to origin at session end.
 
 * **State at log time:** workflow YAML edits are UNCOMMITTED on branch `experiment`, alongside the
   still-uncommitted sync-module work from the earlier session. Nothing pushed.
+
+### CI/CD fix outcome (2026-05-28): RESOLVED ✅
+
+The "Build and Release Application" workflow is now fully green on `master` (run 26531907776): `analyze` + Linux + Windows + macOS all pass and upload 3 artifacts (Linux 20.7 MB `.tar.gz`, Windows 14.4 MB `.zip`, macOS 69.5 MB `.dmg`). It took three pushes after the initial diagnosis:
+1. **e466345** — GStreamer Linux dep + version/runner pinning + `analyze` gate. Fixed Linux & Windows; macOS then stalled in queue because GitHub's Intel `macos-13` runners are being retired.
+2. **b0e54a0** — macOS → `macos-14`: runner became available but the build failed because `connectivity_plus` 7.1.1 requires the macOS 26 SDK (`NWPath.isUltraConstrained`) and `macos-14` has no Xcode 26.
+3. **6eacc13** — macOS → `macos-15` + pin Xcode `26.1.1` (the SDK connectivity_plus documents as required). Built clean → full green.
+
+Housekeeping: branch `experiment` renamed to `feature/sync-engine`; stale `origin/experiment` deleted; the old stuck macos-13 run cancelled. Caveat: macOS `.dmg` architecture (universal vs arm64-only) not yet verified.

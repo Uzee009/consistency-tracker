@@ -4,7 +4,7 @@
 **Branch:** `experiment`
 **State:** IN_PROGRESS
 **Current Phase:** Phase 4 — live server UP (https://consistancy.duckdns.org on GCP free tier, TLS verified healthy). Now doing client cutover + opt-in signup.
-**Last updated:** 2026-05-27 (CI/CD pipeline hardened pre-push: Linux build fixed + workflow versions pinned — see "Session 2026-05-27 (cont.): CI/CD pipeline fix" below. Sync-module work unchanged: client cutover + opt-in signup + 3-state sync-status UX still code-reviewed PASS / analyze clean / UNCOMMITTED; live verification + deploy-guide-GCP-update + commit still pending.)
+**Last updated:** 2026-05-28 (CI/CD pipeline FULLY GREEN on master — run 26531907776: analyze + Linux + Windows + macOS all pass, 3 artifacts produced. CI work committed and pushed (feature/sync-engine == master == 6eacc13). Sync-module functional work unchanged; live two-device verification + deploy-guide GCP update still pending.)
 
 ---
 
@@ -401,6 +401,17 @@ jobs go green and three artifacts (macOS .dmg / Linux .tar.gz / Windows .zip) ar
 `flutter build linux` cannot reproduce the failure (dev machine already has GStreamer).
 
 ---
+
+### CI/CD fix — OUTCOME: RESOLVED ✅ (2026-05-28)
+
+Took three pushes to master (each: gemini-coder edit, orchestrator-verified via GitHub API):
+1. `e466345` — added GStreamer dev deps to the Linux apt step + pinned Flutter 3.41.4 + pinned runner OS + added a fast `analyze` gate. Result: analyze/Linux/Windows ✅; macOS stuck in queue (Intel `macos-13` runners are retiring → no runner for 45+ min).
+2. `b0e54a0` — macOS runner `macos-13` → `macos-14`. Result: runner picked up immediately, but the build FAILED: `connectivity_plus` 7.1.1 uses `NWPath.isUltraConstrained` (macOS 26 SDK) and macos-14 ships no Xcode 26.
+3. `6eacc13` — macOS runner `macos-14` → `macos-15` + select Xcode `26.1.1` (macos-15 ships Xcode 26.x; its default 16.4 lacks the macOS 26 SDK). Result: **run 26531907776 fully green** — analyze + build_linux (20.7 MB .tar.gz) + build_windows (14.4 MB .zip) + build_macos (69.5 MB .dmg), all ✅; `release` correctly skipped (runs on `v*.*.*` tags only).
+
+Branch `experiment` was renamed to `feature/sync-engine`, the stale `origin/experiment` was deleted, and the earlier stuck macos-13 run was cancelled.
+
+Open caveat: the macOS `.dmg` was built on Apple-Silicon `macos-15`; whether it is a universal binary (also runs on Intel Macs) or arm64-only has NOT been verified (would need `lipo -info` / `file` on the binary inside the .dmg).
 
 ## Next Action
 
