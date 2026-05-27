@@ -3,8 +3,8 @@
 **Module:** Step 13 — Cross-Device Sync (PocketBase, Local-First)
 **Branch:** `experiment`
 **State:** IN_PROGRESS
-**Current Phase:** Phase 2 — Manual sync (Tasks 0–2 DONE & reviewed; Task 3 = live two-device verification remaining)
-**Last updated:** 2026-05-26
+**Current Phase:** Phase 4 — Deploy + harden (NOT STARTED)
+**Last updated:** 2026-05-27 (Phase 3 COMPLETE — race-condition fix verified two-device)
 
 ---
 
@@ -48,8 +48,44 @@ Linux/Windows/macOS/Android. Conflict resolution = Last-Write-Wins on a client-s
     disabled when offline or not signed in).
   - `[ ]` **Task 3:** Prove correctness across two dev DBs per A.10 test plan.
 
-- **Phase 3 — Automatic + realtime.** `[NOT STARTED]`
-  - `[ ]` dirty-on-write (debounced ~500ms) + SSE subscribe + focus/resume + 60s safety poll.
+- **Phase 3 — Automatic + realtime.** `[DONE]` ✅ (2026-05-27)
+  - `[DONE]` dirty-on-write trigger (DatabaseService.localChanges notifier → SyncService debounced 500ms)
+  - `[DONE]` PocketBase SSE realtime subscribe on all 3 collections → debounced pull
+  - `[DONE]` app focus/resume (WidgetsBindingObserver) + 60s safety poll
+  - `[DONE]` connectivity reconnect (offline→online) → re-subscribe realtime + flush dirty
+  - `[DONE]` always-on (no settings toggle); efficiency: recompute/dataChanged only when pushed+pulled>0
+  - `[DONE]` ghost-task bugfix (Fixes A + C)
+  - `[DONE]` race-condition fix: atomic recomputeAllDerived + transactional createOrUpdateDayRecord + WAL + optimistic/debounced UI refresh + write-mutex (synchronized Lock). Code-reviewed PASS.
+  - `[DONE]` verified single-device (no random HABITS COMPLETED swings) and two-device (CONVERGED+CONSISTENT at rest). Accepted caveat: ±1 ~1.5s pull-path lag during simultaneous dual-device storms (eventual-consistency, heals at rest) — deferred to Phase 4.
+
+## Session 2026-05-27: Phase 3 ghost-task bugfix
+
+During live two-device realtime verification, ghost tasks (deleted but tombstoned) appeared momentarily with stale completion states ("1 day left") during rapid GUI clicks. Root cause analysis identified two bugs:
+
+**Bug 1 (transient):** Eventual consistency lag on weak connections — deleted task stays visible ~1-2s until tombstone SSE arrives (self-heals).
+
+**Bug 2 (data corruption):** `deleteTaskPermanently()` tombstones task + task_status but NOT day_records cache CSV; next `createOrUpdateDayRecord()` uses stale `completedTaskIds` and resurrects deleted task_status rows with deleted=0, dirty=1.
+
+**Fixes implemented:**
+
+**Fix A (comprehensive cache cleanup):**
+- Location: `lib/services/database_service.dart` lines 577-624
+- When `deleteTaskPermanently(sid)` tombstones a task, now comprehensively removes the sid from ALL `day_records` cache rows (not just creation date)
+- Iterates all day_records, removes sid from both `completed_task_ids` and `skipped_task_ids` CSVs, updates only changed rows
+- Code-reviewer: PASS ✅
+
+**Fix C (SharedPreferences namespacing):**
+- Locations: database_service.dart (helper), main.dart, pocketbase_service.dart, audio_service.dart, settings_screen.dart, first_run_setup_screen.dart
+- All SharedPreferences keys now namespaced by DATABASE_NAME via `DatabaseService.prefixedKey(key)` helper
+- Prevents Device A and Device B from cross-contaminating cache state when running on same machine
+- Code-reviewer: PASS ✅
+
+**Verification:**
+- `flutter analyze`: PASS (0 new errors; 7 pre-existing unrelated warnings)
+- App builds and runs without crashes
+- Ready for live two-device re-verification
+
+**Next action:** Restart live two-device monitoring to verify the bugfixes prevent ghost-task reappearance.
 
 - **Phase 4 — Deploy + harden.** `[NOT STARTED]`
   - `[ ]` Deploy to free VM (Oracle Cloud Always Free preferred), point app at it.
@@ -232,7 +268,8 @@ cycles. Changes are UNCOMMITTED working-tree edits to `lib/services/database_ser
 - **2026-05-26 — code-reviewer on Phase 1 (cycle 2): PASS ✅.** All 4 cycle-1 findings fixed (AsyncAuthStore token persistence, connectivity uses live serverUrl, onChange subscription re-wired in setServerUrl, migration field ids auto-generated). flutter analyze clean (7 pre-existing warnings only); app builds + runs on Linux.
 
 - **2026-05-26 — Phase 2 Task 1 cycle 2: PASS ✅.** All 5 cycle-1 fixes verified correct, no
-  regressions. recomputeAllDerived full-rebuild is complete/safe (day_records is purely derived);
+  regressions. recomputeAllDerived now does a FULL rebuild (clears day_records
+  first) so tombstoned dates leave no phantom cache rows;
   `>=` cursor cannot skip or infinite-loop (LWW idempotent); ConflictAlgorithm.replace on insert;
   push counts only real writes; filter values escaped.
 - **2026-05-26 — Phase 2 Task 2 ("Sync Now" button): verified.** flutter analyze clean (whole
@@ -275,25 +312,63 @@ cycles. Changes are UNCOMMITTED working-tree edits to `lib/services/database_ser
   0; schema, rules, indexes, users, superuser preserved). Deleted ~/Documents/consistency_tracker_dev.db
   and consistency_tracker_dev2.db so Device A reseeds ONE clean generation and Device B pulls clean.
 
+Known limitations (deferred, documented): push is O(N) round-trips (fine for v1; batch later if needed);
+name-based reconciliation for genuinely-divergent offline DBs is the A.9 caveat (not triggered here).
+Nothing committed this session (awaiting explicit user instruction).
+
+---
+
+## Session 2026-05-27: Phase 3 implementation
+
+Implemented automatic and realtime sync triggers by:
+1. Adding a `localChanges` notifier to `DatabaseService` triggered by every local write.
+2. Adding a `clientRevision` notifier to `PocketBaseService` to handle client/auth changes.
+3. Implementing a coordinator in `SyncService` that listens to local changes, connectivity, auth, and PocketBase realtime SSE (SSE subscriptions for tasks, task_status, and day_meta).
+4. Adding `WidgetsBindingObserver` to `lib/main.dart` to trigger sync on app resume, and starting the auto-sync engine on startup.
+5. Optimized `SyncService.sync()` to skip expensive cache recomputes when no data has changed.
+
+---
+
+## Session 2026-05-27 (cont.): Phase 3 sync race-condition fix
+
+**Real root cause found.** The "ghost task (Gym Workout, 1 day left)" reported earlier was NOT a
+product bug — it was a broken test harness: two app instances were launched with bare `flutter run`
+(no `--dart-define`), so BOTH opened the DEFAULT production DB `consistency_tracker.db` and raced
+each other, producing `database is locked (code 5)` errors. "Gym Workout" is a legitimate active
+task in production and does not appear when production runs alone.
+
+**The actual reproducible bug:** rapidly toggling a single task makes the dashboard "HABITS
+COMPLETED" stat jump to random values (122 → 27 → 1072 → 372 → 142…), even in a single instance.
+
+Cause: `DatabaseService.recomputeAllDerived()` did `db.delete(dayRecordsTable)` then rebuilt ~180
+rows one await at a time, NOT in a transaction. Each toggle marks rows dirty → Phase-3 sync fires
+(500ms debounce) → runs recompute, while each toggle ALSO ran a full `initialize()` that reads all
+366 day_records to compute the stat. Reads landing mid-rebuild saw a partially-populated cache.
+
+**Fixes (full hardening, all code-reviewed PASS 2026-05-27):**
+- **Fix 1:** `recomputeAllDerived()` wrapped in a single `db.transaction` (atomic delete+rebuild).
+  `lib/services/database_service.dart`.
+- **Fix 2:** `createOrUpdateDayRecord()` STEP 1–3 wrapped in one `db.transaction`;
+  `_notifyLocalChange()` moved to after commit; return semantics preserved.
+- **Fix 3:** WAL mode enabled via `onConfigure` (`PRAGMA journal_mode=WAL; busy_timeout=5000;`) in
+  `_initDatabase()`.
+- **Fix 4:** `lib/controllers/dashboard_controller.dart` — `toggleTaskCompletion`/`toggleTaskSkip`
+  now do an optimistic in-memory `todayRecord` update + `notifyListeners()` for instant feedback,
+  then a 280ms DEBOUNCED `initialize()` (`_scheduleRefresh()`) instead of a full re-read on every
+  click. `dispose()` cancels the debounce timer.
+
+Verification: `flutter analyze` clean (7 pre-existing warnings only); `flutter build linux` OK;
+code-reviewer confirmed no nested-transaction deadlock and DayRecord field preservation in the
+optimistic update.
+
+**Test harness correction:** DB selection is COMPILE-TIME via
+`--dart-define=DATABASE_NAME=...` (database_service.dart:14), NOT an env var. Correct launch:
+- Device A: `flutter run -d linux --dart-define=DATABASE_NAME=consistency_tracker_dev.db`
+- Device B: `flutter run -d linux --dart-define=DATABASE_NAME=consistency_tracker_dev2.db`
+Bare `flutter run` uses production — never use it for two-device testing.
+
 ---
 
 ## Next Action
 
-All known sync defects fixed + code-reviewed: (a) PB number-required-0 bug, (b) per-device cursor in
-sync_state, (c) dev reseed-on-every-launch (now seeds only on empty dev DB), (d) post-sync UI refresh
-(auto via SyncService.dataChanged + manual header Refresh button). Server records + both dev DBs were
-wiped clean for a fresh retest.
-
-RE-RUN Task 3 (two-device proof) — should now be clean:
-1. `cd pocketbase && ./pocketbase serve`
-2. Device A: `flutter run -d linux --dart-define-from-file=config/dev.json` → seeds ONCE (one clean
-   generation). Sync Now (first push of ~180 seeded days may take a little while; later syncs are cheap).
-3. Device B: `flutter run -d linux --dart-define-from-file=config/dev2.json` → Sync Now → pulls exactly
-   ONE copy of each task + completions; list auto-refreshes.
-4. Tick on A → Sync Now A → Sync Now B → B updates live (no restart). Same task both → later updated_at
-   wins. Delete on A → tombstoned on B. Restart A → NO reseed, no new duplicates.
-5. Manual Refresh button in the header reloads the list on demand.
-
-Known limitations (deferred, documented): push is O(N) round-trips (fine for v1; batch later if needed);
-name-based reconciliation for genuinely-divergent offline DBs is the A.9 caveat (not triggered here).
-Nothing committed this session (awaiting explicit user instruction).
+Phase 3 COMPLETE. Begin Phase 4 — Deploy + harden: deploy PocketBase to a free VM (Oracle Cloud Always Free preferred) and point the app at it; add retry/backoff + tombstone cleanup; multi-device soak test. OPTIONAL Phase 4 item logged this session: tighten the sync pull→recompute path (run recompute synchronously right after each pull-apply inside the write-mutex) to remove the ±1 ~1.5s lag seen during simultaneous dual-device editing. Also pending: commit the uncommitted Phase 2/3 working-tree changes when the user approves.

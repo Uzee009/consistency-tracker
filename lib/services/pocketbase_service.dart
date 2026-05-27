@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'database_service.dart';
 
 class PocketBaseService {
   static final PocketBaseService instance = PocketBaseService._constructor();
@@ -13,6 +14,10 @@ class PocketBaseService {
   String _serverUrl = 'http://127.0.0.1:8090';
 
   final ValueNotifier<bool> authState = ValueNotifier(false);
+
+  /// Bumped whenever `client` is (re)built, so listeners can re-establish
+  /// realtime subscriptions.
+  final ValueNotifier<int> clientRevision = ValueNotifier<int>(0);
 
   StreamSubscription<AuthStoreEvent>? _authSub;
 
@@ -24,12 +29,12 @@ class PocketBaseService {
     final prefs = await SharedPreferences.getInstance();
 
     // Load saved server URL
-    _serverUrl = prefs.getString('sync_server_url') ?? 'http://127.0.0.1:8090';
+    _serverUrl = prefs.getString(DatabaseService.prefixedKey('sync_server_url')) ?? 'http://127.0.0.1:8090';
 
     // Create AsyncAuthStore to persist token to shared_preferences
     final store = AsyncAuthStore(
-      save: (String data) async => prefs.setString('pb_auth', data),
-      initial: prefs.getString('pb_auth'),
+      save: (String data) async => prefs.setString(DatabaseService.prefixedKey('pb_auth'), data),
+      initial: prefs.getString(DatabaseService.prefixedKey('pb_auth')),
     );
 
     // Create PocketBase client with persisted auth store
@@ -40,6 +45,8 @@ class PocketBaseService {
 
     // Set initial auth state
     authState.value = client.authStore.isValid;
+
+    clientRevision.value++;
   }
 
   /// Subscribe to auth store changes (called on init and after setServerUrl).
@@ -97,7 +104,7 @@ class PocketBaseService {
   /// Cancels the old onChange subscription and re-subscribes on the new client.
   Future<void> setServerUrl(String url) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('sync_server_url', url);
+    await prefs.setString(DatabaseService.prefixedKey('sync_server_url'), url);
 
     _serverUrl = url;
 
@@ -112,6 +119,8 @@ class PocketBaseService {
 
     // Update auth state after URL change
     authState.value = client.authStore.isValid;
+
+    clientRevision.value++;
   }
 
   /// Get the current server URL.

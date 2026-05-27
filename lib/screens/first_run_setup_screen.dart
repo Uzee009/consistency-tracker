@@ -38,7 +38,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
 
       // Save style preference
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('visual_style', _selectedStyle.index);
+      await prefs.setInt(DatabaseService.prefixedKey('visual_style'), _selectedStyle.index);
       styleNotifier.value = _selectedStyle;
 
       if (mounted) {

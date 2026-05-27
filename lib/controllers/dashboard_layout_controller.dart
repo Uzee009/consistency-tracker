@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/database_service.dart';
 import '../models/panel_definition.dart';
 import '../models/dashboard_slot.dart';
 import '../controllers/dashboard_controller.dart';
@@ -172,13 +173,13 @@ class DashboardLayoutController extends ChangeNotifier {
   Future<void> saveLayout() async {
     final prefs = await SharedPreferences.getInstance();
     final posMap = _panelPositions.map((k, v) => MapEntry(k.name, v));
-    await prefs.setString(_layoutPrefKey, jsonEncode(posMap));
-    await prefs.setString(_ratiosPrefKey, jsonEncode({'h': hRatio, 'lv': lvRatio, 'rv': rvRatio}));
+    await prefs.setString(DatabaseService.prefixedKey(_layoutPrefKey), jsonEncode(posMap));
+    await prefs.setString(DatabaseService.prefixedKey(_ratiosPrefKey), jsonEncode({'h': hRatio, 'lv': lvRatio, 'rv': rvRatio}));
   }
 
   Future<void> loadLayout() async {
     final prefs = await SharedPreferences.getInstance();
-    final layoutJson = prefs.getString(_layoutPrefKey);
+    final layoutJson = prefs.getString(DatabaseService.prefixedKey(_layoutPrefKey));
     if (layoutJson != null) {
       final decoded = jsonDecode(layoutJson) as Map<String, dynamic>;
       _panelPositions = decoded.map((k, v) => MapEntry(
@@ -186,7 +187,7 @@ class DashboardLayoutController extends ChangeNotifier {
         v as String?,
       ));
     }
-    final ratiosJson = prefs.getString(_ratiosPrefKey);
+    final ratiosJson = prefs.getString(DatabaseService.prefixedKey(_ratiosPrefKey));
     if (ratiosJson != null) {
       final decoded = jsonDecode(ratiosJson);
       hRatio = decoded['h'] ?? 0.65;

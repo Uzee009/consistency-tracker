@@ -37,6 +37,7 @@ class DashboardController extends ChangeNotifier {
     'longBreak': 15 * 60,
   };
   Timer? _pomodoroTimer;
+  Timer? _refreshDebounce;
 
   // --- INITIALIZATION ---
   /// [showLoading] defaults to true for initial loads or date changes.
@@ -123,7 +124,7 @@ class DashboardController extends ChangeNotifier {
     if (completed) {
       updatedCompletedIds.add(task.sid);
       updatedSkippedIds.remove(task.sid);
-      
+
       if (todayRecord.cheatUsed) {
         final yearMonth = "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}";
         await DatabaseService.instance.decrementCheatDaysUsed(yearMonth);
@@ -133,8 +134,15 @@ class DashboardController extends ChangeNotifier {
       updatedCompletedIds.remove(task.sid);
     }
 
+    // FIX 4 (Part A): Optimistic in-memory update for instant feedback
+    todayRecord = todayRecord.copyWith(
+      completedTaskIds: updatedCompletedIds,
+      skippedTaskIds: updatedSkippedIds,
+    );
+    notifyListeners();
+
     await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds, forceCheatOff: reclaimCheat);
-    await initialize(selectedDate, showLoading: false);
+    _scheduleRefresh();
   }
 
   Future<void> toggleTaskSkip(Task task) async {
@@ -148,8 +156,15 @@ class DashboardController extends ChangeNotifier {
       updatedCompletedIds.remove(task.sid);
     }
 
+    // FIX 4 (Part A): Optimistic in-memory update for instant feedback
+    todayRecord = todayRecord.copyWith(
+      completedTaskIds: updatedCompletedIds,
+      skippedTaskIds: updatedSkippedIds,
+    );
+    notifyListeners();
+
     await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds);
-    await initialize(selectedDate, showLoading: false);
+    _scheduleRefresh();
   }
 
   Future<void> claimCheatDay() async {
@@ -199,6 +214,14 @@ class DashboardController extends ChangeNotifier {
   void setHeatmapRange(String range) {
     heatmapRange = range;
     initialize(selectedDate, showLoading: false);
+  }
+
+  // FIX 4: Debounced refresh to prevent rapid concurrent initialize calls
+  void _scheduleRefresh() {
+    _refreshDebounce?.cancel();
+    _refreshDebounce = Timer(const Duration(milliseconds: 280), () {
+      initialize(selectedDate, showLoading: false);
+    });
   }
 
   // --- POMODORO ACTIONS (V9) ---
@@ -322,5 +345,13 @@ class DashboardController extends ChangeNotifier {
     );
 
     await DatabaseService.instance.createOrUpdateDayRecord(updatedRecord);
+  }
+
+  // FIX 4 (Part B): Cleanup timers on dispose
+  @override
+  void dispose() {
+    _refreshDebounce?.cancel();
+    _pomodoroTimer?.cancel();
+    super.dispose();
   }
 }

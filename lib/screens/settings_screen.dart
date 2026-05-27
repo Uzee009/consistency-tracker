@@ -64,13 +64,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateTheme(ThemeMode mode) async {
     themeNotifier.value = mode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('theme_mode', mode.index);
+    await prefs.setInt(DatabaseService.prefixedKey('theme_mode'), mode.index);
   }
 
   Future<void> _updateStyle(VisualStyle style) async {
     styleNotifier.value = style;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('visual_style', style.index);
+    await prefs.setInt(DatabaseService.prefixedKey('visual_style'), style.index);
   }
 
   @override

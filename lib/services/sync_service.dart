@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import 'dart:async';
 import 'pocketbase_service.dart';
 import 'connectivity_service.dart';
 import 'database_service.dart';
@@ -58,6 +59,16 @@ class SyncService {
   final ValueNotifier<int> dataChanged = ValueNotifier(0);
   DateTime? lastSyncedAt;
 
+  Timer? _debounceTimer;
+  Timer? _pollTimer;
+  bool _pendingSync = false;
+  bool _autoStarted = false;
+  bool _wasOnline = false;
+  final List<UnsubscribeFunc> _unsubs = [];
+  Future<void> _realtimeLock = Future<void>.value();
+  static const Duration _debounceDuration = Duration(milliseconds: 500);
+  static const Duration _pollInterval = Duration(seconds: 60);
+
   final List<_Col> _configs = [
     const _Col(
       name: 'tasks',
@@ -106,9 +117,11 @@ class SyncService {
         pulled += await _pull(cfg, ownerId);
       }
 
-      await DatabaseService.instance.recomputeAllDerived();
+      if (pushed + pulled > 0) {
+        await DatabaseService.instance.recomputeAllDerived();
+        dataChanged.value++;
+      }
       lastSyncedAt = DateTime.now();
-      dataChanged.value++;
 
       return SyncResult(SyncStatus.success, pushed: pushed, pulled: pulled);
     } catch (e) {
@@ -116,6 +129,109 @@ class SyncService {
     } finally {
       isSyncing.value = false;
     }
+  }
+
+  void requestSync({Duration debounce = _debounceDuration}) {
+    _debounceTimer?.cancel();
+    if (debounce == Duration.zero) {
+      _runScheduled();
+    } else {
+      _debounceTimer = Timer(debounce, _runScheduled);
+    }
+  }
+
+  Future<void> _runScheduled() async {
+    if (isSyncing.value) {
+      _pendingSync = true;
+      return;
+    }
+    await sync();
+  }
+
+  void _onSyncingChange() {
+    if (!isSyncing.value && _pendingSync) {
+      _pendingSync = false;
+      requestSync(debounce: Duration.zero);
+    }
+  }
+
+  void _onLocalChange() => requestSync();
+
+  void _onConnectivityChange() {
+    final online = ConnectivityService.instance.isOnline.value;
+    if (online && !_wasOnline) {
+      _restartRealtime();
+      requestSync();
+    }
+    _wasOnline = online;
+  }
+
+  void _onAuthOrClientChange() {
+    _restartRealtime();
+    if (PocketBaseService.instance.isAuthenticated) {
+      requestSync();
+    }
+  }
+
+  void _restartRealtime() {
+    _realtimeLock = _realtimeLock.then((_) async {
+      await _teardownRealtime();
+      await _setupRealtime();
+    });
+  }
+
+  Future<void> _setupRealtime() async {
+    if (!PocketBaseService.instance.isAuthenticated) return;
+    final client = PocketBaseService.instance.client;
+    for (final cfg in _configs) {
+      try {
+        final unsub = await client.collection(cfg.name).subscribe('*', (e) {
+          requestSync();
+        });
+        _unsubs.add(unsub);
+      } catch (e) {
+        debugPrint('Realtime subscribe failed for ${cfg.name}: $e');
+      }
+    }
+  }
+
+  Future<void> _teardownRealtime() async {
+    final subs = List<UnsubscribeFunc>.from(_unsubs);
+    _unsubs.clear();
+    for (final unsub in subs) {
+      try {
+        await unsub();
+      } catch (_) {}
+    }
+  }
+
+  void startAuto() {
+    if (_autoStarted) return;
+    _autoStarted = true;
+    _wasOnline = ConnectivityService.instance.isOnline.value;
+
+    DatabaseService.instance.localChanges.addListener(_onLocalChange);
+    ConnectivityService.instance.isOnline.addListener(_onConnectivityChange);
+    PocketBaseService.instance.authState.addListener(_onAuthOrClientChange);
+    PocketBaseService.instance.clientRevision.addListener(_onAuthOrClientChange);
+    isSyncing.addListener(_onSyncingChange);
+
+    _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(debounce: Duration.zero));
+
+    _restartRealtime();
+    requestSync();
+  }
+
+  void stopAuto() {
+    _debounceTimer?.cancel();
+    _pollTimer?.cancel();
+    DatabaseService.instance.localChanges.removeListener(_onLocalChange);
+    ConnectivityService.instance.isOnline.removeListener(_onConnectivityChange);
+    PocketBaseService.instance.authState.removeListener(_onAuthOrClientChange);
+    PocketBaseService.instance.clientRevision.removeListener(_onAuthOrClientChange);
+    isSyncing.removeListener(_onSyncingChange);
+    _teardownRealtime();
+    _autoStarted = false;
   }
 
   Future<int> _push(_Col cfg, String ownerId) async {

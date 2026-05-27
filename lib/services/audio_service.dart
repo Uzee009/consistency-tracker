@@ -3,6 +3,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'database_service.dart';
 
 enum SoundPack { zen, minimal, retro }
 
@@ -24,8 +25,8 @@ class AudioService {
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    final packIndex = prefs.getInt('sound_pack') ?? 1;
-    final enabled = prefs.getBool('sound_enabled') ?? true;
+    final packIndex = prefs.getInt(DatabaseService.prefixedKey('sound_pack')) ?? 1;
+    final enabled = prefs.getBool(DatabaseService.prefixedKey('sound_enabled')) ?? true;
     
     currentPack.value = SoundPack.values[packIndex];
     isEnabled.value = enabled;
@@ -34,13 +35,13 @@ class AudioService {
   Future<void> setPack(SoundPack pack) async {
     currentPack.value = pack;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('sound_pack', pack.index);
+    await prefs.setInt(DatabaseService.prefixedKey('sound_pack'), pack.index);
   }
 
   Future<void> toggleEnabled(bool enabled) async {
     isEnabled.value = enabled;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('sound_enabled', enabled);
+    await prefs.setBool(DatabaseService.prefixedKey('sound_enabled'), enabled);
   }
 
   Future<void> playSound(AudioType type) async {

@@ -603,3 +603,20 @@
 * **Server-side smoke test (headless curl as a regular dev user): PASS** — owner-scoped create/list/PATCH(LWW)/delete all correct, duplicate `(owner, sid)` rejected by the unique index, and unauthenticated list leaks nothing.
 * **Remaining:** Phase 2 Task 3 (live two-device proof per A.10) is the one open item. Server records and both dev DBs were wiped clean for a fresh retest. Then Phase 3 (automatic + realtime: dirty-on-write debounce + SSE + safety poll) and Phase 4 (deploy to a free VM + hardening).
 * **Source control:** Phase 1 and Phase 2 committed and pushed to `origin/experiment` as `657b371` and `e6aaf97`; working tree clean at session end.
+
+## 2026-05-27 — Phase 3 COMPLETE: Automatic + realtime sync + race-condition hardening
+
+Phase 3 (automatic + realtime sync) finished and hardened against a race condition found during verification.
+
+Bug: rapidly toggling one task made the dashboard "HABITS COMPLETED" stat jump to random values (122 → 27 → 1072 → 372). Root cause: `recomputeAllDerived()` did `db.delete(dayRecordsTable)` then rebuilt ~180 rows one-await-at-a-time, NOT in a transaction; concurrent reads (from the per-click full `initialize()`) saw a partially-rebuilt cache. (A separately-reported "ghost task" was a broken test harness — two bare `flutter run` instances racing on the PRODUCTION DB; bare `flutter run` uses production, dev requires `--dart-define=DATABASE_NAME=consistency_tracker_dev.db` / `_dev2.db`. Not a product bug.)
+
+Fixes (all code-reviewed PASS; `flutter analyze` clean; `flutter build linux` OK), in lib/services/database_service.dart and lib/controllers/dashboard_controller.dart:
+1. `recomputeAllDerived()` wrapped in a single `db.transaction` (atomic delete+rebuild).
+2. `createOrUpdateDayRecord()` STEP 1-3 wrapped in one `db.transaction`; `_notifyLocalChange()` moved to after commit.
+3. WAL mode (`PRAGMA journal_mode=WAL; busy_timeout=5000`) via `onConfigure` in `_initDatabase()`.
+4. Optimistic in-memory `todayRecord` update + `notifyListeners()` for instant feedback; per-click full `initialize()` replaced by a 280ms debounced `_scheduleRefresh()`; `dispose()` cancels the timer.
+5. Write-mutex: shared `Lock` (synchronized package) serializes `createOrUpdateDayRecord` vs `recomputeAllDerived` (removes a transient ±1 skew). Deadlock-free.
+
+Verification (live DB monitors on dev DBs): single-device rapid-toggle → count moves ±1, cache == authoritative, no swings (user confirmed on-screen stability). Two-device (correct dart-define harness) → bidirectional realtime propagation; at true rest "CONVERGED+CONSISTENT" (devices equal, caches match). Accepted caveat: ±1 ~1.5s pull-path lag during SIMULTANEOUS dual-device storms (eventual-consistency; heals at rest; data never corrupted) — pull-path tightening deferred to Phase 4.
+
+Status: Phase 3 ✅ COMPLETE. Changes uncommitted (awaiting user approval to commit). Next: Phase 4 deploy + harden.

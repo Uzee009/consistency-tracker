@@ -10,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
+import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -43,10 +44,10 @@ void main() async {
   // Load saved preferences
   final prefs = await SharedPreferences.getInstance();
 
-  final themeIndex = prefs.getInt('theme_mode') ?? 0; // 0: system, 1: light, 2: dark
+  final themeIndex = prefs.getInt(DatabaseService.prefixedKey('theme_mode')) ?? 0; // 0: system, 1: light, 2: dark
   themeNotifier.value = ThemeMode.values[themeIndex];
 
-  final styleIndex = prefs.getInt('visual_style') ?? 0; // 0: minimalist, 1: vibrant
+  final styleIndex = prefs.getInt(DatabaseService.prefixedKey('visual_style')) ?? 0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
 
   // SEED DATA ONLY IN DEV MODE, and ONLY on a fresh (empty) dev DB.
@@ -68,6 +69,8 @@ void main() async {
 
   unawaited(PocketBaseService.instance.tryDevAutoLogin());
 
+  SyncService.instance.startAuto();
+
   runApp(const MyApp());
 }
 
@@ -78,7 +81,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late Future<bool> _isFirstRun;
   late ThemeMode _currentThemeMode;
   late VisualStyle _currentVisualStyle;
@@ -88,6 +91,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializationFuture = _initializeThemeAndStyle();
     themeNotifier.addListener(_updateThemeAndStyle);
     styleNotifier.addListener(_updateThemeAndStyle);
@@ -95,9 +99,17 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     themeNotifier.removeListener(_updateThemeAndStyle);
     styleNotifier.removeListener(_updateThemeAndStyle);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      SyncService.instance.requestSync();
+    }
   }
 
   Future<void> _initializeThemeAndStyle() async {
@@ -105,9 +117,9 @@ class _MyAppState extends State<MyApp> {
     WidgetsFlutterBinding.ensureInitialized();
     // Re-check and set notifiers if main didn't
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('theme_mode') ?? 0;
+    final themeIndex = prefs.getInt(DatabaseService.prefixedKey('theme_mode')) ?? 0;
     themeNotifier.value = ThemeMode.values[themeIndex];
-    final styleIndex = prefs.getInt('visual_style') ?? 0;
+    final styleIndex = prefs.getInt(DatabaseService.prefixedKey('visual_style')) ?? 0;
     styleNotifier.value = VisualStyle.values[styleIndex];
 
     // Initialize state variables *after* notifiers are guaranteed set

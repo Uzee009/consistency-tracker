@@ -4,14 +4,35 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:synchronized/synchronized.dart';
 import '../models/user_model.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
 import '../services/scoring_service.dart';
 
 class DatabaseService {
+  static const String dbName = String.fromEnvironment(
+    'DATABASE_NAME',
+    defaultValue: 'consistency_tracker.db'
+  );
+
+  static String prefixedKey(String key) => '$dbName:$key';
+
   static Database? _database;
   static final DatabaseService instance = DatabaseService._constructor();
+
+  /// Serializes derived-cache writers (createOrUpdateDayRecord vs recomputeAllDerived)
+  /// to prevent read-then-write skew.
+  static final Lock _writeLock = Lock();
+
+  /// Bumped after every local write that sets dirty=1, so the sync coordinator
+  /// can schedule a debounced push.
+  final ValueNotifier<int> localChanges = ValueNotifier<int>(0);
+
+  void _notifyLocalChange() {
+    localChanges.value++;
+  }
 
   final String usersTable = 'users';
   final String tasksTable = 'tasks';
@@ -31,14 +52,14 @@ class DatabaseService {
 
   Future<Database> _initDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String dbName = const String.fromEnvironment(
-      'DATABASE_NAME',
-      defaultValue: 'consistency_tracker.db'
-    );
     String path = join(documentsDirectory.path, dbName);
     return await openDatabase(
       path,
       version: 9,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA journal_mode=WAL;');
+        await db.execute('PRAGMA busy_timeout=5000;');
+      },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -379,90 +400,95 @@ class DatabaseService {
 
   /// Recomputes the entire day_records cache from raw task_status and day_meta tables.
   /// Used after a sync to ensure the dashboard reflects the newly-merged reality.
+  /// FIX 1: Entire method body is wrapped in a single transaction to ensure atomicity.
   Future<void> recomputeAllDerived() async {
-    final db = await database;
+    await _writeLock.synchronized(() async {
+      final db = await database;
 
-    // Clear the entire day_records cache to ensure no phantom rows persist
-    await db.delete(dayRecordsTable);
+      await db.transaction((txn) async {
+        // Clear the entire day_records cache to ensure no phantom rows persist
+        await txn.delete(dayRecordsTable);
 
-    // 1. Load active tasks (non-deleted, is_active=1)
-    final taskMaps =
-        await db.query(tasksTable, where: 'deleted = 0 AND is_active = 1');
-    final tasks = taskMaps.map((m) => Task.fromMap(m)).toList();
+        // 1. Load active tasks (non-deleted, is_active=1)
+        final taskMaps =
+            await txn.query(tasksTable, where: 'deleted = 0 AND is_active = 1');
+        final tasks = taskMaps.map((m) => Task.fromMap(m)).toList();
 
-    // 2. Collect DISTINCT dates from task_status and day_meta where deleted=0
-    final statusDates = await db
-        .rawQuery('SELECT DISTINCT date FROM $taskStatusTable WHERE deleted = 0');
-    final metaDates = await db
-        .rawQuery('SELECT DISTINCT date FROM $dayMetaTable WHERE deleted = 0');
+        // 2. Collect DISTINCT dates from task_status and day_meta where deleted=0
+        final statusDates = await txn
+            .rawQuery('SELECT DISTINCT date FROM $taskStatusTable WHERE deleted = 0');
+        final metaDates = await txn
+            .rawQuery('SELECT DISTINCT date FROM $dayMetaTable WHERE deleted = 0');
 
-    final allDates = <String>{};
-    for (var r in statusDates) {
-      allDates.add(r['date'] as String);
-    }
-    for (var r in metaDates) {
-      allDates.add(r['date'] as String);
-    }
+        final allDates = <String>{};
+        for (var r in statusDates) {
+          allDates.add(r['date'] as String);
+        }
+        for (var r in metaDates) {
+          allDates.add(r['date'] as String);
+        }
 
-    // 3. Sort ascending
-    final sortedDates = allDates.toList()..sort();
+        // 3. Sort ascending
+        final sortedDates = allDates.toList()..sort();
 
-    final List<DayRecord> history = [];
+        final List<DayRecord> history = [];
 
-    // 4. For each date chronologically:
-    for (final dateStr in sortedDates) {
-      // Load completed/skipped sids from task_status where deleted=0
-      final statusMaps = await db.query(taskStatusTable,
-          where: 'date = ? AND deleted = 0', whereArgs: [dateStr]);
-      final completedSids = statusMaps
-          .where((m) => m['status'] == 'completed')
-          .map((m) => m['task_sid'] as String)
-          .toList();
-      final skippedSids = statusMaps
-          .where((m) => m['status'] == 'skipped')
-          .map((m) => m['task_sid'] as String)
-          .toList();
+        // 4. For each date chronologically:
+        for (final dateStr in sortedDates) {
+          // Load completed/skipped sids from task_status where deleted=0
+          final statusMaps = await txn.query(taskStatusTable,
+              where: 'date = ? AND deleted = 0', whereArgs: [dateStr]);
+          final completedSids = statusMaps
+              .where((m) => m['status'] == 'completed')
+              .map((m) => m['task_sid'] as String)
+              .toList();
+          final skippedSids = statusMaps
+              .where((m) => m['status'] == 'skipped')
+              .map((m) => m['task_sid'] as String)
+              .toList();
 
-      // Load day_meta row
-      final metaMaps = await db.query(dayMetaTable,
-          where: 'date = ? AND deleted = 0', whereArgs: [dateStr]);
-      final meta = metaMaps.isNotEmpty ? metaMaps.first : null;
+          // Load day_meta row
+          final metaMaps = await txn.query(dayMetaTable,
+              where: 'date = ? AND deleted = 0', whereArgs: [dateStr]);
+          final meta = metaMaps.isNotEmpty ? metaMaps.first : null;
 
-      // Compute tempRecord
-      final tempRecord = DayRecord(
-        date: dateStr,
-        completedTaskIds: completedSids,
-        skippedTaskIds: skippedSids,
-        cheatUsed: meta != null ? (meta['cheat_used'] == 1) : false,
-        pomodoroSessionsCompleted:
-            meta != null ? (meta['pomodoro_sessions'] as int? ?? 0) : 0,
-        pomodoroGoal: meta != null ? (meta['pomodoro_goal'] as int? ?? 4) : 4,
-      );
+          // Compute tempRecord
+          final tempRecord = DayRecord(
+            date: dateStr,
+            completedTaskIds: completedSids,
+            skippedTaskIds: skippedSids,
+            cheatUsed: meta != null ? (meta['cheat_used'] == 1) : false,
+            pomodoroSessionsCompleted:
+                meta != null ? (meta['pomodoro_sessions'] as int? ?? 0) : 0,
+            pomodoroGoal: meta != null ? (meta['pomodoro_goal'] as int? ?? 4) : 4,
+          );
 
-      // Get activeTasks = _activeTasksFor(date, tasks)
-      final activeTasks = _activeTasksFor(DateTime.parse(dateStr), tasks);
+          // Get activeTasks = _activeTasksFor(date, tasks)
+          final activeTasks = _activeTasksFor(DateTime.parse(dateStr), tasks);
 
-      // Compute scoreResult = ScoringService.calculateDayScore(allTasks: activeTasks, dayRecord: tempRecord, history: history)
-      final scoreResult = ScoringService.calculateDayScore(
-        allTasks: activeTasks,
-        dayRecord: tempRecord,
-        history: history,
-      );
+          // Compute scoreResult = ScoringService.calculateDayScore(allTasks: activeTasks, dayRecord: tempRecord, history: history)
+          final scoreResult = ScoringService.calculateDayScore(
+            allTasks: activeTasks,
+            dayRecord: tempRecord,
+            history: history,
+          );
 
-      // Insert into day_records with final scores
-      final finalRecord = tempRecord.copyWith(
-        completionScore: scoreResult.completionScore,
-        visualState: scoreResult.visualState,
-      );
+          // Insert into day_records with final scores
+          final finalRecord = tempRecord.copyWith(
+            completionScore: scoreResult.completionScore,
+            visualState: scoreResult.visualState,
+          );
 
-      await db.insert(
-        dayRecordsTable,
-        finalRecord.toMap(),
-      );
+          await txn.insert(
+            dayRecordsTable,
+            finalRecord.toMap(),
+          );
 
-      // Add to history list
-      history.add(finalRecord);
-    }
+          // Add to history list
+          history.add(finalRecord);
+        }
+      });
+    });
   }
 
   // --- User Management ---
@@ -515,7 +541,9 @@ class DatabaseService {
     final taskMap = task.toMap();
     taskMap['updated_at'] = now;
     taskMap['dirty'] = 1;
-    return await db.insert(tasksTable, taskMap);
+    final result = await db.insert(tasksTable, taskMap);
+    _notifyLocalChange();
+    return result;
   }
 
   Future<int> updateTask(Task task) async {
@@ -524,34 +552,40 @@ class DatabaseService {
     final taskMap = task.toMap();
     taskMap['updated_at'] = now;
     taskMap['dirty'] = 1;
-    return await db.update(
+    final result = await db.update(
       tasksTable,
       taskMap,
       where: 'sid = ?',
       whereArgs: [task.sid],
     );
+    _notifyLocalChange();
+    return result;
   }
 
   Future<int> archiveTask(String sid) async {
     Database db = await instance.database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    return await db.update(
+    final result = await db.update(
       tasksTable,
       {'is_active': 0, 'updated_at': now, 'dirty': 1},
       where: 'sid = ?',
       whereArgs: [sid],
     );
+    _notifyLocalChange();
+    return result;
   }
 
   Future<int> unarchiveTask(String sid) async {
     Database db = await instance.database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    return await db.update(
+    final result = await db.update(
       tasksTable,
       {'is_active': 1, 'updated_at': now, 'dirty': 1},
       where: 'sid = ?',
       whereArgs: [sid],
     );
+    _notifyLocalChange();
+    return result;
   }
 
   Future<int> deleteTaskPermanently(String sid) async {
@@ -571,7 +605,45 @@ class DatabaseService {
       where: 'task_sid = ?',
       whereArgs: [sid],
     );
+
+    // Find and clean ALL day_records rows containing this sid
+    final allDayRecords = await db.query(
+      dayRecordsTable,
+      // No WHERE clause — load all rows
+    );
+
+    for (final record in allDayRecords) {
+      final completedIds = (record['completed_task_ids'] as String?) ?? '';
+      final skippedIds = (record['skipped_task_ids'] as String?) ?? '';
+
+      final newCompleted = _removeFromCompletedIds(completedIds, sid);
+      final newSkipped = _removeFromCompletedIds(skippedIds, sid);
+
+      // Only update if something changed
+      if (newCompleted != completedIds || newSkipped != skippedIds) {
+        await db.update(
+          dayRecordsTable,
+          {
+            'completed_task_ids': newCompleted,
+            'skipped_task_ids': newSkipped,
+          },
+          where: 'date = ?',
+          whereArgs: [record['date']],
+        );
+      }
+    }
+
+    _notifyLocalChange();
     return 1;
+  }
+
+  String _removeFromCompletedIds(String? csv, String sid) {
+    if (csv == null || csv.isEmpty) return '';
+    return csv
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty && s != sid)
+        .join(',');
   }
 
   Future<List<Task>> getActiveTasksForDate(DateTime date, {bool includeArchived = false}) async {
@@ -647,74 +719,88 @@ class DatabaseService {
   }
 
   // --- DayRecord Management ---
+  // FIX 2: Entire method (STEP 1-3) wrapped in transaction for atomicity.
   Future<int> createOrUpdateDayRecord(DayRecord record) async {
-    Database db = await instance.database;
     final now = DateTime.now().millisecondsSinceEpoch;
     final dateStr = record.date;
 
-    // STEP 1: Diff current task_status rows (non-deleted) to find what to insert/update/tombstone
-    final existingStatus = await db.query(
-      taskStatusTable,
-      where: 'date = ? AND deleted = 0',
-      whereArgs: [dateStr],
-    );
-    final existingSids = existingStatus.map((r) => r['task_sid'] as String).toSet();
-    final newCompletedSids = record.completedTaskIds.toSet();
-    final newSkippedSids = record.skippedTaskIds.toSet()
-      ..removeAll(record.completedTaskIds);
-    final newAllSids = {...newCompletedSids, ...newSkippedSids};
+    final result = await _writeLock.synchronized<int>(() async {
+      Database db = await instance.database;
+      late int resultValue;
 
-    // Insert/update completed and skipped rows
-    for (var sid in newCompletedSids) {
-      await db.execute('''
-        INSERT OR REPLACE INTO $taskStatusTable
-        (date, task_sid, status, updated_at, deleted, dirty)
-        VALUES (?, ?, 'completed', ?, 0, 1)
-      ''', [dateStr, sid, now]);
-    }
-    for (var sid in newSkippedSids) {
-      await db.execute('''
-        INSERT OR REPLACE INTO $taskStatusTable
-        (date, task_sid, status, updated_at, deleted, dirty)
-        VALUES (?, ?, 'skipped', ?, 0, 1)
-      ''', [dateStr, sid, now]);
-    }
+      await db.transaction((txn) async {
+        // STEP 1: Diff current task_status rows (non-deleted) to find what to insert/update/tombstone
+        final existingStatus = await txn.query(
+          taskStatusTable,
+          where: 'date = ? AND deleted = 0',
+          whereArgs: [dateStr],
+        );
+        final existingSids =
+            existingStatus.map((r) => r['task_sid'] as String).toSet();
+        final newCompletedSids = record.completedTaskIds.toSet();
+        final newSkippedSids = record.skippedTaskIds.toSet()
+          ..removeAll(record.completedTaskIds);
+        final newAllSids = {...newCompletedSids, ...newSkippedSids};
 
-    // Tombstone sids no longer present
-    for (var sid in existingSids) {
-      if (!newAllSids.contains(sid)) {
-        await db.execute('''
-          UPDATE $taskStatusTable
-          SET deleted = 1, updated_at = ?, dirty = 1
-          WHERE date = ? AND task_sid = ?
-        ''', [now, dateStr, sid]);
-      }
-    }
+        // Insert/update completed and skipped rows
+        for (var sid in newCompletedSids) {
+          await txn.execute('''
+          INSERT OR REPLACE INTO $taskStatusTable
+          (date, task_sid, status, updated_at, deleted, dirty)
+          VALUES (?, ?, 'completed', ?, 0, 1)
+        ''', [dateStr, sid, now]);
+        }
+        for (var sid in newSkippedSids) {
+          await txn.execute('''
+          INSERT OR REPLACE INTO $taskStatusTable
+          (date, task_sid, status, updated_at, deleted, dirty)
+          VALUES (?, ?, 'skipped', ?, 0, 1)
+        ''', [dateStr, sid, now]);
+        }
 
-    // STEP 2: Upsert day_meta
-    await db.execute('''
-      INSERT OR REPLACE INTO $dayMetaTable
-      (date, cheat_used, pomodoro_sessions, pomodoro_goal, updated_at, deleted, dirty)
-      VALUES (?, ?, ?, ?, ?, 0, 1)
-    ''', [
-      dateStr,
-      record.cheatUsed ? 1 : 0,
-      record.pomodoroSessionsCompleted,
-      record.pomodoroGoal,
-      now,
-    ]);
+        // Tombstone sids no longer present
+        for (var sid in existingSids) {
+          if (!newAllSids.contains(sid)) {
+            await txn.execute('''
+            UPDATE $taskStatusTable
+            SET deleted = 1, updated_at = ?, dirty = 1
+            WHERE date = ? AND task_sid = ?
+          ''', [now, dateStr, sid]);
+          }
+        }
 
-    // STEP 3: Write the derived day_records cache row
-    int count = await db.update(
-      dayRecordsTable,
-      record.toMap(),
-      where: 'date = ?',
-      whereArgs: [dateStr],
-    );
-    if (count == 0) {
-      return await db.insert(dayRecordsTable, record.toMap());
-    }
-    return count;
+        // STEP 2: Upsert day_meta
+        await txn.execute('''
+        INSERT OR REPLACE INTO $dayMetaTable
+        (date, cheat_used, pomodoro_sessions, pomodoro_goal, updated_at, deleted, dirty)
+        VALUES (?, ?, ?, ?, ?, 0, 1)
+      ''', [
+          dateStr,
+          record.cheatUsed ? 1 : 0,
+          record.pomodoroSessionsCompleted,
+          record.pomodoroGoal,
+          now,
+        ]);
+
+        // STEP 3: Write the derived day_records cache row
+        int count = await txn.update(
+          dayRecordsTable,
+          record.toMap(),
+          where: 'date = ?',
+          whereArgs: [dateStr],
+        );
+        if (count == 0) {
+          resultValue = await txn.insert(dayRecordsTable, record.toMap());
+        } else {
+          resultValue = count;
+        }
+      });
+
+      return resultValue;
+    });
+
+    _notifyLocalChange();
+    return result;
   }
 
   Future<DayRecord?> getDayRecord(String date) async {
