@@ -15,7 +15,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ (inputs.platform == 'macos' && 'macos-13') || (inputs.platform == 'linux' && 'ubuntu-24.04') || (inputs.platform == 'windows' && 'windows-2022') }}
+    runs-on: ${{ (inputs.platform == 'macos' && 'macos-14') || (inputs.platform == 'linux' && 'ubuntu-24.04') || (inputs.platform == 'windows' && 'windows-2022') }}
     steps:
       - uses: actions/checkout@v4
 
