@@ -4,7 +4,7 @@
 **Branch:** `experiment`
 **State:** IN_PROGRESS
 **Current Phase:** Phase 4 — live server UP (https://consistancy.duckdns.org on GCP free tier, TLS verified healthy). Now doing client cutover + opt-in signup.
-**Last updated:** 2026-05-27 (live server UP on GCP @ https://consistancy.duckdns.org; client cutover + opt-in signup + 3-state sync-status UX all code-reviewed PASS, analyze clean, UNCOMMITTED; live verification + deploy-guide-GCP-update + commit pending)
+**Last updated:** 2026-05-27 (CI/CD pipeline hardened pre-push: Linux build fixed + workflow versions pinned — see "Session 2026-05-27 (cont.): CI/CD pipeline fix" below. Sync-module work unchanged: client cutover + opt-in signup + 3-state sync-status UX still code-reviewed PASS / analyze clean / UNCOMMITTED; live verification + deploy-guide-GCP-update + commit still pending.)
 
 ---
 
@@ -371,6 +371,34 @@ optimistic update.
 - Device A: `flutter run -d linux --dart-define=DATABASE_NAME=consistency_tracker_dev.db`
 - Device B: `flutter run -d linux --dart-define=DATABASE_NAME=consistency_tracker_dev2.db`
 Bare `flutter run` uses production — never use it for two-device testing.
+
+---
+
+## Session 2026-05-27 (cont.): CI/CD pipeline fix (pre-push to master)
+
+Before pushing `experiment` → `master` (which triggers the "Build and Release Application"
+GitHub Actions workflow), fixed the workflow that had been red on every recent run.
+
+**Root cause (confirmed):** the Linux job failed at `flutter build linux --release` because the
+`audioplayers` plugin's Linux native code (`audioplayers_linux/CMakeLists.txt`) hard-requires the
+GStreamer dev headers (`gstreamer-1.0`, `-app`, `-audio`, all marked REQUIRED), but CI installed
+only GTK/lzma/mesa — no GStreamer. macOS/Windows were unaffected. Last green run was tag v1.0.9
+(2026-04-01), before the audio/sync deps landed.
+
+**Fixes (gemini-coder, code-reviewer PASS):**
+- `.github/workflows/build_reusable.yml`: added `libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev`
+  to the Linux apt install (the actual fix); pinned `flutter-version: '3.41.4'` (matches local dev);
+  pinned runner OS `macos-13` / `ubuntu-24.04` / `windows-2022` (stops "randomly broke, no code change"
+  drift from `*-latest`).
+- `.github/workflows/release_artifacts.yml`: added a fast `analyze` job (`flutter pub get` +
+  `flutter analyze --no-fatal-infos`, verified clean locally → exit 0) that the three build jobs and
+  release now `needs:`, so Dart errors fail fast before the slow platform builds; pinned the release
+  job to `ubuntu-24.04` too.
+
+**Verification status:** YAML valid; code-reviewer PASS; `flutter analyze` clean locally. The only
+true proof is a real CI run — PENDING: push to `master` and confirm `analyze` + all three `build_*`
+jobs go green and three artifacts (macOS .dmg / Linux .tar.gz / Windows .zip) are produced. A local
+`flutter build linux` cannot reproduce the failure (dev machine already has GStreamer).
 
 ---
 

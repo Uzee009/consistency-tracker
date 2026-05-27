@@ -658,3 +658,42 @@ Branch `experiment` pushed to origin at session end.
 * **State at log time:** ALL changes are UNCOMMITTED on branch `experiment` (working tree has CURRENT_MODULE.md + 6 modified source files + 2 new files: `lib/screens/signup_screen.dart`, `lib/widgets/sync_status.dart`). Nothing pushed.
 
 * **Still pending (deferred, NOT done this session):** (1) Live verification — interactive two-device convergence test against the live server, signup end-to-end into the admin UI, and visually confirming the dot's green/orange/red transitions; (2) updating `deploy/DEPLOYMENT_GUIDE.md`, which still describes Oracle/ARM, to reflect the actual GCP deploy; (3) committing (awaiting user approval, and decision on one-commit vs split-by-feature); (4) the JOURNEY.md story (reserved for explicit session conclusion).
+## Tuesday, 27 May 2026 (cont.) - Session: CI/CD Pipeline Fix (pre-push hardening)
+
+**Summary:**
+
+* **Problem:** The "Build and Release Application" GitHub Actions workflow (builds macOS/Windows/Linux
+  desktop artifacts on push to `master` + on `v*.*.*` tags) had been failing on nearly every recent
+  run, with the failing platform appearing to drift over time. Investigated before pushing
+  `experiment` → `master`.
+
+* **Root cause (confirmed via GitHub API run/job inspection, not a guess):** Last green run was tag
+  **v1.0.9 (2026-04-01)**; both May master-push runs failed **only** in `build_linux`, at the
+  `flutter build linux --release` step (macOS + Windows passed and produced artifacts each time).
+  Since v1.0.9 the audio/sync features added **`audioplayers`**, whose Linux native code
+  (`audioplayers_linux/CMakeLists.txt`) hard-requires the GStreamer dev headers
+  (`pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)` + `-app` + `-audio`). CI installed only
+  `libgtk-3-dev liblzma-dev libglu1-mesa-dev ninja-build pkg-config` — **no GStreamer** — so CMake
+  hard-failed. It builds locally because the dev desktop already has GStreamer system-wide. The
+  earlier "Windows was breaking" memory matches the git history of audio-plugin swaps
+  (`just_audio` ↔ `audioplayers`) chasing platform-specific native build failures — same class of bug.
+
+* **Fix (user chose full lockdown + a smoke step; gemini-coder edits, code-reviewer PASS):**
+  - `build_reusable.yml`: added `libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev` to the Linux
+    apt install (root-cause fix); pinned `flutter-version: '3.41.4'` (== local dev toolchain); pinned
+    runner images `macos-13` / `ubuntu-24.04` / `windows-2022` so nothing silently auto-updates.
+  - `release_artifacts.yml`: added a fast `analyze` job (`flutter pub get` + `flutter analyze
+    --no-fatal-infos`) that `build_macos`/`build_linux`/`build_windows` and `release` now `needs:`,
+    surfacing Dart errors in ~1 min instead of after three slow builds; pinned the release job to
+    `ubuntu-24.04`.
+
+* **Verification:** Both YAML files pass `yaml.safe_load`; `flutter analyze --no-fatal-infos` is clean
+  locally (exit 0, "No issues found!") so the new gate won't false-red; code-reviewer PASS (confirmed
+  `needs:` is valid alongside reusable-workflow `uses:`, the three pinned runner images exist/are
+  supported, and the GStreamer package names are correct on Ubuntu 24.04). **The only true proof is a
+  real CI run — still PENDING:** push to `master` and confirm `analyze` + all three `build_*` jobs go
+  green with three artifacts produced. (A local `flutter build linux` cannot reproduce the original
+  failure since the dev machine has GStreamer.)
+
+* **State at log time:** workflow YAML edits are UNCOMMITTED on branch `experiment`, alongside the
+  still-uncommitted sync-module work from the earlier session. Nothing pushed.
