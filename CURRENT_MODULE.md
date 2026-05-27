@@ -3,8 +3,8 @@
 **Module:** Step 13 — Cross-Device Sync (PocketBase, Local-First)
 **Branch:** `experiment`
 **State:** IN_PROGRESS
-**Current Phase:** Phase 4 — Cleanup pass (IN_PROGRESS), then Deploy
-**Last updated:** 2026-05-27 (SESSION CONCLUDED — Phase 4 cleanup + seed removal pushed; deploy guide at deploy/DEPLOYMENT_GUIDE.md; awaiting user infra provisioning)
+**Current Phase:** Phase 4 — live server UP (https://consistancy.duckdns.org on GCP free tier, TLS verified healthy). Now doing client cutover + opt-in signup.
+**Last updated:** 2026-05-27 (live server UP on GCP @ https://consistancy.duckdns.org; client cutover + opt-in signup + 3-state sync-status UX all code-reviewed PASS, analyze clean, UNCOMMITTED; live verification + deploy-guide-GCP-update + commit pending)
 
 ---
 
@@ -376,14 +376,12 @@ Bare `flutter run` uses production — never use it for two-device testing.
 
 ## Next Action
 
-Phase 4 cleanup COMPLETE — all four items code-reviewed PASS, flutter analyze clean:
-- A (lint hygiene): analyzer now zero issues (removed dangling flutter_lints include, fixed 2 deprecated window uses, removed 4 unused symbols).
-- C (pre-deploy safety): audit PASS, NO code change — dev seed + dev auto-login are compile-time gated on String.fromEnvironment('DATABASE_NAME'); a release build with no --dart-define gets '' so both no-op; dev creds only in gitignored config/dev.json.
-- B (tombstone pruning): DatabaseService.pruneLocalTombstones (deleted=1 AND dirty=0 AND >30d) + SyncService._maybePrune (server prune deleted=true AND >90d, owner-scoped, getFullList batched, 404-ignored) guarded once/day via sync_state '__last_prune__'; errors swallowed so sync never fails from pruning. Documented caveat: a device offline >90d that saw create-but-not-delete can resurrect that row on next edit.
-- D (retry/backoff): SyncService exponential backoff 2s→cap60s; _isTransient classifies ClientException (statusCode 0 / >=500 / 429 = transient, other 4xx = permanent), non-ClientException = transient; _runScheduled schedules retry only on transient error, _cancelRetry on success/offline/notSignedIn/permanent; retry timer cancelled in stopAuto; manual 'Sync Now' never arms a retry.
+**Live server is operational and verified.** Client cutover (pocketbase_service.dart: _serverUrl → https://consistancy.duckdns.org + clearSyncCursors() on setServerUrl + login hint) + opt-in signup (new signUp() method + signup_screen.dart with email/password/confirm validation + "Create Account" link on login) + 3-state sync-status UX (new sync_status.dart: SyncReadiness enum + color/tooltip mappers; SYNC button moved to header with green/orange/red dot; Settings shows "Sync Status"; Sync Now disabled when unsigned; snackbar guidance + SETTINGS action) — all bundles PASS code-review (cycles 1-2) + flutter analyze clean + live smoke check (UX 2).
 
-ALL CHANGES UNCOMMITTED (awaiting user approval to commit). NEXT: plan deployment — deploy PocketBase to a free VM (Oracle Cloud Always Free preferred) and repoint the app's default server URL from 127.0.0.1:8090 to the deployed host. Deferred: pull→recompute ±1 ~1.5s lag fix.
+**Files touched:** lib/services/pocketbase_service.dart, lib/services/database_service.dart, lib/screens/login_screen.dart, lib/screens/signup_screen.dart (new), lib/screens/settings_screen.dart, lib/screens/home_screen.dart, lib/services/sync_service.dart, lib/widgets/sync_status.dart (new).
 
-PRE-DEPLOY DECISIONS (2026-05-27): (1) Removed all dev data-seeding logic (DatabaseService.seedData + main.dart seed gate) — a fresh dev DB now goes through normal first-run setup, no fake 'Test Pilot'/180-day data. (2) TLS via free DuckDNS subdomain + PocketBase built-in Let's Encrypt. (3) Server starts FRESH/EMPTY — existing local history is NOT migrated up; the server fills naturally from new edits. (Implication: because dirty defaults to 0, pre-existing local rows won't auto-push; that's acceptable given the start-fresh decision.) Still TODO before/at deploy: repoint default _serverUrl from 127.0.0.1:8090 to the DuckDNS https URL, and reset the per-device pull cursor in setServerUrl() so switching servers does a clean full pull.
+**Sync architecture:** opt-in, local-first; backend fully multi-user (owner relation + owner-scoped rules); per-user data isolation complete; sync engine stamps owner on push, filters by owner on pull; users collection already allows public signup (confirmed safe probe).
 
-SESSION PAUSE (2026-05-27): Phase 4 cleanup (A/B/C/D) committed as 765cb58; dev seed removal committed as b55e0fa. Both LOCAL on branch experiment, NOT pushed (2 commits ahead of origin). Deployment decisions: Oracle Cloud Always Free Ampere A1 (ARM/aarch64) Ubuntu; TLS via DuckDNS + PocketBase built-in Let's Encrypt; server starts FRESH/EMPTY (no data migration). User is provisioning infra themselves first. WHEN USER RETURNS they will bring: DuckDNS hostname, reserved public IP, confirmation ports 80/443 open (both Oracle security list AND in-VM iptables — Oracle Ubuntu images DROP inbound by default), and CPU arch. THEN do: (1) gemini-coder creates deploy/ kit — systemd unit for PocketBase, setup script (fetch PB v0.38.2 linux/arm64 binary + pb_migrations/, serve --http=0.0.0.0:80 --https=0.0.0.0:443 for Let's Encrypt on the DuckDNS host), backup cron, deploy/README.md runbook (incl. exact iptables commands for 80/443). (2) Code: repoint default _serverUrl in lib/services/pocketbase_service.dart (lines 14 & 32) from http://127.0.0.1:8090 to https://<duckdns-host>; and reset the per-device pull cursor inside setServerUrl() (clear sync_state rows) so switching servers does a clean full pull. (3) PB admin: create superuser + app login account. (4) Verify two-device against live server. Workflow reminder: each code change → code-reviewer → flutter analyze clean; all writes via gemini-coder; commit only when user says so; --yolo on headless gemini.
+**PENDING:** (1) Interactive live verification — two-device convergence test (live server), signup → admin UI, green/orange/red dot color transitions; (2) Update deploy/DEPLOYMENT_GUIDE.md (currently describes Oracle/ARM, needs to reflect GCP free tier + TLS + duckdns); (3) Commit decision (one commit vs split-by-feature; awaiting user approval); (4) JOURNEY.md story (reserved for explicit session conclusion only). Email verification deferred (v1).
+
+

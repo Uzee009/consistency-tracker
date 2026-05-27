@@ -634,3 +634,27 @@ Also removed all dev DATA SEEDING (DatabaseService.seedData + main.dart seed gat
 Deployment plan finalized + written to `deploy/DEPLOYMENT_GUIDE.md`: Oracle Cloud Always Free Ampere A1 (ARM) + DuckDNS + Let's Encrypt, server starts empty. User is provisioning infra. NEXT SESSION (after user returns with DuckDNS host + public IP + ports-open confirmation + arch): repoint default _serverUrl to the https DuckDNS host and reset the per-device cursor in setServerUrl(); create PB superuser + app account; two-device verify against the live server.
 
 Branch `experiment` pushed to origin at session end.
+
+# Project Progress Log
+
+## Tuesday, 27 May 2026 - Session: Live Deploy Cutover + Opt-in Signup + Sync-Status UX
+
+**Summary:**
+
+* **Live server is UP (user-provisioned).** Deployment moved off the planned Oracle Cloud to **Google Cloud free tier**; PocketBase is serving over TLS at **https://consistancy.duckdns.org**. Verified healthy from the dev machine: `/api/health` → HTTP 200, valid Let's Encrypt cert (TLS verify OK), admin UI `/_/` reachable. The app login (regular user) account already exists on the server.
+
+* **Product decision — sync stays OPT-IN.** Confirmed the app is local-first and sync is the user's choice (Settings → Sync Account). For now the audience is a small trusted group, but a self-service signup flow is a nice-to-have. The backend was already fully multi-user (owner relation + owner-scoped API rules; the sync engine stamps `owner` on push and filters by it on pull), so per-user data isolation needed no change — only a signup UI was missing. Email verification deferred (v1). A safe probe (invalid-body POST to `users`) confirmed the live `users` collection already allows public signup (validation error, not a superuser-only forbidden error).
+
+* **Bundle 1 — Client cutover (code-reviewer PASS, analyze clean):** Repointed the default `_serverUrl` in `lib/services/pocketbase_service.dart` (field initializer + `init()` fallback) from `http://127.0.0.1:8090` to `https://consistancy.duckdns.org`. Added `DatabaseService.clearSyncCursors()` (deletes the tasks/task_status/day_meta rows from `sync_state`, leaving the `__last_prune__` marker intact) and call it inside `setServerUrl()` so switching servers forces a clean full pull. Updated the login screen's Advanced server-URL hint to the live host.
+
+* **Bundle 2 — Opt-in signup (code-reviewer PASS, analyze clean):** Added `PocketBaseService.signUp(email, password)` (creates the `users` record then signs in; no email verification). New `lib/screens/signup_screen.dart` (email + password + confirm, optional Advanced server URL, client-side validation: non-empty email, ≥8-char password matching confirm), reachable via a "Don't have an account? Create one" link added to the Sign In screen.
+
+* **UX 1 — Signed-out Sync section in Settings (code-reviewer PASS):** Replaced the plain grey "Not signed in" text with an orange "Sync off — not signed in" status row plus a `Wrap` of two buttons — **Sign In** (→ LoginScreen) and **Create Account** (→ SignUpScreen). Sync Now stays disabled when signed out; hint reworded to "Sign in or create an account to enable sync."
+
+* **UX 2 — 3-state sync-readiness indicator (code-reviewer PASS, incl. live run check):** Replaced the misleading ONLINE/OFFLINE label (it actually meant "server reachable," via the `/api/health` ping). New `lib/widgets/sync_status.dart` is the single source of truth: `SyncReadiness {ready, notSignedIn, unreachable}` + `computeSyncReadiness(serverReachable, authed)` + color/tooltip mappers. The ONLINE pill was removed and the **SYNC button moved into the always-visible global header beside REFRESH**, now carrying a small status dot + hover Tooltip: 🟢 green = signed in + server reachable ("Connected — tasks sync automatically"), 🟠 orange = reachable but not signed in, 🔴 red = server/internet unreachable (signed-in users told changes are saved locally and will sync when it's back). The SYNC button is clickable even when not ready: a click then shows specific guidance — for not-signed-in, a snackbar with a **SETTINGS** action that jumps to the Settings tab. Settings now shows a matching "Sync Status" line (replacing "Connection Status"). `SyncResult.summary` strings rewritten to be clearer/actionable.
+
+* **Engineering:** Every code bundle went gemini-coder → code-reviewer (PASS) → `flutter analyze` (clean, "No issues found!"); UX 2 also passed a live `flutter run -d linux` build/launch smoke check. A stray mid-session append to `Prj_Progress.md` made by the coder during Bundle work was reverted per the logging protocol (this entry is the intended log).
+
+* **State at log time:** ALL changes are UNCOMMITTED on branch `experiment` (working tree has CURRENT_MODULE.md + 6 modified source files + 2 new files: `lib/screens/signup_screen.dart`, `lib/widgets/sync_status.dart`). Nothing pushed.
+
+* **Still pending (deferred, NOT done this session):** (1) Live verification — interactive two-device convergence test against the live server, signup end-to-end into the admin UI, and visually confirming the dot's green/orange/red transitions; (2) updating `deploy/DEPLOYMENT_GUIDE.md`, which still describes Oracle/ARM, to reflect the actual GCP deploy; (3) committing (awaiting user approval, and decision on one-commit vs split-by-feature); (4) the JOURNEY.md story (reserved for explicit session conclusion).

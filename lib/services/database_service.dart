@@ -399,6 +399,18 @@ class DatabaseService {
     );
   }
 
+  /// Clears the per-collection pull cursors so the next sync performs a full pull.
+  /// Called when the sync server URL changes — a cursor from one server's timeline
+  /// must not be reused against a different server. Leaves the prune marker intact.
+  Future<void> clearSyncCursors() async {
+    final db = await database;
+    await db.delete(
+      syncStateTable,
+      where: 'collection IN (?, ?, ?)',
+      whereArgs: [tasksTable, taskStatusTable, dayMetaTable],
+    );
+  }
+
   /// Hard-deletes local tombstones (deleted=1) that are already pushed (dirty=0)
   /// and older than [retentionMs]. The server retains the canonical tombstone longer,
   /// so a later re-pull harmlessly re-inserts it as deleted=1. Returns rows deleted.

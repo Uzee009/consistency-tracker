@@ -1,19 +1,19 @@
-// lib/screens/login_screen.dart
+// lib/screens/signup_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
-import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _serverUrlController = TextEditingController();
 
   bool _isLoading = false;
@@ -30,13 +30,28 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _serverUrlController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSignIn() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() => _errorMessage = 'Please enter email and password.');
+  Future<void> _handleSignUp() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
+
+    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all fields.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setState(() => _errorMessage = 'Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password != confirm) {
+      setState(() => _errorMessage = 'Passwords do not match.');
       return;
     }
 
@@ -51,11 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
         await PocketBaseService.instance.setServerUrl(_serverUrlController.text);
       }
 
-      // Attempt login
-      await PocketBaseService.instance.login(
-        _emailController.text,
-        _passwordController.text,
-      );
+      // Attempt signup
+      await PocketBaseService.instance.signUp(email, password);
 
       if (mounted) {
         Navigator.pop(context);
@@ -77,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SIGN IN'),
+        title: const Text('CREATE ACCOUNT'),
         centerTitle: true,
       ),
       body: Center(
@@ -98,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sign in to sync your tasks across devices.',
+                  'Create an account to sync your tasks across your devices.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFFA1A1AA),
@@ -127,15 +139,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                 ),
                 const SizedBox(height: 16),
+                // Confirm Password field
+                TextField(
+                  controller: _confirmPasswordController,
+                  decoration: InputDecoration(
+                    hintText: 'Confirm Password',
+                    labelText: 'Confirm Password',
+                    enabled: !_isLoading,
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16),
                 // Advanced section (server URL)
                 GestureDetector(
                   onTap: () => setState(() => _showAdvanced = !_showAdvanced),
                   child: Row(
                     children: [
                       Icon(
-                        _showAdvanced
-                            ? Icons.expand_less
-                            : Icons.expand_more,
+                        _showAdvanced ? Icons.expand_less : Icons.expand_more,
                         size: 20,
                         color: const Color(0xFFA1A1AA),
                       ),
@@ -183,11 +204,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                // Sign In button
+                // Create Account button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleSignIn,
+                    onPressed: _isLoading ? null : _handleSignUp,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -196,23 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text('Sign In'),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SignUpScreen(),
-                              ),
-                            );
-                          },
-                    child: const Text("Don't have an account? Create one"),
+                        : const Text('Create Account'),
                   ),
                 ),
               ],

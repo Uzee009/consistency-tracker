@@ -22,13 +22,13 @@ class SyncResult {
   String _buildSummary() {
     switch (status) {
       case SyncStatus.success:
-        return 'Synced: ↑$pushed ↓$pulled';
+        return 'Synced ✓ (↑$pushed ↓$pulled)';
       case SyncStatus.offline:
-        return 'Offline — nothing to sync';
+        return 'Can\'t reach the sync server — changes will sync automatically when it\'s back.';
       case SyncStatus.notSignedIn:
-        return 'Not signed in';
+        return 'You\'re not signed in. Open Settings → Sync Account to sign in.';
       case SyncStatus.busy:
-        return 'Sync already in progress';
+        return 'Sync already in progress…';
       case SyncStatus.error:
         return 'Sync failed: $message';
     }

@@ -11,7 +11,7 @@ class PocketBaseService {
 
   late PocketBase client;
 
-  String _serverUrl = 'http://127.0.0.1:8090';
+  String _serverUrl = 'https://consistancy.duckdns.org';
 
   final ValueNotifier<bool> authState = ValueNotifier(false);
 
@@ -29,7 +29,7 @@ class PocketBaseService {
     final prefs = await SharedPreferences.getInstance();
 
     // Load saved server URL
-    _serverUrl = prefs.getString(DatabaseService.prefixedKey('sync_server_url')) ?? 'http://127.0.0.1:8090';
+    _serverUrl = prefs.getString(DatabaseService.prefixedKey('sync_server_url')) ?? 'https://consistancy.duckdns.org';
 
     // Create AsyncAuthStore to persist token to shared_preferences
     final store = AsyncAuthStore(
@@ -78,6 +78,18 @@ class PocketBaseService {
     }
   }
 
+  /// Create a new account, then sign in. v1: no email verification.
+  /// Throws on failure (e.g. email already in use, password too short).
+  Future<void> signUp(String email, String password) async {
+    await client.collection('users').create(body: {
+      'email': email,
+      'password': password,
+      'passwordConfirm': password,
+    });
+    // PocketBase does not auto-authenticate on create; sign in explicitly.
+    await login(email, password);
+  }
+
   /// Log out the current user.
   Future<void> logout() async {
     client.authStore.clear();
@@ -105,6 +117,9 @@ class PocketBaseService {
   Future<void> setServerUrl(String url) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(DatabaseService.prefixedKey('sync_server_url'), url);
+
+    // Clear per-collection pull cursors so the new server does a clean full pull.
+    await DatabaseService.instance.clearSyncCursors();
 
     _serverUrl = url;
 

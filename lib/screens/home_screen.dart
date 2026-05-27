@@ -10,6 +10,8 @@ import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/sync_service.dart';
 import '../services/connectivity_service.dart';
+import '../services/pocketbase_service.dart';
+import '../widgets/sync_status.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,10 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildInLayoutNavBar(isDark),
                     const Spacer(),
                     if (_activeTabIndex == 0) ...[
-                      _buildOnlineStatus(),
-                      const SizedBox(width: 8),
-                      _buildSyncButton(context),
-                      const SizedBox(width: 8),
                       _buildCustomizeButton(context),
                     ],
                   ],
@@ -181,6 +179,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildMiniTimer(context),
                 const SizedBox(width: 16), // Margin between timer and refresh/user menu
               ],
+              _buildSyncButton(context),
+              const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: () => _dataController.initialize(_dataController.selectedDate),
                 icon: const Icon(Icons.refresh, size: 18),
@@ -276,70 +276,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildOnlineStatus() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: ConnectivityService.instance.isOnline,
-      builder: (context, isOnline, _) {
-        final color = isOnline ? Colors.green : Colors.orange;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isOnline ? 'ONLINE' : 'OFFLINE',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.5),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildSyncButton(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return ValueListenableBuilder<bool>(
       valueListenable: SyncService.instance.isSyncing,
       builder: (context, isSyncing, _) {
-        return Material(
-          color: primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            onTap: isSyncing ? null : _handleSync,
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  isSyncing
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: primary),
-                        )
-                      : Icon(Icons.sync, size: 18, color: primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    isSyncing ? 'SYNCING…' : 'SYNC',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: primary, letterSpacing: 0.5),
+        return ValueListenableBuilder<bool>(
+          valueListenable: ConnectivityService.instance.isOnline,
+          builder: (context, isOnline, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: PocketBaseService.instance.authState,
+              builder: (context, isAuthed, _) {
+                final readiness = computeSyncReadiness(serverReachable: isOnline, authed: isAuthed);
+                final dotColor = syncStatusColor(readiness);
+                final tooltipMsg = syncStatusTooltip(readiness, authed: isAuthed);
+
+                return Tooltip(
+                  message: tooltipMsg,
+                  child: Material(
+                    color: primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      onTap: isSyncing ? null : _handleSync,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                            ),
+                            const SizedBox(width: 8),
+                            isSyncing
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                                  )
+                                : Icon(Icons.sync, size: 18, color: primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              isSyncing ? 'SYNCING…' : 'SYNC',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: primary, letterSpacing: 0.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -347,6 +339,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleSync() async {
     final messenger = ScaffoldMessenger.of(context);
+    final serverReachable = ConnectivityService.instance.isOnline.value;
+    final isAuthed = PocketBaseService.instance.isAuthenticated;
+    final readiness = computeSyncReadiness(serverReachable: serverReachable, authed: isAuthed);
+
+    if (readiness == SyncReadiness.notSignedIn) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Not signed in — sign in to sync across your devices.'),
+          action: SnackBarAction(
+            label: 'SETTINGS',
+            onPressed: () => setState(() => _activeTabIndex = 2),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (readiness == SyncReadiness.unreachable) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(syncStatusTooltip(readiness, authed: isAuthed)),
+        ),
+      );
+      return;
+    }
+
     final result = await SyncService.instance.sync();
     if (!mounted) return;
     messenger.showSnackBar(SnackBar(content: Text(result.summary)));

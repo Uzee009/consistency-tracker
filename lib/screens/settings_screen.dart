@@ -9,7 +9,9 @@ import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/services/connectivity_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'package:consistency_tracker_v1/screens/login_screen.dart';
+import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
+import 'package:consistency_tracker_v1/widgets/sync_status.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -203,16 +205,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Not signed in',
-                                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.sync_disabled, size: 16, color: Colors.orange),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Sync off — not signed in',
+                                        style: TextStyle(fontSize: 14, color: Colors.orange),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 12),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                    ),
-                                    child: const Text('Sign In'),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 8,
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                        ),
+                                        child: const Text('Sign In'),
+                                      ),
+                                      OutlinedButton(
+                                        onPressed: () => Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                                        ),
+                                        child: const Text('Create Account'),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               )
@@ -240,30 +260,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                     ),
                     const SizedBox(height: 24),
-                    _buildLabel('Connection Status'),
+                    _buildLabel('Sync Status'),
                     const SizedBox(height: 8),
                     ValueListenableBuilder<bool>(
                       valueListenable: ConnectivityService.instance.isOnline,
                       builder: (context, isOnline, _) {
-                        return Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isOnline ? Colors.green : Colors.orange,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              isOnline ? 'Online' : 'Offline',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isOnline ? Colors.green : Colors.orange,
-                              ),
-                            ),
-                          ],
+                        return ValueListenableBuilder<bool>(
+                          valueListenable: PocketBaseService.instance.authState,
+                          builder: (context, isAuthed, _) {
+                            final readiness = computeSyncReadiness(serverReachable: isOnline, authed: isAuthed);
+                            final color = syncStatusColor(readiness);
+                            final tooltip = syncStatusTooltip(readiness, authed: isAuthed);
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: color,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    tooltip,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: color,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         );
                       },
                     ),
@@ -293,7 +329,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 if (!isAuthed) ...[
                                   const SizedBox(height: 8),
                                   const Text(
-                                    'Sign in to enable sync.',
+                                    'Sign in or create an account to enable sync.',
                                     style: TextStyle(fontSize: 12, color: Colors.grey),
                                   ),
                                 ] else if (SyncService.instance.lastSyncedAt != null) ...[
