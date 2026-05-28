@@ -30,7 +30,7 @@ class SyncResult {
       case SyncStatus.busy:
         return 'Sync already in progress…';
       case SyncStatus.error:
-        return 'Sync failed: $message';
+        return message ?? 'Sync failed — will retry automatically.';
     }
   }
 }
@@ -137,10 +137,34 @@ class SyncService {
       _cancelRetry();  // manual "Sync Now" success also clears pending backoff
       return SyncResult(SyncStatus.success, pushed: pushed, pulled: pulled);
     } catch (e) {
-      return SyncResult(SyncStatus.error, message: e.toString(), transient: _isTransient(e));
+      debugPrint('Sync error: $e');
+      return SyncResult(SyncStatus.error, message: _friendlyError(e), transient: _isTransient(e));
     } finally {
       isSyncing.value = false;
     }
+  }
+
+  /// Maps a sync exception to a concise, user-facing message.
+  /// Raw detail is logged separately via debugPrint.
+  String _friendlyError(Object e) {
+    if (e is ClientException) {
+      final code = e.statusCode;
+      final serverMsg = e.response['message']?.toString() ?? '';
+      if (code == 401 || code == 403) {
+        return 'Your sync session has expired. Open Settings → Sync Account and sign in again.';
+      }
+      if (code == 404 || serverMsg.contains('Missing collection context')) {
+        return 'The sync server isn\'t fully set up yet. Your data is safe on this device and will sync once the server is ready.';
+      }
+      if (code == 0) {
+        return 'Can\'t reach the sync server right now — will retry automatically.';
+      }
+      if (code >= 500 || code == 429) {
+        return 'The sync server had a hiccup — will retry automatically.';
+      }
+      return 'Sync was rejected by the server. Your data is safe on this device.';
+    }
+    return 'Can\'t reach the sync server right now — will retry automatically.';
   }
 
   /// Transient = worth retrying with backoff (network down, server hiccup).

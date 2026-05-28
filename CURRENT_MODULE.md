@@ -4,7 +4,7 @@
 **Branch:** feature/sync-engine
 **State:** COMPLETE
 **Current Phase:** Part B — Client updater
-**Last updated:** 2026-05-28
+**Last updated:** 2026-05-29
 
 ---
 
@@ -31,13 +31,13 @@ Note: Prior module (Step 13 sync, Phase 4 deploy) was archived to `.archive/CURR
 
 ## Working Context
 
-Step 14 self-update complete; shipping v1.3.0 to master with in-app Download & Restart (GitHub artifact download, SHA-256 verification, per-OS atomic install swap), versioned release filenames, and three verified bug fixes (pubspec injection, commit-subject-only token parsing, ConnectivityService gate removal).
+Step 14 self-update shipped (v1.3.0). Most recent work was an out-of-band incident fix (2026-05-28/29): the live PocketBase server was missing its three sync collections (`404 Missing collection context`) because `pb_migrations/` was never deployed next to the binary on the GCP VM (`/home/uzeeslive/pb/`, user `uzeeslive` — NOT the Oracle host the old guide described). Fixed server-side via curl-from-repo + restart; sync verified live. Two UNCOMMITTED changes remain on `feature/sync-engine`: friendly sync-error messages in `lib/services/sync_service.dart` and GCP corrections in `deploy/DEPLOYMENT_GUIDE.md` (both reviewed/analyze-clean).
 
 ---
 
 ## Next Action
 
-Monitor v1.3.0 CI; future work as needed. (Step 14 module complete.)
+(1) Commit the two uncommitted changes if/when the user approves. (2) User to enable PocketBase backups (Admin UI → Settings → Backups) — server currently has no backup protection. (3) BUG TO FIX NEXT SESSION: the app re-syncs every few seconds even when nothing changed (wasteful). Hypothesis (unconfirmed): the realtime subscription in `lib/services/sync_service.dart` re-triggers `sync()` on the server's own writes, and/or the 60s poll + debounce keep firing; investigate skipping sync when no local rows are dirty and there is no genuine remote change. Step 14 module remains COMPLETE.
 
 ---
 

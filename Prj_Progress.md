@@ -617,7 +617,7 @@ Fixes (all code-reviewed PASS; `flutter analyze` clean; `flutter build linux` OK
 4. Optimistic in-memory `todayRecord` update + `notifyListeners()` for instant feedback; per-click full `initialize()` replaced by a 280ms debounced `_scheduleRefresh()`; `dispose()` cancels the timer.
 5. Write-mutex: shared `Lock` (synchronized package) serializes `createOrUpdateDayRecord` vs `recomputeAllDerived` (removes a transient ±1 skew). Deadlock-free.
 
-Verification (live DB monitors on dev DBs): single-device rapid-toggle → count moves ±1, cache == authoritative, no swings (user confirmed on-screen stability). Two-device (correct dart-define harness) → bidirectional realtime propagation; at true rest "CONVERGED+CONSISTENT" (devices equal, caches match). Accepted caveat: ±1 ~1.5s pull-path lag during SIMULTANEOUS dual-device storms (eventual-consistency; heals at rest; data never corrupted) — pull-path tightening deferred to Phase 4.
+Verification (live DB monitors on dev DBs): single-device_rapid-toggle → count moves ±1, cache == authoritative, no swings (user confirmed on-screen stability). Two-device (correct dart-define harness) → bidirectional realtime propagation; at true rest "CONVERGED+CONSISTENT" (devices equal, caches match). Accepted caveat: ±1 ~1.5s pull-path lag during SIMULTANEOUS dual-device storms (eventual-consistency; heals at rest; data never corrupted) — pull-path tightening deferred to Phase 4.
 
 Status: Phase 3 ✅ COMPLETE. Changes uncommitted (awaiting user approval to commit). Next: Phase 4 deploy + harden.
 
@@ -647,7 +647,7 @@ Branch `experiment` pushed to origin at session end.
 
 * **Bundle 1 — Client cutover (code-reviewer PASS, analyze clean):** Repointed the default `_serverUrl` in `lib/services/pocketbase_service.dart` (field initializer + `init()` fallback) from `http://127.0.0.1:8090` to `https://consistancy.duckdns.org`. Added `DatabaseService.clearSyncCursors()` (deletes the tasks/task_status/day_meta rows from `sync_state`, leaving the `__last_prune__` marker intact) and call it inside `setServerUrl()` so switching servers forces a clean full pull. Updated the login screen's Advanced server-URL hint to the live host.
 
-* **Bundle 2 — Opt-in signup (code-reviewer PASS, analyze clean):** Added `PocketBaseService.signUp(email, password)` (creates the `users` record then signs in; no email verification). New `lib/screens/signup_screen.dart` (email + password + confirm, optional Advanced server URL, client-side validation: non-empty email, ≥8-char password matching confirm), reachable via a "Don't have an account? Create one" link added to the Sign In screen.
+* **Bundle 2 — Opt-in signup (code-reviewer PASS, analyze clean):** Added `PocketBaseService.signUp(email, password)` (creates the `users` record then signs in; no email verification). New `lib/screens/login_screen.dart` (email + password + confirm, optional Advanced server URL, client-side validation: non-empty email, ≥8-char password matching confirm), reachable via a "Don't have an account? Create one" link added to the Sign In screen.
 
 * **UX 1 — Signed-out Sync section in Settings (code-reviewer PASS):** Replaced the plain grey "Not signed in" text with an orange "Sync off — not signed in" status row plus a `Wrap` of two buttons — **Sign In** (→ LoginScreen) and **Create Account** (→ SignUpScreen). Sync Now stays disabled when signed out; hint reworded to "Sign in or create an account to enable sync."
 
@@ -728,3 +728,21 @@ The release job was previously gated to `v*.*.*` tags only, so pushes to master 
     3.  Update checks were gated on `ConnectivityService.isOnline`, which reflects the PocketBase SYNC server health (`consistancy.duckdns.org`) not GitHub/internet reachability, so checks silently skipped when the sync server was slow/down → gate removed; checks now rely on the GitHub request's own timeout.
 *   **Verification:** CI runs green; v1.2.0 and v1.2.1 published (v1.2.1 is the first build that self-reports its real version); live Linux end-to-end self-update (v1.0.0 → v1.2.1, click "Update & Restart" → downloaded, installed, relaunched) confirmed by the user. v1.3.0 being shipped now with versioned filenames + self-update + the connectivity fix.
 *   **Known caveats:** macOS `.dmg` unsigned (Gatekeeper may prompt once; quarantine xattr stripped best-effort); self-update needs a writable install dir (system-wide installs fall back to manual download); `pubspec` stays `1.0.0+1` and CI injects the version, so LOCAL dev builds always self-report `1.0.0`.
+
+## Thursday, 29 May 2026 — Sync server incident: missing PocketBase collections
+
+### Root cause & fix (RESOLVED ✅)
+App sync failed on all devices with `404 Missing collection context` (raw ClientException dumped into the SnackBar). Root cause: the live PocketBase server `consistancy.duckdns.org` was missing its `tasks`/`task_status`/`day_meta` collections. NOT a data wipe — superuser + user records were intact. The initial server deploy never copied `pocketbase/pb_migrations/` next to the binary, so the collections were never created. Diagnosed via direct API probes (`/api/collections/<c>/records` → 404 while `/api/health` → 200 and the `users` collection present).
+
+Key infra discovery: the live server is NOT on Oracle Cloud as `DEPLOYMENT_GUIDE.md` claimed — it is a **Google Cloud (GCP)** VM, x86_64, SSH user `uzeeslive`, install dir `/home/uzeeslive/pb/`, systemd unit `pocketbase.service` running `pocketbase serve consistancy.duckdns.org` as root.
+
+Fix (server-side, done by the user over SSH): pulled the migration from the public repo and restarted — `cd /home/uzeeslive/pb/pb_migrations && curl -fsSL -O https://raw.githubusercontent.com/Uzee009/consistency-tracker/master/pocketbase/pb_migrations/1748260800_init_sync_collections.js && sudo systemctl restart pocketbase`. PocketBase auto-applied it; all three collections returned 200 and the app confirmed live data sync. (curl-from-repo was used because the user's SSH terminal mangles long pastes — a heredoc attempt hung.)
+
+### Repo changes (UNCOMMITTED on feature/sync-engine)
+1. `lib/services/sync_service.dart` — added `_friendlyError(Object e)` to classify sync failures into user-facing messages (401/403 → re-sign-in; 404/"Missing collection context" → "server not set up, data safe"; code 0 → network retry; 5xx/429 → server hiccup retry; else → rejected/data safe). `sync()` now `debugPrint`s the raw error and stores the friendly message; `_buildSummary` error case returns the message directly. Retry logic (`_isTransient`) untouched. Code-reviewer PASS, `flutter analyze` clean.
+2. `deploy/DEPLOYMENT_GUIDE.md` — corrected to the real GCP host facts, added a "Live deployment (verified 2026-05-28)" section with the exact curl migration-redeploy commands, and flagged the stale Oracle Parts 1–2 as historical.
+
+### Open follow-ups
+- ⚠️ **Backups still NOT enabled** on the PocketBase server — migrations rebuild empty structure only, not data. User to enable in Admin UI → Settings → Backups.
+- The two repo changes above are uncommitted and not yet merged to master (so no auto-release has triggered).
+- BUG (fix next session): app re-syncs every few seconds even with no changes — wasteful. Hypothesis (unconfirmed): realtime subscription re-fires `sync()` on the server's own writes and/or the 60s poll + debounce; look at `lib/services/sync_service.dart` and consider short-circuiting when nothing is dirty and no real remote change.
