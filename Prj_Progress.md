@@ -711,3 +711,20 @@ Housekeeping: branch `experiment` renamed to `feature/sync-engine`; stale `origi
 
 The release job was previously gated to `v*.*.*` tags only, so pushes to master built artifacts but never published them (the "release" job showed "skipped"). Per the user's choice (rolling-latest model), the `release` job in `release_artifacts.yml` now also runs on master pushes and, via the `gh` CLI, delete-recreates a single `latest` pre-release ("Latest Build") carrying the three installers. Permanent versioned releases still happen on `v*.*.*` tags (softprops/action-gh-release). The `latest` tag does not match the `v*.*.*` push trigger, so there is no workflow re-trigger loop. Verified live on run 26532804739 (commit 9b97bdc): all five jobs green (analyze + 3 builds + release), and the `latest` release now carries ConsistencyTracker-macOS.dmg (71.5 MB), ConsistencyTracker-Windows.zip (14.4 MB), ConsistencyTracker-Linux.tar.gz (20.8 MB). Stable share link: https://github.com/Uzee009/consistency-tracker/releases/tag/latest . Net result: every push to master now auto-publishes fresh installers with zero manual steps. (Open caveat unchanged: macOS .dmg universal-vs-arm64 not yet verified.)
 
+## Wednesday, 28 May 2026 — Step 14: In-App Self-Update, Versioned Releases, & Shipping v1.3.0
+
+### Versioned releases & in-app download/install (2026-05-28): COMPLETE ✅
+
+*   **Automatic versioned releases (CI):** Every push to master computes the next semver tag (patch by default; `#minor`/`#major`/`[skip release]` read from the commit SUBJECT line only), bakes the version into the binaries, and publishes a real non-prerelease `vX.Y.Z` GitHub release with all 3 platform artifacts. Artifacts are now named with the version: `ConsistencyTracker-{Linux,macOS,Windows}-vX.Y.Z.{tar.gz,dmg,zip}`.
+*   **Dependencies added:** `package_info_plus`, `url_launcher`, `http` (explicit), `archive`, `crypto`.
+*   **In-app updater (`lib/services/update_service.dart`):** Checks GitHub `/releases/latest` on startup + on demand, compares semver via `package_info_plus`; shows a home banner + a Settings → UPDATES section.
+*   **TRUE self-update ("Update & Restart"):** Downloads the release artifact (progress bar, temp dir — nothing in Downloads), verifies SHA-256, extracts (`archive` pkg), atomically swaps the install in place and relaunches. Per-OS: Linux atomic dir-rename; macOS dmg mount + swap + quarantine strip; Windows helper `.cmd` that waits for exit, robocopy, relaunch. Old install cleaned on next launch (`main.dart _cleanupOldUpdate`). "Download manually" browser fallback retained.
+
+### Step 14 self-update impl & verification (2026-05-28): VERIFIED & SHIPPED ✅
+
+*   **Three real bugs found & fixed during verification:** 
+    1.  `flutter build` ignores `--build-name` for the desktop `version.json` that `package_info_plus` reads → CI now rewrites `pubspec` `version:` before building, so binaries self-report the real version.
+    2.  The version job scanned the whole commit message for tokens, so a commit BODY documenting `[skip release]`/`#minor` mis-fired → now scans the subject line only.
+    3.  Update checks were gated on `ConnectivityService.isOnline`, which reflects the PocketBase SYNC server health (`consistancy.duckdns.org`) not GitHub/internet reachability, so checks silently skipped when the sync server was slow/down → gate removed; checks now rely on the GitHub request's own timeout.
+*   **Verification:** CI runs green; v1.2.0 and v1.2.1 published (v1.2.1 is the first build that self-reports its real version); live Linux end-to-end self-update (v1.0.0 → v1.2.1, click "Update & Restart" → downloaded, installed, relaunched) confirmed by the user. v1.3.0 being shipped now with versioned filenames + self-update + the connectivity fix.
+*   **Known caveats:** macOS `.dmg` unsigned (Gatekeeper may prompt once; quarantine xattr stripped best-effort); self-update needs a writable install dir (system-wide installs fall back to manual download); `pubspec` stays `1.0.0+1` and CI injects the version, so LOCAL dev builds always self-report `1.0.0`.

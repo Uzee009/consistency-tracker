@@ -471,16 +471,114 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Download Button (only shown when update available)
+                    // Download Button Area (now reactive)
                     ValueListenableBuilder<UpdateInfo?>(
                       valueListenable: UpdateService.instance.available,
                       builder: (context, available, _) {
                         if (available == null) return const SizedBox.shrink();
-                        return ElevatedButton.icon(
-                          onPressed: () =>
-                              UpdateService.instance.openDownload(),
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('Download Update'),
+
+                        return ValueListenableBuilder<UpdateProgress>(
+                          valueListenable: UpdateService.instance.progress,
+                          builder: (context, progress, _) {
+                            if (progress.stage == UpdateStage.idle) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () => UpdateService.instance
+                                        .downloadAndApply(),
+                                    icon:
+                                        const Icon(Icons.restart_alt, size: 18),
+                                    label: const Text('Update & Restart'),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  TextButton(
+                                    onPressed: () =>
+                                        UpdateService.instance.openDownload(),
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: const Size(0, 32),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: const Text('Download manually',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ],
+                              );
+                            } else if (progress.stage == UpdateStage.error) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    progress.message ?? 'Update failed',
+                                    style: TextStyle(
+                                        color: Colors.red[700],
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: () => UpdateService.instance
+                                            .downloadAndApply(),
+                                        child: const Text('Try again'),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      TextButton(
+                                        onPressed: () => UpdateService.instance
+                                            .openDownload(),
+                                        child: const Text('Download manually',
+                                            style: TextStyle(fontSize: 12)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            } else {
+                              // Downloading, Verifying, Applying, Restarting
+                              String stageLabel = '';
+                              switch (progress.stage) {
+                                case UpdateStage.downloading:
+                                  final pct = (progress.pct ?? 0) * 100;
+                                  stageLabel =
+                                      'Downloading update… ${pct.round()}%';
+                                  break;
+                                case UpdateStage.verifying:
+                                  stageLabel = 'Verifying update…';
+                                  break;
+                                case UpdateStage.applying:
+                                  stageLabel = 'Installing update…';
+                                  break;
+                                case UpdateStage.restarting:
+                                  stageLabel = 'Restarting…';
+                                  break;
+                                default:
+                                  break;
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stageLabel,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: progress.pct,
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                          },
                         );
                       },
                     ),

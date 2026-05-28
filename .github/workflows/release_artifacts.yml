@@ -158,18 +158,18 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "${{ needs.version.outputs.tag }}" \
             --generate-notes \
-            ConsistencyTracker-macOS/ConsistencyTracker-macOS.dmg \
-            ConsistencyTracker-Linux/ConsistencyTracker-Linux.tar.gz \
-            ConsistencyTracker-Windows/ConsistencyTracker-Windows.zip
+            ConsistencyTracker-macOS/ConsistencyTracker-macOS-v${{ needs.version.outputs.version }}.dmg \
+            ConsistencyTracker-Linux/ConsistencyTracker-Linux-v${{ needs.version.outputs.version }}.tar.gz \
+            ConsistencyTracker-Windows/ConsistencyTracker-Windows-v${{ needs.version.outputs.version }}.zip
 
       - name: Create versioned Release (on v*.*.* tags)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ConsistencyTracker-macOS/ConsistencyTracker-macOS.dmg
-            ConsistencyTracker-Linux/ConsistencyTracker-Linux.tar.gz
-            ConsistencyTracker-Windows/ConsistencyTracker-Windows.zip
+            ConsistencyTracker-macOS/ConsistencyTracker-macOS-v${{ needs.version.outputs.version }}.dmg
+            ConsistencyTracker-Linux/ConsistencyTracker-Linux-v${{ needs.version.outputs.version }}.tar.gz
+            ConsistencyTracker-Windows/ConsistencyTracker-Windows-v${{ needs.version.outputs.version }}.zip
           draft: false
           prerelease: false
           generate_release_notes: true

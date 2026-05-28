@@ -2,7 +2,7 @@
 
 **Module:** Step 14 — In-App Updates & Auto-Release
 **Branch:** feature/sync-engine
-**State:** IN_PROGRESS
+**State:** COMPLETE
 **Current Phase:** Part B — Client updater
 **Last updated:** 2026-05-28
 
@@ -18,29 +18,26 @@ Note: Prior module (Step 13 sync, Phase 4 deploy) was archived to `.archive/CURR
 
 ## Phases & Sub-tasks
 
-- **Part A — CI:** [DONE]
-  - A1 version job (compute next semver tag, handle #major/#minor/[skip release] directives)
-  - A2 build_name threading (wire version into flutter build via --build-name)
-  - A3 auto-tagged release (replace rolling prerelease with stable vX.Y.Z releases)
+**Previously completed modules (Steps 13-14 Parts A–B) archived in `.archive/`. See CURRENT_MODULE_* files for history.**
 
-- **Part B — Client updater:** [DONE]
-  - Dependencies (package_info_plus, url_launcher, http) [DONE]
-  - update_service.dart (singleton with checkForUpdate, semver comparison, GitHub API polling) [DONE]
-  - Settings UPDATES section (current version, update status, check button, download button) [DONE]
-  - Startup hook (main.dart check on init) [DONE]
-  - Home banner (show update notification when available) [DONE]
+---
+
+## Step 14 cont. — True Self-Update (Update & Restart)
+
+- Part A — versioned release filenames [DONE]
+- Part B — in-app download+apply+relaunch (deps archive/crypto; UpdateService.downloadAndApply; Linux/macOS/Windows apply; main.dart cleanup; banner + settings UI) [DONE]
 
 ---
 
 ## Working Context
 
-The UI wiring for in-app updates is now complete. The client handles background update checks on startup and lifecycle resume, provides a dismissible notification banner on the home screen, and includes a dedicated management section in Settings.
+Step 14 self-update complete; shipping v1.3.0 to master with in-app Download & Restart (GitHub artifact download, SHA-256 verification, per-OS atomic install swap), versioned release filenames, and three verified bug fixes (pubspec injection, commit-subject-only token parsing, ConnectivityService gate removal).
 
 ---
 
 ## Next Action
 
-Finalize code-review of the update integration and proceed with local verification of the end-to-end update flow.
+Monitor v1.3.0 CI; future work as needed. (Step 14 module complete.)
 
 ---
 

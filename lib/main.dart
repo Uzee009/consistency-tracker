@@ -14,14 +14,58 @@ import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 // Global notifiers for theme and style management
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
 final ValueNotifier<VisualStyle> styleNotifier =
     ValueNotifier(VisualStyle.minimalist);
 
+void _cleanupOldUpdate() {
+  try {
+    final exe = Platform.resolvedExecutable;
+    String installParent;
+
+    if (Platform.isLinux || Platform.isWindows) {
+      installParent = p.dirname(p.dirname(exe));
+    } else if (Platform.isMacOS) {
+      var current = exe;
+      String? appPath;
+      while (current != p.dirname(current)) {
+        if (p.basename(current).endsWith('.app')) {
+          appPath = current;
+          break;
+        }
+        current = p.dirname(current);
+      }
+      if (appPath == null) return;
+      installParent = p.dirname(appPath);
+    } else {
+      return;
+    }
+
+    final cleanupFile = File(p.join(installParent, '.ct_update_cleanup'));
+    if (cleanupFile.existsSync()) {
+      final lines = cleanupFile.readAsLinesSync();
+      for (final line in lines) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final dir = Directory(line.trim());
+          if (dir.existsSync()) {
+            dir.deleteSync(recursive: true);
+          }
+        } catch (_) {}
+      }
+      cleanupFile.deleteSync();
+    }
+  } catch (_) {
+    // Ignore entirely
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _cleanupOldUpdate();
 
   if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
     sqfliteFfiInit();

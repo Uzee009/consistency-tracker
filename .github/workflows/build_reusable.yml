@@ -68,20 +68,32 @@ jobs:
         run: |
           mkdir -p dist
           cp -r build/macos/Build/Products/Release/*.app dist/
-          hdiutil create -volname "Consistency Tracker" -srcfolder dist -ov -format UDZO "${{ inputs.output_name }}.dmg"
+          OUT="${{ inputs.output_name }}"
+          if [ -n "${{ inputs.build_name }}" ]; then
+            OUT="${OUT}-v${{ inputs.build_name }}"
+          fi
+          hdiutil create -volname "Consistency Tracker" -srcfolder dist -ov -format UDZO "${OUT}.dmg"
         shell: bash
 
       - name: Package Linux (Tarball)
         if: inputs.platform == 'linux'
         run: |
+          OUT="${{ inputs.output_name }}"
+          if [ -n "${{ inputs.build_name }}" ]; then
+            OUT="${OUT}-v${{ inputs.build_name }}"
+          fi
           cd build/linux/x64/release/bundle
-          tar -czf "../../../../../${{ inputs.output_name }}.tar.gz" .
+          tar -czf "../../../../../${OUT}.tar.gz" .
         shell: bash
 
       - name: Package Windows (Zip)
         if: inputs.platform == 'windows'
         run: |
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "${{ inputs.output_name }}.zip"
+          $out = "${{ inputs.output_name }}"
+          if ("${{ inputs.build_name }}" -ne "") {
+            $out = "${out}-v${{ inputs.build_name }}"
+          }
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "${out}.zip"
         shell: pwsh
 
       - name: Upload Build Artifact
