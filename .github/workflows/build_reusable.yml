@@ -48,11 +48,19 @@ jobs:
 
       - name: Build ${{ inputs.platform }}
         run: |
-          BUILD_NAME_FLAG=""
-          if [ -n "${{ inputs.build_name }}" ]; then
-            BUILD_NAME_FLAG="--build-name=${{ inputs.build_name }}"
+          BUILD_NAME="${{ inputs.build_name }}"
+          BUILD_NUMBER="${{ github.run_number }}"
+          if [ -n "$BUILD_NAME" ]; then
+            # flutter build linux/windows ignore --build-name/--build-number for the
+            # bundled version.json that package_info_plus reads. version.json is
+            # generated from pubspec's `version:` field, so write it there directly
+            # to make the binary self-report the release version on every platform.
+            sed -i.bak -E "s/^version: .*/version: ${BUILD_NAME}+${BUILD_NUMBER}/" pubspec.yaml
+            rm -f pubspec.yaml.bak
+            echo "pubspec.yaml version set to:"
+            grep '^version:' pubspec.yaml
           fi
-          flutter build ${{ inputs.platform }} --release $BUILD_NAME_FLAG --build-number=${{ github.run_number }}
+          flutter build ${{ inputs.platform }} --release --build-name="${BUILD_NAME:-1.0.0}" --build-number="$BUILD_NUMBER"
         shell: bash
 
       - name: Package macOS (DMG)
