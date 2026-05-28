@@ -49,21 +49,25 @@ jobs:
           elif [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
             # Master push: read commit message and decide bump
             echo "Commit message: $COMMIT_MSG"
+            # Only inspect the subject (first line) for release tokens, so that a
+            # commit BODY documenting these tokens does not accidentally trigger them.
+            COMMIT_SUBJECT="$(printf '%s\n' "$COMMIT_MSG" | head -n 1)"
+            echo "Commit subject: $COMMIT_SUBJECT"
 
             # Decide bump size
-            if [[ "$COMMIT_MSG" == *"[skip release]"* ]]; then
+            if [[ "$COMMIT_SUBJECT" == *"[skip release]"* ]]; then
               SKIP="true"
               COMPUTED_VERSION="$VERSION_WITHOUT_V"
               COMPUTED_TAG="$LATEST_TAG"
               echo "Skip release directive found"
             else
               SKIP="false"
-              if [[ "$COMMIT_MSG" == *"#major"* ]]; then
+              if [[ "$COMMIT_SUBJECT" == *"#major"* ]]; then
                 MAJOR=$((MAJOR + 1))
                 MINOR=0
                 PATCH=0
                 echo "Major bump: $MAJOR.0.0"
-              elif [[ "$COMMIT_MSG" == *"#minor"* ]]; then
+              elif [[ "$COMMIT_SUBJECT" == *"#minor"* ]]; then
                 MINOR=$((MINOR + 1))
                 PATCH=0
                 echo "Minor bump: $MAJOR.$MINOR.0"
