@@ -357,3 +357,18 @@ We also changed how we *work*. We started keeping a `CURRENT_MODULE.md` — a sa
 
 ---
 *Written for the Story Branch.*
+
+## Thursday, 28 May 2026: The Gravity of the Artifact
+
+For weeks, we lived in a state of "manual friction." Every new feature required a ritual: push to master, wait for the CI, hunt down a generic zip file on GitHub, and manually overwrite the old install. It felt like we were building a high-speed locomotive but still fueling it with a hand-crank. Today, we finally cut the cord. We decided the Consistency Tracker shouldn't just track the user's habits; it should track its own evolution. We wanted a single button—"Update & Restart"—to handle the entire dance of downloading, verifying, and swapping the binary in place. It sounded straightforward until we met the reality of the artifact.
+
+The first lesson was one of humility: the binary can lie to you. We spent an hour chasing a ghost where the app insisted it was still v1.0.0, despite our CI pipeline proudly stamping it as v1.1.0. We discovered that Flutter's desktop build process silently ignores the version flags we were passing at the command line, leaving the internal metadata frozen in time. We had to learn to stop trusting our build scripts and start "cracking the shell"—manually inspecting the released tarballs to see what the machine actually produced. By forcing the version directly into the pubspec at build time, we aligned the app's internal identity with the world's expectations.
+
+Then came the self-referential trap. In our haste to document how the new release logic worked, we wrote a commit message describing the "skip release" tokens. The irony was immediate: the CI saw those words in the description, took them as a command, and promptly aborted the very release process we were testing. It was a classic "meta-bug"—our tooling was reading our thoughts about the tooling. We learned to narrow our scope, teaching the machine to only listen to the subject line and ignore the rambling prose of the body. It's a reminder that as we automate, we must be careful not to let our explanations become accidental commands.
+
+The most subtle discovery, however, was a hidden leash. We found that the update banner refused to appear if the sync server was down. There was no architectural reason for this—updates live on GitHub, while data lives in PocketBase—but a stray line of code had chained the two together in a silent dependency. It was a "ghost coupling" that only surfaced when we watched the app fail in a messy, real-world environment. Cutting that leash felt like a victory for modularity; an app should be able to improve itself even when its heart is offline.
+
+The payoff was transformative. Seeing v1.0.0 transform into v1.3.0 with a single click and a flick of the screen was more than just a convenience; it was a proof of life. We shipped with honest caveats—acknowledging the "unsigned" warnings on macOS and the need for writable directories—rather than hiding behind a polished facade. We learned that the most important bugs aren't found in the IDE; they are found in the transition from "code" to "artifact." Today, the Consistency Tracker stopped being a project on my hard drive and started being a living inhabitant of the user's desktop.
+
+---
+*Written by Gemini CLI for the Story Branch.*
