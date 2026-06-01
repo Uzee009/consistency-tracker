@@ -617,7 +617,7 @@ Fixes (all code-reviewed PASS; `flutter analyze` clean; `flutter build linux` OK
 4. Optimistic in-memory `todayRecord` update + `notifyListeners()` for instant feedback; per-click full `initialize()` replaced by a 280ms debounced `_scheduleRefresh()`; `dispose()` cancels the timer.
 5. Write-mutex: shared `Lock` (synchronized package) serializes `createOrUpdateDayRecord` vs `recomputeAllDerived` (removes a transient ±1 skew). Deadlock-free.
 
-Verification (live DB monitors on dev DBs): single-device rapid-toggle → count moves ±1, cache == authoritative, no swings (user confirmed on-screen stability). Two-device (correct dart-define harness) → bidirectional realtime propagation; at true rest "CONVERGED+CONSISTENT" (devices equal, caches match). Accepted caveat: ±1 ~1.5s pull-path lag during SIMULTANEOUS dual-device storms (eventual-consistency; heals at rest; data never corrupted) — pull-path tightening deferred to Phase 4.
+Verification (live DB monitors on dev DBs): single-device_rapid-toggle → count moves ±1, cache == authoritative, no swings (user confirmed on-screen stability). Two-device (correct dart-define harness) → bidirectional realtime propagation; at true rest "CONVERGED+CONSISTENT" (devices equal, caches match). Accepted caveat: ±1 ~1.5s pull-path lag during SIMULTANEOUS dual-device storms (eventual-consistency; heals at rest; data never corrupted) — pull-path tightening deferred to Phase 4.
 
 Status: Phase 3 ✅ COMPLETE. Changes uncommitted (awaiting user approval to commit). Next: Phase 4 deploy + harden.
 
@@ -647,7 +647,7 @@ Branch `experiment` pushed to origin at session end.
 
 * **Bundle 1 — Client cutover (code-reviewer PASS, analyze clean):** Repointed the default `_serverUrl` in `lib/services/pocketbase_service.dart` (field initializer + `init()` fallback) from `http://127.0.0.1:8090` to `https://consistancy.duckdns.org`. Added `DatabaseService.clearSyncCursors()` (deletes the tasks/task_status/day_meta rows from `sync_state`, leaving the `__last_prune__` marker intact) and call it inside `setServerUrl()` so switching servers forces a clean full pull. Updated the login screen's Advanced server-URL hint to the live host.
 
-* **Bundle 2 — Opt-in signup (code-reviewer PASS, analyze clean):** Added `PocketBaseService.signUp(email, password)` (creates the `users` record then signs in; no email verification). New `lib/screens/signup_screen.dart` (email + password + confirm, optional Advanced server URL, client-side validation: non-empty email, ≥8-char password matching confirm), reachable via a "Don't have an account? Create one" link added to the Sign In screen.
+* **Bundle 2 — Opt-in signup (code-reviewer PASS, analyze clean):** Added `PocketBaseService.signUp(email, password)` (creates the `users` record then signs in; no email verification). New `lib/screens/login_screen.dart` (email + password + confirm, optional Advanced server URL, client-side validation: non-empty email, ≥8-char password matching confirm), reachable via a "Don't have an account? Create one" link added to the Sign In screen.
 
 * **UX 1 — Signed-out Sync section in Settings (code-reviewer PASS):** Replaced the plain grey "Not signed in" text with an orange "Sync off — not signed in" status row plus a `Wrap` of two buttons — **Sign In** (→ LoginScreen) and **Create Account** (→ SignUpScreen). Sync Now stays disabled when signed out; hint reworded to "Sign in or create an account to enable sync."
 
@@ -728,3 +728,50 @@ The release job was previously gated to `v*.*.*` tags only, so pushes to master 
     3.  Update checks were gated on `ConnectivityService.isOnline`, which reflects the PocketBase SYNC server health (`consistancy.duckdns.org`) not GitHub/internet reachability, so checks silently skipped when the sync server was slow/down → gate removed; checks now rely on the GitHub request's own timeout.
 *   **Verification:** CI runs green; v1.2.0 and v1.2.1 published (v1.2.1 is the first build that self-reports its real version); live Linux end-to-end self-update (v1.0.0 → v1.2.1, click "Update & Restart" → downloaded, installed, relaunched) confirmed by the user. v1.3.0 being shipped now with versioned filenames + self-update + the connectivity fix.
 *   **Known caveats:** macOS `.dmg` unsigned (Gatekeeper may prompt once; quarantine xattr stripped best-effort); self-update needs a writable install dir (system-wide installs fall back to manual download); `pubspec` stays `1.0.0+1` and CI injects the version, so LOCAL dev builds always self-report `1.0.0`.
+
+## Thursday, 29 May 2026 — Sync server incident: missing PocketBase collections
+
+### Root cause & fix (RESOLVED ✅)
+App sync failed on all devices with `404 Missing collection context` (raw ClientException dumped into the SnackBar). Root cause: the live PocketBase server `consistancy.duckdns.org` was missing its `tasks`/`task_status`/`day_meta` collections. NOT a data wipe — superuser + user records were intact. The initial server deploy never copied `pocketbase/pb_migrations/` next to the binary, so the collections were never created. Diagnosed via direct API probes (`/api/collections/<c>/records` → 404 while `/api/health` → 200 and the `users` collection present).
+
+Key infra discovery: the live server is NOT on Oracle Cloud as `DEPLOYMENT_GUIDE.md` claimed — it is a **Google Cloud (GCP)** VM, x86_64, SSH user `uzeeslive`, install dir `/home/uzeeslive/pb/`, systemd unit `pocketbase.service` running `pocketbase serve consistancy.duckdns.org` as root.
+
+Fix (server-side, done by the user over SSH): pulled the migration from the public repo and restarted — `cd /home/uzeeslive/pb/pb_migrations && curl -fsSL -O https://raw.githubusercontent.com/Uzee009/consistency-tracker/master/pocketbase/pb_migrations/1748260800_init_sync_collections.js && sudo systemctl restart pocketbase`. PocketBase auto-applied it; all three collections returned 200 and the app confirmed live data sync. (curl-from-repo was used because the user's SSH terminal mangles long pastes — a heredoc attempt hung.)
+
+### Repo changes (UNCOMMITTED on feature/sync-engine)
+1. `lib/services/sync_service.dart` — added `_friendlyError(Object e)` to classify sync failures into user-facing messages (401/403 → re-sign-in; 404/"Missing collection context" → "server not set up, data safe"; code 0 → network retry; 5xx/429 → server hiccup retry; else → rejected/data safe). `sync()` now `debugPrint`s the raw error and stores the friendly message; `_buildSummary` error case returns the message directly. Retry logic (`_isTransient`) untouched. Code-reviewer PASS, `flutter analyze` clean.
+2. `deploy/DEPLOYMENT_GUIDE.md` — corrected to the real GCP host facts, added a "Live deployment (verified 2026-05-28)" section with the exact curl migration-redeploy commands, and flagged the stale Oracle Parts 1–2 as historical.
+
+### Open follow-ups
+- ⚠️ **Backups still NOT enabled** on the PocketBase server — migrations rebuild empty structure only, not data. User to enable in Admin UI → Settings → Backups.
+- The two repo changes above are uncommitted and not yet merged to master (so no auto-release has triggered).
+- BUG (fix next session): app re-syncs every few seconds even with no changes — wasteful. Hypothesis (unconfirmed): realtime subscription re-fires `sync()` on the server's own writes and/or the 60s poll + debounce; look at `lib/services/sync_service.dart` and consider short-circuiting when nothing is dirty and no real remote change.
+
+## Monday, 1 June 2026 — Step 15B: Account Isolation + UX-fix follow-up (COMPLETE ✅)
+
+### Step 15B — Per-account SQLite isolation
+Per-account SQLite DB files (`accounts/<userId>.db`) with `AccountRegistry` (SharedPreferences) tracking last-touched-time for 30-day eviction. Auth listener in `main.dart` is the single switch chokepoint: on sign-in, pauses sync → calls `DatabaseService.switchTo(userId)` → resumes; on sign-out, pauses sync but DB stays active per Model E. Legacy `consistency_tracker.db` is migrated into `accounts/<userId>.db` on first launch for existing v1.3.0 users (sidecars `-wal`/`-shm` also moved). Dev override `–-dart-define=DATABASE_NAME=consistency_tracker_dev.db` directs to `accounts_dev/` for clean dev isolation.
+
+Files touched: NEW `lib/services/account_registry.dart` (91 lines); modified `lib/services/database_service.dart` (+ per-account dir logic, `switchTo`, `close`, `migrateLegacyDb`, `deleteAccountDbs`), `lib/services/sync_service.dart` (+ `pauseForSwitch`, `resumeAfterSwitch`, registry-touch), `lib/main.dart` (bootstrap + auth listener + lifecycle touch), `lib/services/pocketbase_service.dart` (docstring).
+
+### 15B-FollowUp — UX bugs from T7 verification
+Three bugs surfaced during T7 manual verification, all traced to one root cause: `_MyAppState._initializeThemeAndStyle()` computed `_isFirstRun` once at boot and never re-evaluated on auth/DB swap. So brand-new accounts (no local `users` row yet) stayed stuck on HomeScreen → "Could not load profile" error, and returning accounts' HomeScreen never refreshed on sign-in.
+
+Fixes:
+- **F1** `lib/main.dart`: MyApp now listens to a new `DatabaseService.activeDbRevision` ValueNotifier<int> that increments inside `switchTo` after the DB is opened. On fire, recomputes `_isFirstRun` and routes between FirstRunSetupScreen and HomeScreen.
+- **F2** `lib/services/database_service.dart` exposes `activeDbRevision`. `lib/screens/home_screen.dart` listens and re-initializes its dashboard controller on fire.
+- **F3** `lib/screens/settings_screen.dart`: profile section falls back to PocketBase `authStore.record` (email + id) with a "Profile setup pending" placeholder when local users row is missing. Hard error only if both local row and auth record are absent.
+- **Polish 1** — flicker fix: replaced inner `FutureBuilder<bool>` with cached `bool _isFirstRunCached` + `.then()` update, eliminating the spinner flash on every account switch.
+- **Polish 2** — `SAVE CHANGES` button hidden in fallback profile view (gated on `_hasLocalUserRow`).
+
+### T7 verification outcome
+T7.1 PASS (legacy migration, prod data intact); T7.2 PASS (two-account isolation verified with a brand-new `test1@test.com` account whose DB stayed at 4 KB while contaminated server-side accounts pulled their 3 tasks each — proving the local isolation works and the previous cross-account contamination was actually pre-15B server-side leakage); T7.3 PASS (PB `owner = @request.auth.id` rules confirmed via migration source); T7.4 PASS-by-equivalence (rename code path identical to T7.1; Model-E offline-write behavior verified — `OFFLINE_FIRST_TEST` stayed confined to `x0ybhh.db` with zero cross-DB leakage); T7.5 PASS (one aged-out account `9gxyy1tnorm5ii5.db` evicted on next boot — app log confirms `AccountRegistry: Evicted 1 idle accounts`); T7.6 PASS (sign-in immediately followed by sign-out: no crash, no freeze, no corruption); T7.7 SKIPPED (1-hour lifecycle wait, low-value); T7.8 PASS (full regression smoke — dashboard, heatmap, task ticks, settings, update banner all working).
+
+### Also bundled in this commit
+- Day-29 sync `_friendlyError(Object e)` helper in `sync_service.dart` (classifies sync failures: 401/403 → re-sign-in, 404/Missing collection → server-not-set-up, network/5xx → retry hints) instead of leaking raw `ClientException` strings into the SnackBar.
+- `deploy/DEPLOYMENT_GUIDE.md` corrected from Oracle → GCP (live host is a GCP VM `consistancy.duckdns.org`, ssh user `uzeeslive`, install dir `/home/uzeeslive/pb/`).
+
+### Open follow-ups (separate PRs/sessions)
+- Step 15A — continuous-sync echo-loop hardening (the "re-syncs every few seconds" bug). Plan already in DEVELOPMENT_PLAN.md §15A. Starting next.
+- PocketBase server backups still NOT enabled — user to enable in Admin UI → Settings → Backups.
+- macOS `.dmg` universal-vs-arm64 unverified (carry-over from Step 14 caveats).

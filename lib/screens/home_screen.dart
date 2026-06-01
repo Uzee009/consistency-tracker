@@ -9,6 +9,7 @@ import '../widgets/app_logo.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/sync_service.dart';
+import '../services/database_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/pocketbase_service.dart';
 import '../services/update_service.dart';
@@ -34,9 +35,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _dataController.initialize(DateTime.now());
     SyncService.instance.dataChanged.addListener(_onSyncDataChanged);
     UpdateService.instance.available.addListener(_onUpdateAvailableChanged);
+    DatabaseService.instance.activeDbRevision.addListener(_onActiveDbChanged);
   }
 
   void _onSyncDataChanged() {
+    if (!mounted) return;
+    _dataController.initialize(_dataController.selectedDate,
+        showLoading: false);
+  }
+
+  void _onActiveDbChanged() {
     if (!mounted) return;
     _dataController.initialize(_dataController.selectedDate,
         showLoading: false);
@@ -61,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     SyncService.instance.dataChanged.removeListener(_onSyncDataChanged);
     UpdateService.instance.available.removeListener(_onUpdateAvailableChanged);
+    DatabaseService.instance.activeDbRevision.removeListener(_onActiveDbChanged);
     _dataController.dispose();
     _layoutController.dispose();
     super.dispose();

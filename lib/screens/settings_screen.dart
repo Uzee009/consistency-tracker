@@ -1,5 +1,4 @@
-// lib/screens/settings_screen.dart
-
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
@@ -25,6 +24,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late Future<User?> _userFuture;
+  bool _hasLocalUserRow = false;
   final _nameController = TextEditingController();
   int? _monthlyCheatDays;
   String? _currentVersion;
@@ -56,6 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final user = users.first;
       _nameController.text = user.name;
       _monthlyCheatDays = user.monthlyCheatDays.clamp(0, 5);
+      _hasLocalUserRow = true;
       return user;
     }
     return null;
@@ -93,6 +94,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         DatabaseService.prefixedKey('visual_style'), style.index);
   }
 
+  String _formatAge(int tsMs) {
+    final ageMs = DateTime.now().millisecondsSinceEpoch - tsMs;
+    final ageSecs = (ageMs / 1000).round();
+    if (ageSecs < 5) return 'now';
+    if (ageSecs < 60) return '${ageSecs}s';
+    final ageMins = (ageSecs / 60).round();
+    if (ageMins < 60) return '${ageMins}m';
+    final ageHours = (ageMins / 60).round();
+    return '${ageHours}h';
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -109,6 +121,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
         } else if (snapshot.hasError ||
             !snapshot.hasData ||
             snapshot.data == null) {
+          // Defensive: if local users row is missing, try falling back to PB auth record.
+          if (PocketBaseService.instance.isAuthenticated) {
+            final pbRecord = PocketBaseService.instance.client.authStore.record;
+            if (pbRecord != null) {
+              // Show a minimal profile with PB auth data.
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0, vertical: 32.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('PROFILE',
+                            'Manage your identity and daily allowance.'),
+                        _buildCard(context, [
+                          _buildLabel('Email (from auth)'),
+                          Text(
+                            pbRecord.getStringValue('email').isEmpty
+                                ? 'Unknown'
+                                : pbRecord.getStringValue('email'),
+                            style: const TextStyle(
+                                fontSize: 14, color: Color(0xFFA1A1AA)),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildLabel('Account ID'),
+                          Text(
+                            pbRecord.id,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFA1A1AA),
+                                fontFamily: 'monospace'),
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.info, size: 16, color: Colors.orange),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Profile setup pending. Complete setup in Settings.',
+                                    style: TextStyle(
+                                        fontSize: 13, color: Colors.orange),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+          }
+          // Fall back to hard error only if NO auth record exists.
           return const Center(child: Text('Could not load profile.'));
         }
 
@@ -416,6 +492,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 16),
+                      Text('DEBUG: Sync Log (last 50)', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 8),
+                      ValueListenableBuilder<int>(
+                        valueListenable: SyncService.instance.syncEventsRevision,
+                        builder: (context, _, __) {
+                          final all = SyncService.instance.syncEvents;
+                          final events = all
+                              .where((e) => !(e.result == 'noop' || e.result == 'skipped' || e.result == 'busy' || e.result == 'offline' || e.result == 'notSignedIn'))
+                              .toList();
+                          if (events.isEmpty) {
+                            return Text(
+                              '(no sync work in the last 50 events — idle)',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            );
+                          }
+                          return Column(
+                            children: events.reversed.map((e) {
+                              final age = _formatAge(e.ts);
+                              final detail = e.detail != null ? ' (${e.detail})' : '';
+                              return Text(
+                                '${e.reason} — ${e.result} (Δ ${age}$detail)',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ],
                   ]),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
@@ -583,7 +689,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                     ),
                   ]),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -593,14 +699,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: const Text('CANCEL'),
                         ),
                       const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: _saveSettings,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 16),
+                      if (_hasLocalUserRow)
+                        ElevatedButton(
+                          onPressed: _saveSettings,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 16),
+                          ),
+                          child: const Text('SAVE CHANGES'),
                         ),
-                        child: const Text('SAVE CHANGES'),
-                      ),
                     ],
                   ),
                 ],
@@ -737,7 +844,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _handleSyncNow() async {
     // Capture the messenger before the await to avoid using context across async gaps.
     final messenger = ScaffoldMessenger.of(context);
-    final result = await SyncService.instance.sync();
+    final result = await SyncService.instance.sync(reason: 'manual');
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(content: Text(result.summary)),

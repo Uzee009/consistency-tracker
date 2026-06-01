@@ -4,6 +4,8 @@ import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/services/connectivity_service.dart';
+import 'package:consistency_tracker_v1/services/account_registry.dart';
+import 'package:consistency_tracker_v1/services/device_id_service.dart';
 import 'package:consistency_tracker_v1/screens/first_run_setup_screen.dart';
 import 'package:consistency_tracker_v1/screens/home_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -105,6 +107,21 @@ void main() async {
   // Initialize PocketBase service (handles auth token restoration)
   await PocketBaseService.instance.init();
 
+  await DeviceIdService.instance.init();
+
+  // Step 15B: account isolation bootstrap. Order matters:
+  //   1. migrate legacy single-DB file (if any) into accounts/<userId>.db
+  //   2. evict idle accounts (>30 days), deleting their .db files
+  //   3. open the active account's DB
+  final activeUserId = PocketBaseService.instance.client.authStore.record?.id;
+  await DatabaseService.instance.migrateLegacyDb(activeUserId: activeUserId);
+  final evicted = await AccountRegistry.instance.evictIdle(
+    ttl: const Duration(days: 30),
+    activeUserId: activeUserId,
+  );
+  await DatabaseService.instance.deleteAccountDbs(evicted);
+  await DatabaseService.instance.switchTo(activeUserId);
+
   // Initialize connectivity service (checks online status + subscribes to changes)
   await ConnectivityService.instance.init();
 
@@ -113,6 +130,20 @@ void main() async {
   unawaited(PocketBaseService.instance.tryDevAutoLogin());
 
   SyncService.instance.startAuto();
+
+  // Step 15B: single switch chokepoint. Fires on sign-in AND sign-out.
+  PocketBaseService.instance.authState.addListener(() async {
+    final newUserId = PocketBaseService.instance.client.authStore.record?.id;
+    final signedIn = PocketBaseService.instance.isAuthenticated;
+    await SyncService.instance.pauseForSwitch();
+    if (signedIn) {
+      // sign-IN: swap to <userId>.db, then resume sync.
+      await DatabaseService.instance.switchTo(newUserId);
+      SyncService.instance.resumeAfterSwitch();
+    }
+    // sign-OUT: leave the current per-account DB active (Model E:
+    // reads/writes keep working, sync is just paused). No resume.
+  });
 
   runApp(const MyApp());
 }
@@ -126,6 +157,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late Future<bool> _isFirstRun;
+  bool _isFirstRunCached = false;
   late ThemeMode _currentThemeMode;
   late VisualStyle _currentVisualStyle;
   late bool _isDark;
@@ -138,6 +170,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _initializationFuture = _initializeThemeAndStyle();
     themeNotifier.addListener(_updateThemeAndStyle);
     styleNotifier.addListener(_updateThemeAndStyle);
+    DatabaseService.instance.activeDbRevision.addListener(_onActiveDbChanged);
   }
 
   @override
@@ -145,13 +178,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     themeNotifier.removeListener(_updateThemeAndStyle);
     styleNotifier.removeListener(_updateThemeAndStyle);
+    DatabaseService.instance.activeDbRevision.removeListener(_onActiveDbChanged);
     super.dispose();
+  }
+
+  void _onActiveDbChanged() {
+    if (!mounted) return;
+    _checkFirstRun().then((value) {
+      if (!mounted) return;
+      if (_isFirstRunCached != value) {
+        setState(() => _isFirstRunCached = value);
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      SyncService.instance.requestSync();
+      final activeId = PocketBaseService.instance.client.authStore.record?.id;
+      unawaited(AccountRegistry.instance.touch(activeId));
+      SyncService.instance.requestSync(reason: 'wake');
       unawaited(UpdateService.instance.checkForUpdate());
     }
   }
@@ -180,7 +226,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // Also set _isFirstRun here as it depends on DatabaseService which needs init
     _isFirstRun = _checkFirstRun();
-    await _isFirstRun; // Wait for first run check to complete
+    _isFirstRunCached = await _isFirstRun; // Wait for first run check to complete
   }
 
   void _updateThemeAndStyle() {
@@ -368,31 +414,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           debugShowCheckedModeBanner: false,
-          home: FutureBuilder<bool>(
-            future: _isFirstRun,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Scaffold(
-                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                  body: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              } else if (snapshot.hasError) {
-                return Scaffold(
-                  body: Center(
-                    child: Text('Error: ${snapshot.error}'),
-                  ),
-                );
-              } else {
-                if (snapshot.data == true) {
-                  return const FirstRunSetupScreen();
-                } else {
-                  return const HomeScreen();
-                }
-              }
-            },
-          ),
+          home: _isFirstRunCached
+              ? const FirstRunSetupScreen()
+              : const HomeScreen(),
         );
       },
     );

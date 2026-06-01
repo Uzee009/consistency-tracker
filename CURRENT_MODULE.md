@@ -1,47 +1,35 @@
 # CURRENT_MODULE.md
 
-**Module:** Step 14 — In-App Updates & Auto-Release
+**Module:** Step 15A — Sync Echo-Loop Hardening
 **Branch:** feature/sync-engine
-**State:** COMPLETE
-**Current Phase:** Part B — Client updater
-**Last updated:** 2026-05-28
+**State:** IN_PROGRESS (code complete; awaiting code-review + user verification)
+**Current Phase:** T1–T6 + T5-migration on disk; code-review pending; user verification pending; commit pending.
+**Last updated:** 2026-06-01
+
+Plan: see `DEVELOPMENT_PLAN.md §15A`. Goal: idle app talks to network only when there's genuinely new work; edits on device A appear on device B in ~1s via realtime; originating device runs exactly 1 push + 0 echoes per user edit.
 
 ---
 
-## Goal
+## Sub-tasks
 
-The app notifies users when a newer stable release exists and offers a one-click download. CI auto-bumps the version and cuts a real vX.Y.Z GitHub release on every push to master so the app has a clean semver channel to track. 
-
-Note: Prior module (Step 13 sync, Phase 4 deploy) was archived to `.archive/CURRENT_MODULE_2026-05-28_step13-sync.md` and can be resumed from there.
-
----
-
-## Phases & Sub-tasks
-
-**Previously completed modules (Steps 13-14 Parts A–B) archived in `.archive/`. See CURRENT_MODULE_* files for history.**
-
----
-
-## Step 14 cont. — True Self-Update (Update & Restart)
-
-- Part A — versioned release filenames [DONE]
-- Part B — in-app download+apply+relaunch (deps archive/crypto; UpdateService.downloadAndApply; Linux/macOS/Windows apply; main.dart cleanup; banner + settings UI) [DONE]
+- [DONE] T1 — Tighten pull cursor (`>=` → `>`) in `_pull`
+- [DONE] T2 — Split local-change notifier (`userLocalChanges` vs `localChanges`); `_applyRemote` wrapped in `runApplyingRemote`
+- [DONE] T3 — `requestSync({reason})` + `SyncEvent` ring buffer (50) + debug panel in Settings
+- [DONE] T4 — No-op early-exit in `sync()` when `reason=='user-edit' && _realtimeHealthy && dirty==0`
+- [DONE] T5 — `DeviceIdService` (new singleton in SharedPreferences key `flutter.device_id`); `_push` writes `device_id`; realtime callback filters own-device echoes; PB migration `pocketbase/pb_migrations/1780300000_add_device_id.js` adds optional text field to all 3 collections.
+- [DONE] T6 — Adaptive poll cadence (60s → 5m → 15m on idle, snap back on activity)
+- [PENDING] T7 — Code-review (all 6 fixes)
+- [PENDING] T8 — User manual verification (DoD scenarios from dev plan)
+- [PENDING] T9 — Commit on `feature/sync-engine` + user deploys PB migration on GCP
 
 ---
 
 ## Working Context
 
-Step 14 self-update complete; shipping v1.3.0 to master with in-app Download & Restart (GitHub artifact download, SHA-256 verification, per-OS atomic install swap), versioned release filenames, and three verified bug fixes (pubspec injection, commit-subject-only token parsing, ConnectivityService gate removal).
+All client-side code lands in this run. `flutter analyze --no-fatal-infos` clean. New `DeviceIdService` singleton initialized in `main()` after `PocketBaseService.init()`. Server-side migration file ready to deploy at `pocketbase/pb_migrations/1780300000_add_device_id.js` — user will SSH to GCP VM `/home/uzeeslive/pb/pb_migrations/` and curl it onto the host, then `sudo systemctl restart pocketbase` (same dance as Day-29 deploy).
 
 ---
 
 ## Next Action
 
-Monitor v1.3.0 CI; future work as needed. (Step 14 module complete.)
-
----
-
-## Review History
-
-(empty — Part A review cycle not yet started)
-2026-05-28 — Part A code-reviewer: FAIL→PASS. Cycle 1 fixed: CRITICAL shell-injection (commit msg moved to env var), MAJOR empty --build-name guard, MAJOR tag-push now uses github.ref_name, MINOR idempotent gh release create. Verified by orchestrator.
+Hand off to code-reviewer → on PASS, hand to user for manual verification (DoD scenarios) → on all-green, commit and user deploys migration.

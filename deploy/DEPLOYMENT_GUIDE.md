@@ -1,12 +1,39 @@
 # Deployment Guide — Consistency Tracker Sync Server
 
-PocketBase (single Go binary) on an Oracle Cloud Always Free VM, TLS via DuckDNS + Let's Encrypt. The server starts **empty** (no data migration).
+## Live deployment (verified 2026-05-28)
+- **Provider:** Google Cloud (GCP) Compute Engine
+- **Architecture:** x86_64 (amd64), Ubuntu 22.04
+- **SSH user:** `uzeeslive` (NOT ubuntu)
+- **Install dir:** `/home/uzeeslive/pb/`
+- **systemd unit:** `pocketbase.service`, runs as root
+- **ExecStart:** `/home/uzeeslive/pb/pocketbase serve consistancy.duckdns.org`
+- **PocketBase v0.38.2**, domain: `consistancy.duckdns.org`
+- **Restart:** `sudo systemctl restart pocketbase`
+- **Logs:** `journalctl -u pocketbase -n 30 --no-pager`
+
+### Re-deploying migrations (via curl)
+PocketBase auto-applies any not-yet-applied `.js` files in `pb_migrations/` on restart. If the host's terminal mangles long pastes, do NOT paste file contents — pull them from the public repo:
+```
+cd /home/uzeeslive/pb/pb_migrations
+curl -fsSL -O https://raw.githubusercontent.com/Uzee009/consistency-tracker/master/pocketbase/pb_migrations/1748260800_init_sync_collections.js
+wc -l 1748260800_init_sync_collections.js   # expect 111 lines, ending in `});`
+sudo systemctl restart pocketbase
+journalctl -u pocketbase -n 30 --no-pager
+```
+**Symptom this fixes:** the app showing `404 Missing collection context` means the `tasks`/`task_status`/`day_meta` collections don't exist — because `pb_migrations/` was never copied next to the binary. The commands above create them. (Data/accounts are unaffected; this only adds missing collection structure.)
+
+### ⚠️ Backups not yet enabled
+Migrations restore **structure** only, NOT data. Scheduled backups must be enabled manually in the PocketBase admin UI (**Settings → Backups**). Currently, there is no automatic backup protection in place.
+
+---
 
 ## Decisions (locked 2026-05-27)
-- Host: Oracle Cloud **Always Free**, **Ampere A1 (ARM / aarch64)**, Ubuntu 22.04/24.04.
+- Host: **Google Cloud Compute Engine / x86_64** (Updated 2026-05-28)
 - TLS: free **DuckDNS** subdomain + PocketBase built-in **Let's Encrypt**.
 - Data: server starts **fresh/empty** — existing local history is NOT migrated up (`dirty` defaults to 0, so old rows won't auto-push; acceptable given start-fresh).
 - PocketBase version: **v0.38.2** (matches the local dev server + migrations).
+
+*Note: Parts 1–2 below describe the original Oracle plan and are retained as historical reference until rewritten.*
 
 ---
 
