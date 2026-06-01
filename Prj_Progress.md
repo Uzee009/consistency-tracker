@@ -775,3 +775,44 @@ T7.1 PASS (legacy migration, prod data intact); T7.2 PASS (two-account isolation
 - Step 15A — continuous-sync echo-loop hardening (the "re-syncs every few seconds" bug). Plan already in DEVELOPMENT_PLAN.md §15A. Starting next.
 - PocketBase server backups still NOT enabled — user to enable in Admin UI → Settings → Backups.
 - macOS `.dmg` universal-vs-arm64 unverified (carry-over from Step 14 caveats).
+
+## Monday, 1 June 2026 — Step 15A: Sync Echo-Loop Hardening (COMPLETE ✅)
+
+### Implementation — all six fixes from DEVELOPMENT_PLAN.md §15
+Bundled in commit `8df00b7` on `feature/sync-engine`:
+- **T1 (Loop C, wasteful cursor):** `_pull` filter `updated >= cursor` → `updated > cursor`. After a push, the just-pushed record's `updated` equals the cursor, so it's no longer re-fetched; pulls now return 0 rows when nothing actually changed.
+- **T2 (Loop B, pull writes re-trigger local notifier):** Split `DatabaseService.localChanges` into `localChanges` (always fires; preserved for any other consumers) and `userLocalChanges` (only fires when `_applyingRemote == false`). Added `runApplyingRemote<T>(body)` helper. `SyncService._pull` is wrapped in it (via `runApplyingRemote(() => _pull(...))`), and `_onLocalChange` now listens to `userLocalChanges`, so remote applies no longer self-trigger a sync.
+- **T3 (instrumentation):** `requestSync({String reason})` plumbed through `sync({String reason})`; new `SyncEvent` class + 50-entry ring buffer + `syncEventsRevision` notifier. Settings → DEBUG: Sync Log panel renders the last N events with relative timestamps. Eight reasons in use: `user-edit`, `realtime`, `poll`, `connectivity`, `manual` (Sync Now button), `wake` (lifecycle resume), `retry-queued`, `pending-flush`.
+- **T4 (no-op early-exit):** Added `_realtimeHealthy` bool (set true after all 3 collection subscribes succeed, false in `_teardownRealtime`). At top of `sync()`: if `reason == 'user-edit' && _realtimeHealthy && _countDirtyAcrossCollections() == 0` → record `skipped` + return. Pull paths (poll/connectivity/manual/wake) still run.
+- **T5 (Loop A, realtime self-echo):** New `lib/services/device_id_service.dart` — stable UUID stored in SharedPreferences key `flutter.device_id` (NOT db-prefixed, so it survives account switches). `_push` adds `body['device_id'] = DeviceIdService.instance.id` to every record. Realtime callback compares `e.record?.data['device_id']` to local id; on match → record `noop` with detail `self-echo:<collection>` + return BEFORE calling `_resetPollCadence` or `requestSync`. Companion PB migration `pocketbase/pb_migrations/1780300000_add_device_id.js` adds optional text field `device_id` to `tasks`, `task_status`, `day_meta` (uses `c.fields.add(new Field({...}))` + `app.save(c)` — the working PB 0.38.x JSVM API, NOT `c.schema = [...]` which silently no-ops).
+- **T6 (Loop D, adaptive poll cadence):** `_pollInterval` converted from `static const` to mutable instance Duration. New `_consecutiveEmptySyncs` counter. After 3 consecutive empty polls (realtime healthy) → `_setPollInterval(5 min)`; after 6 → `15 min`. `_resetPollCadence()` snaps to 60s on any non-empty sync OR any non-self-echo realtime event.
+
+### Deploy dance — what went wrong, what worked
+- **gemini-coder ran on the wrong branch.** First implementation attempt landed on branch `story` (a docs branch that doesn't have `sync_service.dart` or `database_service.dart`). Only the NEW files (`device_id_service.dart`, the PB migration, archived 15B CURRENT_MODULE) actually persisted into the working tree; the modifications to existing files silently no-op'd. Caught via independent `git status`/grep verification — gemini-coder's self-report claimed success. After the recovery (`git checkout feature/sync-engine`), the three new files survived as untracked and got reused on the retry. **Lesson:** always have delegated agents explicitly verify the branch name BEFORE writing any files.
+- **scp from local box failed** with `Permission denied (publickey)` — local machine has no SSH key authorized on the GCP VM. User accesses GCP via Google Cloud Console browser SSH.
+- **Long URL line-wrapped in the browser SSH terminal,** breaking the `curl ... | base64 -d > ...` command into pieces that bash treated as separate commands. Memory's "user's SSH breaks long pastes" was correct.
+- **What worked:** committed 15A as `8df00b7`, pushed to `feature/sync-engine`, then in the GCP browser SSH session used two short variable assignments (`B=...github.../<user>/<repo>`, `P=feature/sync-engine/pocketbase/pb_migrations/<file>`) followed by `curl -fsSL -O "$B/$P"`. Each line fit under 80 chars. PocketBase auto-applied the migration on `sudo systemctl restart pocketbase`.
+
+### Verification (live, on prod PB at consistancy.duckdns.org)
+After deploy, signed in as `uzee9898@gmail.com` and ticked tasks:
+- Sync log showed `user-edit → pushed:N` followed within ~1s by multiple `realtime — noop (self-echo:task_status)` / `(self-echo:day_meta)` entries — **proves the migration applied (server stored `device_id`) AND the client echo filter recognized them.**
+- Live DB query confirmed `tasks=0 task_status=0 day_meta=0` dirty rows immediately after the push completed — the eternal-push fear was unfounded; the `pushed:5` repetition the user observed pre-deploy was real user ticks, not a bug.
+- 3 consecutive `poll → noop` entries observed; the next poll was expected at ∆ 5m (T6 backoff threshold hit). User accepted the system as quiet.
+
+### Polish commit `2021535`
+- `main.dart:200` — lifecycle-resume sync relabeled `'manual'` → `'wake'`. The Sync Now button keeps `'manual'` (truly user-driven). Linux Flutter desktop fires `AppLifecycleState.resumed` on any window-focus regain, so the previous label suggested the user pressed something when they hadn't.
+- `settings_screen.dart` — Sync Log panel now filters out `noop`/`skipped`/`busy`/`offline`/`notSignedIn` results from the visible list (full 50-entry buffer stays in memory; display-only). Idle state reads `(no sync work in the last 50 events — idle)`.
+- `settings_screen.dart` — Sync Log section gated behind `kDebugMode`. Release builds (CI artifacts) render no panel and no widget tree cost; local `flutter run` still shows it for troubleshooting.
+
+### Code-review verdict
+PASS with two informational notes (neither blocking, both documented):
+1. **T5 deploy-order dependency** — client unconditionally sends `device_id`. If migration isn't deployed first, PB 0.38.x silently drops the unknown field (verified empirically) and T5 echo suppression goes inactive, but T1+T4 still kill the loop.
+2. **T6 minor** — `_resetPollCadence()` is a no-op when already at 60s, so a realtime event arriving while at baseline doesn't reset the next poll's countdown. Worst case: one extra early poll. Benign.
+
+### Shipping
+Merged `feature/sync-engine` → `master` as merge commit `c44d8d9` with `#minor` token in the subject. CI auto-release pipeline triggered: analyze + Linux/macOS/Windows builds + v1.4.0 release with versioned artifact filenames. In-app updater on v1.3.0 installs will surface the update banner on next launch.
+
+### Open follow-ups carried over
+- PocketBase server backups still NOT enabled — user to enable in Admin UI → Settings → Backups.
+- macOS `.dmg` universal-vs-arm64 unverified (carry-over from Step 14).
+- T5 deploy-order dependency is now documented; future schema changes should follow the same "land migration on server first, then ship client" cadence.

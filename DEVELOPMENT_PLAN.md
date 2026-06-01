@@ -27,8 +27,10 @@ Local-first SQLite mirror + PocketBase (single Go binary) + hand-rolled push/pul
 ### Step 14 — In-App Self-Update & Auto-Release — DONE
 CI auto-bumps semver on every master push (`#minor` / `#major` / `[skip release]` tokens in the commit SUBJECT), bakes the version into the binary (`pubspec` rewrite, since `flutter build --build-name` is ignored on desktop), and publishes a real `vX.Y.Z` GitHub release with versioned artifact filenames. App checks GitHub `/releases/latest` on launch, shows a home banner + Settings → Updates section, and supports true one-click "Update & Restart": download → SHA-256 verify → extract → atomic in-place swap → relaunch. Per-OS apply (Linux dir-rename, macOS dmg+quarantine-strip, Windows helper `.cmd`). Shipped v1.3.0.
 
-### Step 15 — Sync Hardening: Apple-Level Seamless Sync — NEXT
-**Goal:** the app talks to the network *only* when there is genuinely new work. No echo loops, no idle chatter, no surprises. Edits on device A appear on device B in ~1s; an idle app is silent.
+### Step 15 — Sync Hardening: Apple-Level Seamless Sync — DONE (2026-06-01)
+**Outcome:** Comprised of Step 15B (per-account SQLite isolation, landed first because data corruption > bandwidth waste) and Step 15A (the six echo-loop fixes below). All six fixes shipped; PB migration `1780300000_add_device_id.js` deployed live on GCP. Merged to master as `c44d8d9` with `#minor`; CI cut **v1.4.0**. Full narrative in `Prj_Progress.md` (entries dated 2026-06-01). Idle log is quiet, user edits push exactly once, realtime self-echoes are suppressed.
+
+**Goal (original):** the app talks to the network *only* when there is genuinely new work. No echo loops, no idle chatter, no surprises. Edits on device A appear on device B in ~1s; an idle app is silent.
 
 **Symptom motivating this step:** the app currently re-syncs every few seconds even when nothing has changed.
 
