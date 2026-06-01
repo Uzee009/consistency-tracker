@@ -91,6 +91,9 @@ class PocketBaseService {
   }
 
   /// Log out the current user.
+  /// Note: this only clears auth state. Per-account DB management
+  /// (closing the open DB, swapping to _local, etc.) is owned by the
+  /// top-level auth listener in main.dart — Step 15B's single switch chokepoint.
   Future<void> logout() async {
     client.authStore.clear();
     authState.value = false;

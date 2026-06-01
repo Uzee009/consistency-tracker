@@ -5,6 +5,7 @@ import 'dart:async';
 import 'pocketbase_service.dart';
 import 'connectivity_service.dart';
 import 'database_service.dart';
+import 'account_registry.dart';
 
 enum SyncStatus { success, offline, notSignedIn, busy, error }
 
@@ -134,6 +135,7 @@ class SyncService {
       await _maybePrune(ownerId);
 
       lastSyncedAt = DateTime.now();
+      await AccountRegistry.instance.touch(ownerId);
       _cancelRetry();  // manual "Sync Now" success also clears pending backoff
       return SyncResult(SyncStatus.success, pushed: pushed, pulled: pulled);
     } catch (e) {
@@ -142,6 +144,38 @@ class SyncService {
     } finally {
       isSyncing.value = false;
     }
+  }
+
+  /// Stops all sync activity. Used by main.dart's auth listener when the
+  /// active account is about to change (sign-in, sign-out, or account switch),
+  /// so we never sync the new account against the old account's pending writes.
+  /// Awaits any in-flight `sync()` for up to 5 seconds so the caller can then
+  /// safely close the DB.
+  Future<void> pauseForSwitch() async {
+    _debounceTimer?.cancel();
+    _pollTimer?.cancel();
+    _retryTimer?.cancel();
+    _retryAttempt = 0;
+    _pendingSync = false;
+
+    // Wait for any in-flight sync to finish (max 5s).
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (isSyncing.value && DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+
+    await _teardownRealtime();
+  }
+
+  /// Re-arms polling, realtime, and triggers a sync. Called by main.dart's
+  /// auth listener AFTER a successful sign-IN and AFTER `DatabaseService.switchTo`
+  /// has opened the new account's DB. Not called on sign-OUT.
+  void resumeAfterSwitch() {
+    if (!_autoStarted) return;
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(debounce: Duration.zero));
+    _restartRealtime();
+    requestSync();
   }
 
   /// Maps a sync exception to a concise, user-facing message.
@@ -285,10 +319,9 @@ class SyncService {
   }
 
   void _onAuthOrClientChange() {
-    _restartRealtime();
-    if (PocketBaseService.instance.isAuthenticated) {
-      requestSync();
-    }
+    // Intentionally a no-op. main.dart's auth listener is the single
+    // switch chokepoint (it calls pauseForSwitch / DatabaseService.switchTo /
+    // resumeAfterSwitch). Listener kept attached to preserve startAuto/stopAuto symmetry.
   }
 
   void _restartRealtime() {

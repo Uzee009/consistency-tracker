@@ -9,6 +9,7 @@ import '../models/user_model.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
 import '../services/scoring_service.dart';
+import 'account_registry.dart';
 
 class DatabaseService {
   static const String dbName = String.fromEnvironment(
@@ -19,6 +20,15 @@ class DatabaseService {
   static String prefixedKey(String key) => '$dbName:$key';
 
   static Database? _database;
+  static String? _activeUserId;
+  static const String _localId = '_local';
+
+  /// Directory under documentsDir that holds per-account DB files.
+  /// `accounts/` in prod, `accounts_dev/` when a non-default DATABASE_NAME is set
+  /// (dev override is directory-scoped per Step 15B Design Decision #2).
+  static String get _accountsDir =>
+      dbName == 'consistency_tracker.db' ? 'accounts' : 'accounts_dev';
+
   static final DatabaseService instance = DatabaseService._constructor();
 
   /// Serializes derived-cache writers (createOrUpdateDayRecord vs recomputeAllDerived)
@@ -30,6 +40,10 @@ class DatabaseService {
   /// Bumped after every local write that sets dirty=1, so the sync coordinator
   /// can schedule a debounced push.
   final ValueNotifier<int> localChanges = ValueNotifier<int>(0);
+
+  /// Bumped whenever switchTo() successfully opens a new DB.
+  /// Listeners use this to know when to re-fetch data from the active DB.
+  final ValueNotifier<int> activeDbRevision = ValueNotifier<int>(0);
 
   void _notifyLocalChange() {
     localChanges.value++;
@@ -51,9 +65,21 @@ class DatabaseService {
     return _database!;
   }
 
+  /// Resolves the absolute path to the SQLite file for the given account.
+  /// `userId == null` (or empty) maps to the anonymous `_local.db` workspace
+  /// (Model E: only exists pre-first-signin).
+  Future<String> _dbPathFor(String? userId) async {
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(join(docs.path, _accountsDir));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    final id = (userId == null || userId.isEmpty) ? _localId : userId;
+    return join(dir.path, '$id.db');
+  }
+
   Future<Database> _initDatabase() async {
-    Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, dbName);
+    String path = await _dbPathFor(_activeUserId);
     return await openDatabase(
       path,
       version: 9,
@@ -64,6 +90,99 @@ class DatabaseService {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Closes the open SQLite handle so a different account's DB can be opened.
+  /// Safe to call multiple times.
+  Future<void> close() async {
+    final db = _database;
+    _database = null;
+    if (db != null) {
+      try {
+        await db.close();
+      } catch (_) {
+        // best-effort: ignore close errors so a sticky handle never blocks a switch
+      }
+    }
+  }
+
+  /// Switches the active account's DB file. Closes the current handle,
+  /// updates internal active-user state, and stamps the access-time registry.
+  /// The new DB opens lazily on the next `database` getter access.
+  ///
+  /// Pure data-layer operation: callers (main.dart auth listener) are
+  /// responsible for pausing/resuming SyncService around this call.
+  Future<void> switchTo(String? userId) async {
+    final normalized = (userId == null || userId.isEmpty) ? null : userId;
+    if (_activeUserId == normalized && _database != null) {
+      // already active and open — just touch and return
+      await AccountRegistry.instance.touch(normalized);
+      return;
+    }
+    await close();
+    _activeUserId = normalized;
+    await AccountRegistry.instance.touch(normalized);
+
+    // Fire the revision notifier so listeners (MyApp, HomeScreen) know to refresh.
+    activeDbRevision.value++;
+  }
+
+  Future<void> migrateLegacyDb({required String? activeUserId}) async {
+    final docs = await getApplicationDocumentsDirectory();
+    final legacy = File(join(docs.path, dbName));
+    if (!await legacy.exists()) return;
+    final targetPath = await _dbPathFor(activeUserId);
+    final target = File(targetPath);
+    if (await target.exists()) {
+      debugPrint('DatabaseService: legacy DB present but per-account DB already exists at $targetPath — skipping migration');
+      return;
+    }
+    try {
+      await legacy.rename(targetPath);
+
+      // Best-effort: move WAL sidecars too so they don't orphan in the documents root.
+      for (final suffix in ['-wal', '-shm']) {
+        final side = File('${legacy.path}$suffix');
+        if (await side.exists()) {
+          try {
+            await side.rename('$targetPath$suffix');
+          } catch (e) {
+            debugPrint('DatabaseService: failed to move legacy sidecar $suffix: $e');
+          }
+        }
+      }
+
+      debugPrint('DatabaseService: migrated legacy DB to $targetPath');
+    } catch (e) {
+      debugPrint('DatabaseService: legacy DB migration FAILED: $e');
+      rethrow;
+    }
+  }
+
+  /// Deletes the on-disk SQLite files for the given user ids (per-account dir).
+  /// Best-effort: missing files and individual failures are logged, not thrown.
+  /// Used after AccountRegistry.evictIdle() returns the dormant ids.
+  Future<void> deleteAccountDbs(List<String> userIds) async {
+    if (userIds.isEmpty) return;
+    for (final id in userIds) {
+      try {
+        final path = await _dbPathFor(id);
+        final f = File(path);
+        if (await f.exists()) {
+          await f.delete();
+          debugPrint('DatabaseService: evicted DB $path');
+        }
+        // Also clean up sqflite sidecars if present.
+        for (final suffix in ['-wal', '-shm', '-journal']) {
+          final side = File('$path$suffix');
+          if (await side.exists()) {
+            try { await side.delete(); } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('DatabaseService: failed to evict DB for $id: $e');
+      }
+    }
   }
 
   Future _onCreate(Database db, int version) async {

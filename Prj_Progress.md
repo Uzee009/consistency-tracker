@@ -746,3 +746,32 @@ Fix (server-side, done by the user over SSH): pulled the migration from the publ
 - ⚠️ **Backups still NOT enabled** on the PocketBase server — migrations rebuild empty structure only, not data. User to enable in Admin UI → Settings → Backups.
 - The two repo changes above are uncommitted and not yet merged to master (so no auto-release has triggered).
 - BUG (fix next session): app re-syncs every few seconds even with no changes — wasteful. Hypothesis (unconfirmed): realtime subscription re-fires `sync()` on the server's own writes and/or the 60s poll + debounce; look at `lib/services/sync_service.dart` and consider short-circuiting when nothing is dirty and no real remote change.
+
+## Monday, 1 June 2026 — Step 15B: Account Isolation + UX-fix follow-up (COMPLETE ✅)
+
+### Step 15B — Per-account SQLite isolation
+Per-account SQLite DB files (`accounts/<userId>.db`) with `AccountRegistry` (SharedPreferences) tracking last-touched-time for 30-day eviction. Auth listener in `main.dart` is the single switch chokepoint: on sign-in, pauses sync → calls `DatabaseService.switchTo(userId)` → resumes; on sign-out, pauses sync but DB stays active per Model E. Legacy `consistency_tracker.db` is migrated into `accounts/<userId>.db` on first launch for existing v1.3.0 users (sidecars `-wal`/`-shm` also moved). Dev override `–-dart-define=DATABASE_NAME=consistency_tracker_dev.db` directs to `accounts_dev/` for clean dev isolation.
+
+Files touched: NEW `lib/services/account_registry.dart` (91 lines); modified `lib/services/database_service.dart` (+ per-account dir logic, `switchTo`, `close`, `migrateLegacyDb`, `deleteAccountDbs`), `lib/services/sync_service.dart` (+ `pauseForSwitch`, `resumeAfterSwitch`, registry-touch), `lib/main.dart` (bootstrap + auth listener + lifecycle touch), `lib/services/pocketbase_service.dart` (docstring).
+
+### 15B-FollowUp — UX bugs from T7 verification
+Three bugs surfaced during T7 manual verification, all traced to one root cause: `_MyAppState._initializeThemeAndStyle()` computed `_isFirstRun` once at boot and never re-evaluated on auth/DB swap. So brand-new accounts (no local `users` row yet) stayed stuck on HomeScreen → "Could not load profile" error, and returning accounts' HomeScreen never refreshed on sign-in.
+
+Fixes:
+- **F1** `lib/main.dart`: MyApp now listens to a new `DatabaseService.activeDbRevision` ValueNotifier<int> that increments inside `switchTo` after the DB is opened. On fire, recomputes `_isFirstRun` and routes between FirstRunSetupScreen and HomeScreen.
+- **F2** `lib/services/database_service.dart` exposes `activeDbRevision`. `lib/screens/home_screen.dart` listens and re-initializes its dashboard controller on fire.
+- **F3** `lib/screens/settings_screen.dart`: profile section falls back to PocketBase `authStore.record` (email + id) with a "Profile setup pending" placeholder when local users row is missing. Hard error only if both local row and auth record are absent.
+- **Polish 1** — flicker fix: replaced inner `FutureBuilder<bool>` with cached `bool _isFirstRunCached` + `.then()` update, eliminating the spinner flash on every account switch.
+- **Polish 2** — `SAVE CHANGES` button hidden in fallback profile view (gated on `_hasLocalUserRow`).
+
+### T7 verification outcome
+T7.1 PASS (legacy migration, prod data intact); T7.2 PASS (two-account isolation verified with a brand-new `test1@test.com` account whose DB stayed at 4 KB while contaminated server-side accounts pulled their 3 tasks each — proving the local isolation works and the previous cross-account contamination was actually pre-15B server-side leakage); T7.3 PASS (PB `owner = @request.auth.id` rules confirmed via migration source); T7.4 PASS-by-equivalence (rename code path identical to T7.1; Model-E offline-write behavior verified — `OFFLINE_FIRST_TEST` stayed confined to `x0ybhh.db` with zero cross-DB leakage); T7.5 PASS (one aged-out account `9gxyy1tnorm5ii5.db` evicted on next boot — app log confirms `AccountRegistry: Evicted 1 idle accounts`); T7.6 PASS (sign-in immediately followed by sign-out: no crash, no freeze, no corruption); T7.7 SKIPPED (1-hour lifecycle wait, low-value); T7.8 PASS (full regression smoke — dashboard, heatmap, task ticks, settings, update banner all working).
+
+### Also bundled in this commit
+- Day-29 sync `_friendlyError(Object e)` helper in `sync_service.dart` (classifies sync failures: 401/403 → re-sign-in, 404/Missing collection → server-not-set-up, network/5xx → retry hints) instead of leaking raw `ClientException` strings into the SnackBar.
+- `deploy/DEPLOYMENT_GUIDE.md` corrected from Oracle → GCP (live host is a GCP VM `consistancy.duckdns.org`, ssh user `uzeeslive`, install dir `/home/uzeeslive/pb/`).
+
+### Open follow-ups (separate PRs/sessions)
+- Step 15A — continuous-sync echo-loop hardening (the "re-syncs every few seconds" bug). Plan already in DEVELOPMENT_PLAN.md §15A. Starting next.
+- PocketBase server backups still NOT enabled — user to enable in Admin UI → Settings → Backups.
+- macOS `.dmg` universal-vs-arm64 unverified (carry-over from Step 14 caveats).
