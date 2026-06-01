@@ -197,7 +197,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       final activeId = PocketBaseService.instance.client.authStore.record?.id;
       unawaited(AccountRegistry.instance.touch(activeId));
-      SyncService.instance.requestSync(reason: 'manual');
+      SyncService.instance.requestSync(reason: 'wake');
       unawaited(UpdateService.instance.checkForUpdate());
     }
   }

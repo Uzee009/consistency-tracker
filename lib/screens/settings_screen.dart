@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
@@ -491,28 +492,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
-                    Text('DEBUG: Sync Log (last 50)', style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 8),
-                    ValueListenableBuilder<int>(
-                      valueListenable: SyncService.instance.syncEventsRevision,
-                      builder: (context, _, __) {
-                        final events = SyncService.instance.syncEvents;
-                        if (events.isEmpty) {
-                          return Text('(no events)', style: Theme.of(context).textTheme.bodySmall);
-                        }
-                        return Column(
-                          children: events.reversed.map((e) {
-                            final age = _formatAge(e.ts);
-                            final detail = e.detail != null ? ' (${e.detail})' : '';
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 16),
+                      Text('DEBUG: Sync Log (last 50)', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 8),
+                      ValueListenableBuilder<int>(
+                        valueListenable: SyncService.instance.syncEventsRevision,
+                        builder: (context, _, __) {
+                          final all = SyncService.instance.syncEvents;
+                          final events = all
+                              .where((e) => !(e.result == 'noop' || e.result == 'skipped' || e.result == 'busy' || e.result == 'offline' || e.result == 'notSignedIn'))
+                              .toList();
+                          if (events.isEmpty) {
                             return Text(
-                              '${e.reason} — ${e.result} (Δ ${age}$detail)',
+                              '(no sync work in the last 50 events — idle)',
                               style: Theme.of(context).textTheme.bodySmall,
                             );
-                          }).toList(),
-                        );
-                      },
-                    ),
+                          }
+                          return Column(
+                            children: events.reversed.map((e) {
+                              final age = _formatAge(e.ts);
+                              final detail = e.detail != null ? ' (${e.detail})' : '';
+                              return Text(
+                                '${e.reason} — ${e.result} (Δ ${age}$detail)',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ],
                   ]),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
