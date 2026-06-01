@@ -40,13 +40,27 @@ class DatabaseService {
   /// Bumped after every local write that sets dirty=1, so the sync coordinator
   /// can schedule a debounced push.
   final ValueNotifier<int> localChanges = ValueNotifier<int>(0);
+  final ValueNotifier<int> userLocalChanges = ValueNotifier<int>(0);
 
   /// Bumped whenever switchTo() successfully opens a new DB.
   /// Listeners use this to know when to re-fetch data from the active DB.
   final ValueNotifier<int> activeDbRevision = ValueNotifier<int>(0);
+  bool _applyingRemote = false;
 
   void _notifyLocalChange() {
     localChanges.value++;
+    if (_applyingRemote == false) {
+      userLocalChanges.value++;
+    }
+  }
+
+  Future<T> runApplyingRemote<T>(Future<T> Function() body) async {
+    _applyingRemote = true;
+    try {
+      return await body();
+    } finally {
+      _applyingRemote = false;
+    }
   }
 
   final String usersTable = 'users';
@@ -969,6 +983,19 @@ class DatabaseService {
       dayRecordsTable,
       where: 'date = ?',
       whereArgs: [date],
+    );
+    if (maps.isNotEmpty) {
+      return DayRecord.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<DayRecord?> getLatestDayRecord() async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> maps = await db.query(
+      dayRecordsTable,
+      orderBy: 'date DESC',
+      limit: 1,
     );
     if (maps.isNotEmpty) {
       return DayRecord.fromMap(maps.first);

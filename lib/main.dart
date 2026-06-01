@@ -5,6 +5,7 @@ import 'package:consistency_tracker_v1/services/style_service.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/services/connectivity_service.dart';
 import 'package:consistency_tracker_v1/services/account_registry.dart';
+import 'package:consistency_tracker_v1/services/device_id_service.dart';
 import 'package:consistency_tracker_v1/screens/first_run_setup_screen.dart';
 import 'package:consistency_tracker_v1/screens/home_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -106,6 +107,8 @@ void main() async {
   // Initialize PocketBase service (handles auth token restoration)
   await PocketBaseService.instance.init();
 
+  await DeviceIdService.instance.init();
+
   // Step 15B: account isolation bootstrap. Order matters:
   //   1. migrate legacy single-DB file (if any) into accounts/<userId>.db
   //   2. evict idle accounts (>30 days), deleting their .db files
@@ -194,7 +197,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       final activeId = PocketBaseService.instance.client.authStore.record?.id;
       unawaited(AccountRegistry.instance.touch(activeId));
-      SyncService.instance.requestSync();
+      SyncService.instance.requestSync(reason: 'manual');
       unawaited(UpdateService.instance.checkForUpdate());
     }
   }

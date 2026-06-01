@@ -6,8 +6,18 @@ import 'pocketbase_service.dart';
 import 'connectivity_service.dart';
 import 'database_service.dart';
 import 'account_registry.dart';
+import 'device_id_service.dart';
 
 enum SyncStatus { success, offline, notSignedIn, busy, error }
+
+class SyncEvent {
+  final String reason;
+  final int ts;
+  final String result;
+  final String? detail;
+
+  SyncEvent({required this.reason, required this.ts, required this.result, this.detail});
+}
 
 class SyncResult {
   final SyncStatus status;
@@ -71,7 +81,10 @@ class SyncService {
   final List<UnsubscribeFunc> _unsubs = [];
   Future<void> _realtimeLock = Future<void>.value();
   static const Duration _debounceDuration = Duration(milliseconds: 500);
-  static const Duration _pollInterval = Duration(seconds: 60);
+  Duration _pollInterval = const Duration(seconds: 60);
+  int _consecutiveEmptySyncs = 0;
+  bool _realtimeHealthy = false;
+
   static const int _retryBaseSeconds = 2;   // 2,4,8,16,32 ...
   static const int _retryCapSeconds = 60;    // capped at the poll interval
 
@@ -103,19 +116,73 @@ class SyncService {
     ),
   ];
 
-  Future<SyncResult> sync() async {
-    if (isSyncing.value) return const SyncResult(SyncStatus.busy);
+  final List<SyncEvent> _syncEvents = [];
+  final ValueNotifier<int> syncEventsRevision = ValueNotifier<int>(0);
+
+  List<SyncEvent> get syncEvents => List.unmodifiable(_syncEvents);
+
+  void _recordSyncEvent({required String reason, required String result, String? detail}) {
+    _syncEvents.add(SyncEvent(reason: reason, ts: DateTime.now().millisecondsSinceEpoch, result: result, detail: detail));
+    if (_syncEvents.length > 50) {
+      _syncEvents.removeAt(0);
+    }
+    syncEventsRevision.value++;
+  }
+
+  Future<int> _countDirtyAcrossCollections() async {
+    final db = await DatabaseService.instance.database;
+    int total = 0;
+    for (final cfg in _configs) {
+      final result = await db.rawQuery('SELECT COUNT(*) as cnt FROM ${cfg.name} WHERE dirty = 1');
+      total += (result.first['cnt'] as int?) ?? 0;
+    }
+    return total;
+  }
+
+  void _setPollInterval(Duration d) {
+    if (_pollInterval == d) return;
+    _pollTimer?.cancel();
+    _pollInterval = d;
+    if (_autoStarted) {
+      _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(reason: 'poll', debounce: Duration.zero));
+    }
+  }
+
+  void _resetPollCadence() {
+    _consecutiveEmptySyncs = 0;
+    _setPollInterval(const Duration(seconds: 60));
+  }
+
+  Future<SyncResult> sync({String reason = 'unknown'}) async {
+    if (isSyncing.value) {
+      _recordSyncEvent(reason: reason, result: 'busy');
+      return const SyncResult(SyncStatus.busy);
+    }
+
+    if (reason == 'user-edit' && _realtimeHealthy) {
+      final dirty = await _countDirtyAcrossCollections();
+      if (dirty == 0) {
+        _recordSyncEvent(reason: reason, result: 'skipped', detail: 'user-edit+rt-healthy+dirty=0');
+        return const SyncResult(SyncStatus.success);
+      }
+    }
+
     if (!PocketBaseService.instance.isAuthenticated) {
+      _recordSyncEvent(reason: reason, result: 'notSignedIn');
       return const SyncResult(SyncStatus.notSignedIn);
     }
 
     isSyncing.value = true;
     try {
       final online = await ConnectivityService.instance.checkNow();
-      if (!online) return const SyncResult(SyncStatus.offline);
+      if (!online) {
+        _recordSyncEvent(reason: reason, result: 'offline');
+        return const SyncResult(SyncStatus.offline);
+      }
 
       final ownerId = PocketBaseService.instance.client.authStore.record?.id;
       if (ownerId == null || ownerId.isEmpty) {
+        _recordSyncEvent(reason: reason, result: 'notSignedIn');
         return const SyncResult(SyncStatus.notSignedIn);
       }
 
@@ -124,7 +191,7 @@ class SyncService {
 
       for (final cfg in _configs) {
         pushed += await _push(cfg, ownerId);
-        pulled += await _pull(cfg, ownerId);
+        pulled += await DatabaseService.instance.runApplyingRemote(() => _pull(cfg, ownerId));
       }
 
       if (pushed + pulled > 0) {
@@ -137,9 +204,31 @@ class SyncService {
       lastSyncedAt = DateTime.now();
       await AccountRegistry.instance.touch(ownerId);
       _cancelRetry();  // manual "Sync Now" success also clears pending backoff
+
+      final resultStr = pushed > 0 && pulled > 0 ? 'pushed:$pushed+pulled:$pulled' : (pushed > 0 ? 'pushed:$pushed' : (pulled > 0 ? 'pulled:$pulled' : 'noop'));
+      _recordSyncEvent(reason: reason, result: resultStr);
+
+      // Adaptive poll cadence (T6)
+      if (reason == 'poll') {
+        final isEmpty = (pushed == 0 && pulled == 0);
+        if (isEmpty && _realtimeHealthy) {
+          _consecutiveEmptySyncs++;
+          if (_consecutiveEmptySyncs >= 6) {
+            _setPollInterval(const Duration(minutes: 15));
+          } else if (_consecutiveEmptySyncs >= 3) {
+            _setPollInterval(const Duration(minutes: 5));
+          }
+        } else if (!isEmpty) {
+          _resetPollCadence();
+        }
+      } else if (pushed > 0 || pulled > 0) {
+        _resetPollCadence();
+      }
+
       return SyncResult(SyncStatus.success, pushed: pushed, pulled: pulled);
     } catch (e) {
       debugPrint('Sync error: $e');
+      _recordSyncEvent(reason: reason, result: 'error');
       return SyncResult(SyncStatus.error, message: _friendlyError(e), transient: _isTransient(e));
     } finally {
       isSyncing.value = false;
@@ -173,9 +262,9 @@ class SyncService {
   void resumeAfterSwitch() {
     if (!_autoStarted) return;
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(debounce: Duration.zero));
+    _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(reason: 'poll', debounce: Duration.zero));
     _restartRealtime();
-    requestSync();
+    requestSync(reason: 'manual');
   }
 
   /// Maps a sync exception to a concise, user-facing message.
@@ -251,21 +340,21 @@ class SyncService {
     }
   }
 
-  void requestSync({Duration debounce = _debounceDuration}) {
+  void requestSync({String reason = 'unknown', Duration debounce = _debounceDuration}) {
     _debounceTimer?.cancel();
     if (debounce == Duration.zero) {
-      _runScheduled();
+      _runScheduled(reason);
     } else {
-      _debounceTimer = Timer(debounce, _runScheduled);
+      _debounceTimer = Timer(debounce, () => _runScheduled(reason));
     }
   }
 
-  Future<void> _runScheduled() async {
+  Future<void> _runScheduled(String reason) async {
     if (isSyncing.value) {
       _pendingSync = true;
       return;
     }
-    final result = await sync();
+    final result = await sync(reason: reason);
     switch (result.status) {
       case SyncStatus.success:
       case SyncStatus.notSignedIn:
@@ -278,7 +367,7 @@ class SyncService {
         break;                       // another sync running; leave any retry as-is
       case SyncStatus.error:
         if (result.transient) {
-          _scheduleRetry();          // network/5xx/429: retry with backoff
+          _scheduleRetry(reason);          // network/5xx/429: retry with backoff
         } else {
           _cancelRetry();            // permanent (auth/validation): don't auto-retry
         }
@@ -292,28 +381,28 @@ class SyncService {
     _retryAttempt = 0;
   }
 
-  void _scheduleRetry() {
+  void _scheduleRetry(String reason) {
     _retryTimer?.cancel();
     // 2,4,8,16,32,60(cap)... using current attempt, then advance
     final secs = (_retryBaseSeconds * (1 << _retryAttempt)).clamp(_retryBaseSeconds, _retryCapSeconds);
     if (_retryAttempt < 16) _retryAttempt++; // avoid shift overflow; capped delay anyway
-    _retryTimer = Timer(Duration(seconds: secs), () => _runScheduled());
+    _retryTimer = Timer(Duration(seconds: secs), () => _runScheduled(reason));
   }
 
   void _onSyncingChange() {
     if (!isSyncing.value && _pendingSync) {
       _pendingSync = false;
-      requestSync(debounce: Duration.zero);
+      requestSync(reason: 'retry-queued', debounce: Duration.zero);
     }
   }
 
-  void _onLocalChange() => requestSync();
+  void _onLocalChange() => requestSync(reason: 'user-edit');
 
   void _onConnectivityChange() {
     final online = ConnectivityService.instance.isOnline.value;
     if (online && !_wasOnline) {
       _restartRealtime();
-      requestSync();
+      requestSync(reason: 'connectivity');
     }
     _wasOnline = online;
   }
@@ -337,16 +426,25 @@ class SyncService {
     for (final cfg in _configs) {
       try {
         final unsub = await client.collection(cfg.name).subscribe('*', (e) {
-          requestSync();
+          if (e.record?.data['device_id'] == DeviceIdService.instance.id) {
+            _recordSyncEvent(reason: 'realtime', result: 'noop', detail: 'self-echo:${cfg.name}');
+            return;
+          }
+          _resetPollCadence();
+          requestSync(reason: 'realtime');
         });
         _unsubs.add(unsub);
       } catch (e) {
         debugPrint('Realtime subscribe failed for ${cfg.name}: $e');
+        _realtimeHealthy = false;
+        return;
       }
     }
+    _realtimeHealthy = true;
   }
 
   Future<void> _teardownRealtime() async {
+    _realtimeHealthy = false;
     final subs = List<UnsubscribeFunc>.from(_unsubs);
     _unsubs.clear();
     for (final unsub in subs) {
@@ -361,16 +459,16 @@ class SyncService {
     _autoStarted = true;
     _wasOnline = ConnectivityService.instance.isOnline.value;
 
-    DatabaseService.instance.localChanges.addListener(_onLocalChange);
+    DatabaseService.instance.userLocalChanges.addListener(_onLocalChange);
     ConnectivityService.instance.isOnline.addListener(_onConnectivityChange);
     PocketBaseService.instance.authState.addListener(_onAuthOrClientChange);
     PocketBaseService.instance.clientRevision.addListener(_onAuthOrClientChange);
     isSyncing.addListener(_onSyncingChange);
 
-    _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(debounce: Duration.zero));
+    _pollTimer = Timer.periodic(_pollInterval, (_) => requestSync(reason: 'poll', debounce: Duration.zero));
 
     _restartRealtime();
-    requestSync();
+    requestSync(reason: 'manual');
   }
 
   void stopAuto() {
@@ -378,7 +476,7 @@ class SyncService {
     _pollTimer?.cancel();
     _retryTimer?.cancel();
     _retryAttempt = 0;
-    DatabaseService.instance.localChanges.removeListener(_onLocalChange);
+    DatabaseService.instance.userLocalChanges.removeListener(_onLocalChange);
     ConnectivityService.instance.isOnline.removeListener(_onConnectivityChange);
     PocketBaseService.instance.authState.removeListener(_onAuthOrClientChange);
     PocketBaseService.instance.clientRevision.removeListener(_onAuthOrClientChange);
@@ -411,6 +509,7 @@ class SyncService {
       // Force 'dirty' to always be false in body (server rows never dirty)
       body['dirty'] = false;
       body['owner'] = ownerId;
+      body['device_id'] = DeviceIdService.instance.id;
 
       // Build lookup filter
       String filter = 'owner = "${_esc(ownerId)}"';
@@ -466,7 +565,7 @@ class SyncService {
     while (true) {
       String filter = 'owner = "${_esc(ownerId)}"';
       if (cursor != null && cursor.isNotEmpty) {
-        filter += ' && updated >= "${_esc(cursor)}"';
+        filter += ' && updated > "${_esc(cursor)}"';
       }
 
       final res = await client.collection(cfg.name).getList(

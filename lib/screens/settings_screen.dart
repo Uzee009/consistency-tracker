@@ -1,5 +1,3 @@
-// lib/screens/settings_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
@@ -93,6 +91,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(
         DatabaseService.prefixedKey('visual_style'), style.index);
+  }
+
+  String _formatAge(int tsMs) {
+    final ageMs = DateTime.now().millisecondsSinceEpoch - tsMs;
+    final ageSecs = (ageMs / 1000).round();
+    if (ageSecs < 5) return 'now';
+    if (ageSecs < 60) return '${ageSecs}s';
+    final ageMins = (ageSecs / 60).round();
+    if (ageMins < 60) return '${ageMins}m';
+    final ageHours = (ageMins / 60).round();
+    return '${ageHours}h';
   }
 
   @override
@@ -482,6 +491,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
+                    const SizedBox(height: 16),
+                    Text('DEBUG: Sync Log (last 50)', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    ValueListenableBuilder<int>(
+                      valueListenable: SyncService.instance.syncEventsRevision,
+                      builder: (context, _, __) {
+                        final events = SyncService.instance.syncEvents;
+                        if (events.isEmpty) {
+                          return Text('(no events)', style: Theme.of(context).textTheme.bodySmall);
+                        }
+                        return Column(
+                          children: events.reversed.map((e) {
+                            final age = _formatAge(e.ts);
+                            final detail = e.detail != null ? ' (${e.detail})' : '';
+                            return Text(
+                              '${e.reason} — ${e.result} (Δ ${age}$detail)',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
                   ]),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
@@ -804,7 +835,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _handleSyncNow() async {
     // Capture the messenger before the await to avoid using context across async gaps.
     final messenger = ScaffoldMessenger.of(context);
-    final result = await SyncService.instance.sync();
+    final result = await SyncService.instance.sync(reason: 'manual');
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(content: Text(result.summary)),
