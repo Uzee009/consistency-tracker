@@ -4,6 +4,37 @@ import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 
+String _friendlyAuthError(Object e, {required bool isSignUp}) {
+  final s = e.toString().toLowerCase();
+  if (s.contains('failed to authenticate') ||
+      s.contains('400') ||
+      s.contains('401') ||
+      s.contains('403') ||
+      s.contains('invalid') ||
+      s.contains('failed to create record')) {
+    return isSignUp
+        ? 'Could not create account. Email may already be in use, or the password is too weak.'
+        : 'Wrong email or password.';
+  }
+  if (s.contains('socketexception') ||
+      s.contains('failed host lookup') ||
+      s.contains('connection') ||
+      s.contains('timeout') ||
+      s.contains('network')) {
+    return 'Can\'t reach the server. Check your internet connection and try again.';
+  }
+  if (s.contains('500') ||
+      s.contains('502') ||
+      s.contains('503') ||
+      s.contains('504') ||
+      s.contains('server')) {
+    return 'Server hiccup. Please try again in a moment.';
+  }
+  return isSignUp
+      ? 'Sign-up failed. Please try again.'
+      : 'Sign-in failed. Please try again.';
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -63,7 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          debugPrint('Login error: $e');
+          _errorMessage = _friendlyAuthError(e, isSignUp: false);
         });
       }
     } finally {
@@ -108,12 +140,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Email field
                 TextField(
                   controller: _emailController,
+                  autofocus: true,
                   decoration: InputDecoration(
                     hintText: 'Email',
                     labelText: 'Email',
                     enabled: !_isLoading,
                   ),
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 ),
                 const SizedBox(height: 16),
                 // Password field
@@ -125,6 +160,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     enabled: !_isLoading,
                   ),
                   obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _isLoading ? null : _handleSignIn(),
                 ),
                 const SizedBox(height: 16),
                 // Advanced section (server URL)
@@ -188,6 +225,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleSignIn,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    ),
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,

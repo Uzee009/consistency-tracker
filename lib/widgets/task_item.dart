@@ -204,7 +204,7 @@ class TaskItem extends StatelessWidget {
           onTap: onPressed,
           customBorder: const CircleBorder(),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0),
             child: Icon(icon, size: 16, color: color),
           ),
         ),

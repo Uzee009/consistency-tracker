@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
@@ -92,17 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(
         DatabaseService.prefixedKey('visual_style'), style.index);
-  }
-
-  String _formatAge(int tsMs) {
-    final ageMs = DateTime.now().millisecondsSinceEpoch - tsMs;
-    final ageSecs = (ageMs / 1000).round();
-    if (ageSecs < 5) return 'now';
-    if (ageSecs < 60) return '${ageSecs}s';
-    final ageMins = (ageSecs / 60).round();
-    if (ageMins < 60) return '${ageMins}m';
-    final ageHours = (ageMins / 60).round();
-    return '${ageHours}h';
   }
 
   @override
@@ -373,21 +361,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ],
                               )
                             else
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    'Signed in as ${PocketBaseService.instance.userEmail ?? 'unknown'}',
-                                    style: const TextStyle(fontSize: 14),
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    size: 18,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Signed in',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.5,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          PocketBaseService.instance
+                                                  .userEmail ??
+                                              'unknown',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  OutlinedButton(
                                     onPressed: () =>
                                         PocketBaseService.instance.logout(),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          Colors.red.withValues(alpha: 0.1),
-                                      foregroundColor: Colors.red,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.error,
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error
+                                            .withValues(alpha: 0.5),
+                                      ),
                                     ),
                                     child: const Text('Sign Out'),
                                   ),
@@ -492,36 +519,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 16),
-                      Text('DEBUG: Sync Log (last 50)', style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<int>(
-                        valueListenable: SyncService.instance.syncEventsRevision,
-                        builder: (context, _, __) {
-                          final all = SyncService.instance.syncEvents;
-                          final events = all
-                              .where((e) => !(e.result == 'noop' || e.result == 'skipped' || e.result == 'busy' || e.result == 'offline' || e.result == 'notSignedIn'))
-                              .toList();
-                          if (events.isEmpty) {
-                            return Text(
-                              '(no sync work in the last 50 events — idle)',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            );
-                          }
-                          return Column(
-                            children: events.reversed.map((e) {
-                              final age = _formatAge(e.ts);
-                              final detail = e.detail != null ? ' (${e.detail})' : '';
-                              return Text(
-                                '${e.reason} — ${e.result} (Δ ${age}$detail)',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              );
-                            }).toList(),
-                          );
-                        },
-                      ),
-                    ],
                   ]),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
@@ -546,7 +543,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.orange[700] ?? Colors.orange,
+                              color: Theme.of(context).colorScheme.tertiary,
                             ),
                           );
                         } else {
@@ -554,7 +551,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             'You\'re on the latest version.',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[500],
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           );
                         }
@@ -619,7 +616,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   Text(
                                     progress.message ?? 'Update failed',
                                     style: TextStyle(
-                                        color: Colors.red[700],
+                                        color: Theme.of(context).colorScheme.error,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600),
                                   ),
@@ -756,6 +753,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildCard(BuildContext context, List<Widget> children) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,

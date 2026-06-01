@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
-import '../widgets/user_menu.dart';
 import '../widgets/app_logo.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
@@ -100,11 +99,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 16),
-                    color: Colors.orange.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
                     child: Row(
                       children: [
                         Icon(Icons.system_update,
-                            size: 20, color: Colors.orange[700]),
+                            size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ValueListenableBuilder<UpdateProgress>(
@@ -141,8 +140,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: isError
-                                          ? Colors.red[700]
-                                          : Colors.orange[700],
+                                          ? Theme.of(context).colorScheme.error
+                                          : Theme.of(context).colorScheme.tertiary,
                                     ),
                                   ),
                                   if (progress.stage != UpdateStage.idle &&
@@ -153,10 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: LinearProgressIndicator(
                                         value: progress.pct,
                                         minHeight: 4,
-                                        backgroundColor: Colors.orange
-                                            .withValues(alpha: 0.1),
+                                        backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
                                         valueColor: AlwaysStoppedAnimation(
-                                            Colors.orange[700]),
+                                            Theme.of(context).colorScheme.tertiary),
                                       ),
                                     ),
                                   ],
@@ -183,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onPressed: () =>
                                       UpdateService.instance.downloadAndApply(),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: Colors.orange[700],
+                                    foregroundColor: Theme.of(context).colorScheme.tertiary,
                                   ),
                                   child: Text(
                                       isError
@@ -197,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onPressed: () =>
                                       UpdateService.instance.openDownload(),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: Colors.orange[700],
+                                    foregroundColor: Theme.of(context).colorScheme.tertiary,
                                   ),
                                   child: const Text('Manual',
                                       style: TextStyle(
@@ -399,33 +397,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               _buildSyncButton(context),
               const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () =>
-                    _dataController.initialize(_dataController.selectedDate),
+              IconButton(
+                onPressed: () => _dataController.initialize(_dataController.selectedDate),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text(
-                  'REFRESH',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 40,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: UserMenu(
-                    currentUser: _dataController.currentUser,
-                    onSettingsReturn: () => _dataController.initialize(
-                        _dataController.selectedDate,
-                        showLoading: false),
-                  ),
-                ),
+                tooltip: 'Refresh',
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ],
           ),

@@ -816,3 +816,75 @@ Merged `feature/sync-engine` → `master` as merge commit `c44d8d9` with `#minor
 - PocketBase server backups still NOT enabled — user to enable in Admin UI → Settings → Backups.
 - macOS `.dmg` universal-vs-arm64 unverified (carry-over from Step 14).
 - T5 deploy-order dependency is now documented; future schema changes should follow the same "land migration on server first, then ship client" cadence.
+
+## Monday, 1 June 2026 (evening) — Step 16 Phase 1 + 1b: UI/UX Quick Wins (IN PROGRESS, not yet merged)
+
+### What happened
+
+Kicked off Step 16 — UI/UX Overhaul: Apple-Level Polish. Pre-work:
+1. Created branch `feature/ux-fixes` off master.
+2. Ran a full Explore-subagent audit of `lib/` (42 dart files) that surfaced 14+ ad-hoc spacing values, 7+ border-radius values, 13 icon sizes, ~91 hard-coded color instances, redundant nav entry points, weak error/empty/loading state UX, and no desktop keyboard polish.
+3. Wrote a 4-phase plan into `DEVELOPMENT_PLAN.md` (new `### Step 16` section) and initialized `CURRENT_MODULE.md` with the Phase 1 sub-task list.
+
+### Phase 1 — Quick Wins (7 items, one commit)
+
+User-flagged issues + audit highlights, delegated to gemini-coder in one batch:
+
+1. **Sync Log panel deleted** from `settings_screen.dart` (the `if (kDebugMode) ...` block at the old lines 495-524). `kDebugMode` import and `_formatAge` helper also removed as orphans.
+2. **REFRESH text label stripped** from header refresh button in `home_screen.dart`. `TextButton.icon` → `IconButton(tooltip: 'Refresh', color: theme.colorScheme.onSurface)`.
+3. **Top-right UserMenu removed** from `home_screen.dart`. PROFILE bottom-nav tab already opens the embedded SettingsScreen, so it was a redundant entry point. `lib/widgets/user_menu.dart` deleted entirely (137 lines).
+4. **UPDATES card colors themed**: hard-coded `Colors.orange[700]` / `Colors.red[700]` in the home update banner and the Settings UPDATES section replaced with `Theme.of(context).colorScheme.tertiary` / `.error`. Five unrelated `Colors.orange` instances in PROFILE and CHEAT DAYS info-icons remain — deferred to Phase 2 sweep.
+5. **Create Account / Sign In buttons in signup_screen and login_screen** got local `RoundedRectangleBorder(4)` style overrides. (INSUFFICIENT — see Phase 1b below.)
+6. **Auth UX**: `autofocus: true` on email; `textInputAction.next` + onSubmitted to advance focus; `textInputAction.done` + onSubmitted to submit on Enter from password. Both login and signup screens.
+7. **Tap-target bumps**: `task_item.dart` action button padding 8→12; `pomodoro_timer.dart` mode toggles h10/v6 → h14/v10.
+
+### Phase 1b — User spot-check follow-up (4 fixes, same commit)
+
+User ran the app and reported via screenshots that:
+- Settings "Create Account" OutlinedButton was STILL pill-shaped. Root cause: only `ElevatedButtonTheme` is defined globally in `main.dart`; `OutlinedButtonTheme` was never set, so Material 3 default (`StadiumBorder`, a pill) applied. The Phase 1 local override on `signup_screen.dart` had nothing to do with the Settings card button.
+- Settings → UPDATES card was narrow, not full-width like its sibling cards. Root cause: `_buildCard` Container had no width constraint and was sizing to its short content.
+- Wrong-password attempts surfaced the raw `ClientException: {url: …, isAbort: false, statusCode: 400, response: {data: {}, message: Failed to authenticate., …}}` blob. Root cause: `_errorMessage = e.toString()` in the catch block of both `login_screen.dart` and `signup_screen.dart`. (Originally scoped for Phase 3 but the user wanted it fixed now.)
+- Signed-in Sync & Connectivity card layout was cramped — email stacked above a hard-coded red `Sign Out` ElevatedButton.
+
+Fixes (delegated to gemini-coder in one follow-up batch):
+- **A — Global theme**: added `OutlinedButtonTheme` and `TextButtonTheme` to BOTH light and dark themes in `lib/main.dart`, each with the same `RoundedRectangleBorder(BorderRadius.circular(4))` shape and Inter typography spec as the existing ElevatedButtonTheme. Pills app-wide are now dead at the root.
+- **B — Card width**: added `width: double.infinity` to the Container in `_buildCard` (`settings_screen.dart:756`). UPDATES card now spans the same width as PROFILE/APPEARANCE/SYNC cards.
+- **C — Friendly auth errors**: new top-level helper `_friendlyAuthError(Object e, {required bool isSignUp})` in both `login_screen.dart` and `signup_screen.dart` that maps common errors to human copy:
+  - "Failed to authenticate" / 400 / 401 / 403 / invalid → "Wrong email or password." (or signup-flavor copy).
+  - SocketException / connection / timeout / network → "Can't reach the server. Check your internet connection and try again."
+  - 5xx / server → "Server hiccup. Please try again in a moment."
+  - else → "Sign-in failed. Please try again." (or signup-flavor).
+  Raw error still logged via `debugPrint('Login error: $e')` so devs can debug.
+- **D — Sync card signed-in layout**: replaced the vertical Column at `settings_screen.dart:363-383` with a horizontal Row: `Icons.check_circle_outline` (`colorScheme.primary`) + a small "Signed in" label and the email on the left (Expanded), `OutlinedButton` "Sign Out" on the right styled with `foregroundColor: colorScheme.error` and a faded error-color border.
+
+### Verification
+
+`flutter analyze`: **No issues found** after both Phase 1 and Phase 1b.
+
+Code-reviewer subagent is not currently registered in the harness (project-local `.claude/agents/gemini-coder.md` and `code-reviewer.md` exist but Claude Code surfaces only the built-ins). Orchestrator (Claude) performed inline diff review for both phases — both PASS, minimal collateral, on-spec.
+
+Gemini-coder also had to be invoked via Bash + `gemini --yolo -p` directly (same mechanism the subagent uses internally) rather than via the Agent tool, for the same reason.
+
+Phase 1b ran into a Gemini "RESOURCE_EXHAUSTED" 429 on `gemini-3-flash-preview` mid-execution but the model self-recovered after retry and completed all four edits successfully. Worth keeping an eye on if it happens again.
+
+### What's NOT done / open
+
+- User has NOT yet spot-checked the Phase 1b results in the running app. First task next session: re-run the app and confirm:
+  1. Settings "Create Account" OutlinedButton is now rectangular.
+  2. UPDATES card spans full width.
+  3. Wrong-password error shows "Wrong email or password." not the raw exception.
+  4. Signed-in Sync card has the new row layout with green check + themed Sign Out.
+- Phase 1 + 1b changes are COMMITTED on `feature/ux-fixes` but NOT MERGED to master. The branch sits ahead by one commit. Decision for next session: merge Phase 1+1b alone as an early ship, OR keep accumulating phases 2-4 and merge the whole module as one release.
+- Phases 2, 3, 4 of Step 16 are queued in `CURRENT_MODULE.md`. Phase 2 (Design System Foundation) is the immediate next.
+- Five `Colors.orange` instances remain in `settings_screen.dart` (info-icons in PROFILE and CHEAT DAYS cards) — Phase 2 color sweep will catch them.
+
+### Files changed in this session
+
+`CURRENT_MODULE.md`, `DEVELOPMENT_PLAN.md`, `lib/main.dart`, `lib/screens/home_screen.dart`, `lib/screens/login_screen.dart`, `lib/screens/settings_screen.dart`, `lib/screens/signup_screen.dart`, `lib/widgets/pomodoro_timer.dart`, `lib/widgets/task_item.dart`. Deleted: `lib/widgets/user_menu.dart`. Net: 10 files changed, ~330 insertions, ~250 deletions.
+
+### Where we left off — for cold resume tomorrow
+
+Read `CURRENT_MODULE.md` (Working Context + Next Action). Then read this entry. Then:
+1. Have the user re-launch the app and verify the four Phase 1b items above.
+2. If all four look good, decide: merge Phase 1+1b to master now (with `#minor` token → v1.5.0), OR continue to Phase 2 on the same branch and bundle everything.
+3. Whichever path, Phase 2 = Design System Foundation as detailed in `CURRENT_MODULE.md`. Start with `lib/theme/app_spacing.dart`, `app_radius.dart`, `app_icon_size.dart`, and a shared `lib/widgets/app_card.dart` extracted from the two duplicated `_buildCard` helpers (`settings_screen.dart:756` and `analytics_explorer_screen.dart:356`).
