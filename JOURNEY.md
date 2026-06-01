@@ -372,3 +372,67 @@ The payoff was transformative. Seeing v1.0.0 transform into v1.3.0 with a single
 
 ---
 *Written by Gemini CLI for the Story Branch.*
+
+## Monday, 1 June 2026: Two Houses Under One Roof, and the Silence After the Storm
+
+We came into this session pointing at a single bug — the app was syncing every few seconds even when nothing had changed — and we left having shipped two features, repaired a quieter and more dangerous defect we hadn't yet noticed, and learned that the loudest complaint isn't always the one most worth listening to first.
+
+### The Bug Underneath the Bug
+
+The plan was simple. Read `DEVELOPMENT_PLAN.md §15`, find the four diagnosed loops, write the six fixes, ship. But sitting down to it, an honest question surfaced before the first line of code: when a user signs out of one PocketBase account and into another *on the same machine*, what happens to the local database? The answer was uncomfortable. The same SQLite file kept being used. The first account's dirty rows could push themselves onto the second account's server. The second account's pulls landed alongside the first account's data. Two strangers' lives sharing a single drawer.
+
+We had been about to silence a noisy room without checking whether the walls were intact. Data corruption is worse than bandwidth waste. We swapped the priority. **Step 15B — Account Isolation — would land first.**
+
+### One File Per Tenant
+
+We moved every account into its own SQLite file under `accounts/<userId>.db`, with a `SharedPreferences`-backed `AccountRegistry` recording last-touched timestamps and evicting any account untouched for thirty days. A single auth-listener in `main.dart` became the chokepoint: on sign-in, pause sync → close the old database handle → open the new one → resume; on sign-out, leave the active database mounted so writes still work (sync just falls silent). The legacy `consistency_tracker.db` from existing v1.3.0 installs gets renamed into the active user's folder the first time the new code runs — sidecars, write-ahead logs, and all.
+
+It sounded clean. The verification proved it was — but only after surfacing three UX bugs we hadn't seen.
+
+### The Profile That Couldn't Load
+
+A user registers a brand-new account. The app correctly creates a fresh empty database. The home screen tries to render. The profile widget queries the local `users` table — empty. The error reads *"Could not load profile."* The user has to restart.
+
+A second pattern: signing in to an existing account. The sync swaps the database underneath, but the home screen doesn't refresh. The user sees the *previous* account's data until they manually navigate.
+
+A third: every account switch made the loading spinner flash for a fraction of a second.
+
+We traced all three to the same single line. `_MyAppState._initializeThemeAndStyle()` computed `_isFirstRun` once at boot, stored the result in a Future, and the FutureBuilder routed everything from that one-shot decision. When the database changed underneath, the routing decision didn't. So a brand-new account whose database genuinely *was* empty stayed routed to the home screen instead of the first-run setup. The error wasn't in the profile widget — it was in the router that never knew the world had moved.
+
+We added an `activeDbRevision` notifier on the database service that bumped on every successful switch, made `MyApp` listen to it, and made it recompute the routing decision against the *current* database. The brand-new accounts now land where they should. The returning accounts auto-refresh. The flicker died too — we cached the resolved boolean and stopped throwing away a perfectly good Future on every switch. A small lesson, told three different ways: a value computed once at startup is a snapshot, not a fact.
+
+### Six Loops, Six Fixes, Six Lines of Proof
+
+With the data isolated, we could finally turn to the noise. The diagnosis had named four overlapping cycles, but the cure ended up being six surgical edits:
+
+- **The cursor.** A single character: `>=` became `>`. The just-pushed record was no longer pulled back.
+- **The notifier.** We split the database's "something changed" signal into two — one that fires on every write, one that fires only on user-originated writes. The sync service started listening to the second one. Remote applies stopped triggering themselves.
+- **The reason.** Every call to `requestSync` started carrying a string: `user-edit`, `realtime`, `poll`, `wake`, `connectivity`, `retry-queued`. A fifty-entry ring buffer remembered them. We could finally *see* what was triggering each sync, not just count them.
+- **The early exit.** If a user edit fires and realtime is healthy and nothing is actually dirty, return immediately. No network round-trip at all.
+- **The device ID.** A UUID generated once per install, stored outside any database, sent with every push. When the realtime subscription echoes our own write back to us, we recognize the stamp and drop the event before it touches anything.
+- **The adaptive poll.** Sixty seconds at idle for the first three empty cycles, then five minutes, then fifteen. Any real activity snaps us back to alert.
+
+The instrumentation turned out to be the most important fix, even though it does no work itself. When the user came back saying *"it's still syncing every few seconds,"* we asked them to share the log. The log showed `user-edit → pushed:5` once when they ticked five tasks, then `realtime → noop (self-echo:task_status)` six times as the echoes returned and were filtered, then `poll → noop` three times as the cadence prepared to stretch. The number of *actual network calls* was tiny. The number of *log lines* was many. The complaint wasn't about sync — it was about visual noise from log entries that were themselves the proof the fix was working.
+
+We filtered the log display to hide no-ops, renamed the misleading `manual` reason on window-focus to `wake` (Linux Flutter desktop fires `AppLifecycleState.resumed` on every alt-tab — it wasn't manual at all), and gated the entire debug panel behind `kDebugMode` so release builds carry none of it. The system was already quiet. We just had to stop displaying its breathing.
+
+### The Deploy Dance
+
+Three small lessons about the world beyond our IDE.
+
+The first: when you delegate a code change to an agent that operates on git, *make it verify the branch before it writes a single byte*. Our first attempt at the sync hardening landed silently on a docs branch where most of the target files didn't even exist; only the new files persisted, and the modifications to existing files were no-ops nothing in the agent's self-report flagged. Independent verification (`git status`, `grep`, a paranoid second look) caught it.
+
+The second: long pastes break SSH terminals. Our base64-encoded migration, the single-line `echo … | base64 -d > …` trick designed precisely to avoid this, the browser-based Cloud Console SSH — the wrap-at-80-columns rule turned the one-line command into nine fragmented "command not found" errors. We learned to assign the URL into short variables on separate lines and let the shell concatenate, so no single typed line ever crosses the wrap boundary. Boring. Reliable.
+
+The third: PocketBase 0.38.x silently ignores unknown fields on incoming writes. This was a kindness — it meant the client could ship its `device_id` payload before the server schema knew the field existed, and pushes still succeeded — but it also meant the only way to *prove* the migration had landed was a functional test in the app. We watched for a `realtime — noop (self-echo:task_status)` entry after a tick. It appeared. The server was storing the field, broadcasting it back, and our client was recognizing its own handwriting. The migration was live.
+
+### v1.4.0
+
+`feature/sync-engine` carried four commits — the friendly errors carried over from a prior session, the account isolation, the echo-loop hardening, the polish. We merged it to master as `c44d8d9` with `#minor` in the subject. CI took it from there: analyze, three platform builds, versioned artifacts, a fresh GitHub release tagged v1.4.0. The in-app updater on every existing v1.3.0 install will notice and offer the update on next launch.
+
+The app is quiet now. A tick produces exactly one push. An idle hour produces a single stretched poll. Two accounts on the same laptop live in separate rooms with the door closed. A brand-new sign-up sees a welcome screen, not an error. The debug log that exposed all this is invisible to the people who downloaded the binary.
+
+*Learning:* The bug a user reports is often the one they can see. The bug that matters is sometimes the one underneath it, the one they would only feel later, after their data had been quietly mingling with someone else's for weeks. The discipline isn't refusing to fix what's asked — it's checking whether something more important is being asked of you at the same time, and being willing to delay the visible work to repair the invisible foundation. The quiet you ship is worth more than the speed you shipped at.
+
+---
+*Written for the Story Branch.*
