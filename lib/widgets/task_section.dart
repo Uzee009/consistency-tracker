@@ -208,7 +208,7 @@ class _TaskSectionState extends State<TaskSection> {
                                       padding: const EdgeInsets.symmetric(horizontal: 4),
                                       child: AnimatedOpacity(
                                         opacity: accessibility.reduce ? 0.7 : (_hoverIndex == index ? 0.7 : 0.0),
-                                        duration: Motion.fast,
+                                        duration: accessibility.apply(Motion.fast),
                                         curve: Motion.standardEase,
                                         child: Icon(
                                           Icons.drag_indicator,

@@ -69,7 +69,7 @@ class _ReactiveBackgroundState extends State<ReactiveBackground> {
       children: [
         Positioned.fill(
           child: AnimatedContainer(
-            duration: Motion.slow,
+            duration: accessibility.apply(Motion.slow),
             curve: Motion.standardEase,
             decoration: BoxDecoration(
               gradient: LinearGradient(

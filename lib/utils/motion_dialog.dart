@@ -9,12 +9,14 @@ Future<T?> showMotionDialog<T>({
   required Widget child,
   bool barrierDismissible = true,
 }) {
+  final accessibility = MotionAccessibility.of(context);
+
   return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: 'dialog',
     barrierColor: Colors.black.withValues(alpha: 0.35),
-    transitionDuration: Motion.base,
+    transitionDuration: accessibility.apply(Motion.base),
     pageBuilder: (ctx, a1, a2) => child,
     transitionBuilder: (ctx, a1, a2, child) {
       final reduce = MotionAccessibility.of(ctx).reduce;

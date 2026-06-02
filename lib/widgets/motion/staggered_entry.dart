@@ -47,13 +47,21 @@ class _StaggeredEntryState extends State<StaggeredEntry>
         curve: Motion.standardEase,
       ),
     );
-
-    _startAnimation();
   }
 
-  void _startAnimation() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final accessibility = MotionAccessibility.of(context);
+    _controller.duration = accessibility.apply(widget.duration ?? Motion.medium);
+    _startAnimation(accessibility);
+  }
+
+  void _startAnimation(MotionAccessibility accessibility) async {
+    if (_controller.isAnimating || _controller.isCompleted) return;
+    
     final delay = (widget.index * widget.staggerMs).clamp(0, 350);
-    await Future.delayed(Duration(milliseconds: delay));
+    await Future.delayed(accessibility.apply(Duration(milliseconds: delay)));
     if (mounted) {
       _controller.forward();
     }

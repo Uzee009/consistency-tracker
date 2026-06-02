@@ -48,7 +48,7 @@ class _CursorGlowState extends State<CursorGlow> {
             child: IgnorePointer(
               child: AnimatedOpacity(
                 opacity: _isHovering ? 1.0 : 0.0,
-                duration: Motion.fast,
+                duration: motion.apply(Motion.fast),
                 curve: Motion.standardEase,
                 child: CustomPaint(
                   painter: _GlowPainter(

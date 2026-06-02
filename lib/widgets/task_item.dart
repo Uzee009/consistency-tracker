@@ -235,7 +235,7 @@ class _TaskItemState extends State<TaskItem> with SingleTickerProviderStateMixin
                 ),
                 AnimatedOpacity(
                   opacity: accessibility.reduce ? 1.0 : (_isHovered ? 0.85 : 0.0),
-                  duration: Motion.fast,
+                  duration: accessibility.apply(Motion.fast),
                   curve: Motion.standardEase,
                   child: PressScale(
                     child: PopupMenuButton<String>(

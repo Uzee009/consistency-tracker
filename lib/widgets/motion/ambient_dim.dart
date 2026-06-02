@@ -26,12 +26,12 @@ class AmbientDim extends StatelessWidget {
         final double target = isDimmed ? 1.0 : 0.0;
         final accessibility = MotionAccessibility.of(context);
 
-        if (accessibility.reduce) {
+        if (accessibility.reduce || accessibility.performanceMode) {
           return _buildWithSaturation(isDimmed ? 0.95 : 1.0);
         }
 
         return TweenAnimationBuilder<double>(
-          duration: Motion.medium,
+          duration: accessibility.apply(Motion.medium),
           curve: Motion.standardEase,
           tween: Tween<double>(begin: 0.0, end: target),
           builder: (context, value, child) {
