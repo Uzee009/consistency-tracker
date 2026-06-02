@@ -154,76 +154,79 @@ class _TaskItemState extends State<TaskItem> with SingleTickerProviderStateMixin
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: InkWell(
-                    onTap: widget.isSkipped ? null : () => widget.onToggleCompletion(!widget.isCompleted),
-                    onLongPress: widget.onFocusRequested,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _toTitleCase(widget.task.name),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: (widget.isCompleted || widget.isSkipped) ? FontWeight.w400 : FontWeight.w600,
-                              decoration: widget.isCompleted ? TextDecoration.lineThrough : null,
-                              color: widget.isCompleted 
-                                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
-                                  : (widget.isSkipped 
-                                     ? Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.8) 
-                                     : Theme.of(context).colorScheme.onSurface),
-                              fontStyle: widget.isSkipped ? FontStyle.italic : FontStyle.normal,
+                  child: GestureDetector(
+                    onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
+                    child: InkWell(
+                      onTap: widget.isSkipped ? null : () => widget.onToggleCompletion(!widget.isCompleted),
+                      onLongPress: widget.onFocusRequested,
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _toTitleCase(widget.task.name),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: (widget.isCompleted || widget.isSkipped) ? FontWeight.w400 : FontWeight.w600,
+                                decoration: widget.isCompleted ? TextDecoration.lineThrough : null,
+                                color: widget.isCompleted 
+                                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                                    : (widget.isSkipped 
+                                       ? Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.8) 
+                                       : Theme.of(context).colorScheme.onSurface),
+                                fontStyle: widget.isSkipped ? FontStyle.italic : FontStyle.normal,
+                              ),
                             ),
-                          ),
-                          if (widget.task.frequencyType == FrequencyType.weekly) ...[
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Text(
-                                  isGoalMet 
-                                      ? 'Goal Met' 
-                                      : '(${progress.sessionsCompleted}/${progress.sessionsTarget}) sessions',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: isGoalMet 
-                                        ? const Color(0xFF10B981) 
-                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                                  ),
-                                ),
-                                if (!isGoalMet) ...[
+                            if (widget.task.frequencyType == FrequencyType.weekly) ...[
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
                                   Text(
-                                    ' • ',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2), fontSize: 10),
-                                  ),
-                                  Text(
-                                    '${progress.daysRemainingInWeek + 1} days left',
+                                    isGoalMet 
+                                        ? 'Goal Met' 
+                                        : '(${progress.sessionsCompleted}/${progress.sessionsTarget}) sessions',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: progress.isRequiredToday 
-                                          ? Theme.of(context).colorScheme.error 
+                                      fontWeight: FontWeight.w600,
+                                      color: isGoalMet 
+                                          ? const Color(0xFF10B981) 
                                           : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                                     ),
                                   ),
-                                ],
-                                if (isOptional && !isGoalMet) ...[
-                                   const SizedBox(width: 6),
-                                   Container(
-                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                     decoration: BoxDecoration(
-                                       color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                                       borderRadius: BorderRadius.circular(AppRadius.xs),
+                                  if (!isGoalMet) ...[
+                                    Text(
+                                      ' • ',
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2), fontSize: 10),
+                                    ),
+                                    Text(
+                                      '${progress.daysRemainingInWeek + 1} days left',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: progress.isRequiredToday 
+                                            ? Theme.of(context).colorScheme.error 
+                                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                  ],
+                                  if (isOptional && !isGoalMet) ...[
+                                     const SizedBox(width: 6),
+                                     Container(
+                                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                       decoration: BoxDecoration(
+                                         color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                         borderRadius: BorderRadius.circular(AppRadius.xs),
+                                       ),
+                                       child: Text('OPTIONAL', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                                      ),
-                                     child: Text('OPTIONAL', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                                   ),
+                                  ],
                                 ],
-                              ],
-                            ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -235,19 +238,7 @@ class _TaskItemState extends State<TaskItem> with SingleTickerProviderStateMixin
                   child: PressScale(
                     child: PopupMenuButton<String>(
                       tooltip: 'More actions',
-                      onSelected: (value) {
-                        switch (value) {
-                          case 'skip':
-                            widget.onToggleSkip();
-                            break;
-                          case 'edit':
-                            widget.onEdit();
-                            break;
-                          case 'delete':
-                            widget.onDelete();
-                            break;
-                        }
-                      },
+                      onSelected: _handleMenuAction,
                       offset: const Offset(0, 40),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       child: Material(
@@ -262,66 +253,7 @@ class _TaskItemState extends State<TaskItem> with SingleTickerProviderStateMixin
                           ),
                         ),
                       ),
-                      itemBuilder: (context) => [
-                        PopupMenuItem<String>(
-                          value: 'skip',
-                          enabled: !widget.isCompleted,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.remove_circle_outline,
-                                size: 20,
-                                color: widget.isCompleted 
-                                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                widget.isSkipped ? 'Unskip' : 'Skip',
-                                style: TextStyle(
-                                  color: widget.isCompleted 
-                                      ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
-                                      : Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 20,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Edit',
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                size: 20,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Delete',
-                                style: TextStyle(color: Theme.of(context).colorScheme.error),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      itemBuilder: (context) => _buildMenuItems(context),
                     ),
                   ),
                 ),
@@ -332,6 +264,100 @@ class _TaskItemState extends State<TaskItem> with SingleTickerProviderStateMixin
       ),
     ),
     );
+  }
+
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context) {
+    return [
+      PopupMenuItem<String>(
+        value: 'skip',
+        enabled: !widget.isCompleted,
+        child: Row(
+          children: [
+            Icon(
+              Icons.remove_circle_outline,
+              size: 20,
+              color: widget.isCompleted 
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              widget.isSkipped ? 'Unskip' : 'Skip',
+              style: TextStyle(
+                color: widget.isCompleted 
+                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                    : Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'edit',
+        child: Row(
+          children: [
+            Icon(
+              Icons.edit_outlined,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Edit',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'delete',
+        child: Row(
+          children: [
+            Icon(
+              Icons.delete_outline,
+              size: 20,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  void _handleMenuAction(String value) {
+    switch (value) {
+      case 'skip':
+        widget.onToggleSkip();
+        break;
+      case 'edit':
+        widget.onEdit();
+        break;
+      case 'delete':
+        widget.onDelete();
+        break;
+    }
+  }
+
+  Future<void> _showContextMenu(BuildContext context, Offset position) async {
+    final result = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: _buildMenuItems(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+    );
+    if (result != null) {
+      _handleMenuAction(result);
+    }
   }
 
   String _toTitleCase(String text) {

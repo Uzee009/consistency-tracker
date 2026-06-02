@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
 import '../services/database_service.dart';
+import '../utils/motion_dialog.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
@@ -349,22 +350,22 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     
     if (existing != null) {
       if (mounted) {
-        final action = await showDialog<String>(
+        final action = await showMotionDialog<String>(
           context: context,
-          builder: (ctx) => AlertDialog(
+          child: AlertDialog(
             title: const Text('Habit Already Exists', style: TextStyle(fontWeight: FontWeight.w900)),
             content: Text('You have a history with "${existing.name}". Would you like to revive your old progress or start fresh?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, 'cancel'),
+                onPressed: () => Navigator.pop(context, 'cancel'),
                 child: const Text('CANCEL'),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(ctx, 'restart'),
+                onPressed: () => Navigator.pop(context, 'restart'),
                 child: Text('RESTART FRESH', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, 'revive'),
+                onPressed: () => Navigator.pop(context, 'revive'),
                 child: const Text('REVIVE PROGRESS'),
               ),
             ],

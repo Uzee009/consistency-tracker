@@ -10,6 +10,8 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_icon_size.dart';
 
+import '../../utils/motion_dialog.dart';
+
 class TaskPanel extends StatefulWidget {
   final DashboardController controller;
   final DashboardLayoutController layoutController;
@@ -123,6 +125,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
         Expanded(
           child: TabBarView(
             controller: _tabController,
+            physics: const BouncingScrollPhysics(),
             children: [
               _buildTaskSection(TaskType.daily),
               _buildTaskSection(TaskType.temporary),
@@ -149,9 +152,9 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
         widget.controller.reorderTasksWithinType(type, oldIndex, newIndex);
       },
       onDelete: (t) async {
-        final result = await showDialog<String>(
+        final result = await showMotionDialog<String>(
           context: context,
-          builder: (context) => AlertDialog(
+          child: AlertDialog(
             title: const Text('Manage Task'),
             content: RichText(
               text: TextSpan(
@@ -194,9 +197,9 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
           widget.controller.deleteTask(t.sid); // This now calls archiveTask
         } else if (result == 'deletePermanently') {
           if (!mounted) return;
-          final confirmPermanentDelete = await showDialog<bool>(
+          final confirmPermanentDelete = await showMotionDialog<bool>(
             context: context,
-            builder: (context) => AlertDialog(
+            child: AlertDialog(
               title: const Text('Confirm Permanent Deletion'),
               content: Text('Permanently delete this task and all its progress?\n\nThis cannot be undone.', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               actions: [
@@ -222,7 +225,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
   void _handleToggleTask(Task task, bool? completed) async {
     final isDone = completed ?? false;
     if (widget.controller.isCheatDayConflict(isDone)) {
-      final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Resume Day?'), content: const Text('Checking off a task will reclaim token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Resume'))]));
+      final confirm = await showMotionDialog<bool>(context: context, child: AlertDialog(title: const Text('Resume Day?'), content: const Text('Checking off a task will reclaim token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Resume'))]));
       if (confirm == true) await widget.controller.toggleTaskCompletion(task, isDone, reclaimCheat: true);
     } else {
       await widget.controller.toggleTaskCompletion(task, isDone);
@@ -233,6 +236,10 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
     showModalBottomSheet(
       context: context, 
       isScrollControlled: true, 
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: true,
+      showDragHandle: true,
       builder: (_) => AddTaskBottomSheet(
         type: task.type, 
         task: task, // V8: Pass the task to edit
@@ -264,6 +271,10 @@ class _TaskAddAction extends StatelessWidget {
         onPressed: () => showModalBottomSheet(
           context: context, 
           isScrollControlled: true, 
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
+          enableDrag: true,
+          showDragHandle: true,
           builder: (_) => AddTaskBottomSheet(
             type: currentType, 
             initialDate: controller.selectedDate, // V12: Pass selected date
@@ -315,12 +326,12 @@ class _TaskCheatAction extends StatelessWidget {
   }
 
   void _onUndoCheatDay(BuildContext context) async {
-    final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Undo Cheat Day?'), content: const Text('Reclaim token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Undo', style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))]));
+    final confirm = await showMotionDialog<bool>(context: context, child: AlertDialog(title: const Text('Undo Cheat Day?'), content: const Text('Reclaim token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Undo', style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))]));
     if (confirm == true) await controller.undoCheatDay();
   }
 
   void _onDeclareCheatDay(BuildContext context) async {
-    final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Use Cheat Day?'), content: const Text('Use a token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Use Token', style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))]));
+    final confirm = await showMotionDialog<bool>(context: context, child: AlertDialog(title: const Text('Use Cheat Day?'), content: const Text('Use a token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Use Token', style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))]));
     if (confirm == true) await controller.claimCheatDay();
   }
 }

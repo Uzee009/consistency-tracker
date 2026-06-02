@@ -12,6 +12,8 @@ import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 import '../main.dart';
 
+import '../utils/motion_dialog.dart';
+
 class DashboardGridRenderer extends StatelessWidget {
   final DashboardLayoutController layoutController;
   final DashboardController dataController;
@@ -269,9 +271,9 @@ class DashboardGridRenderer extends StatelessWidget {
   Widget _buildPlaceholder(BuildContext context, DashboardSlot slot) {
     return AddPanelPlaceholder(
       onPressed: () {
-        showDialog(
+        showMotionDialog(
           context: context, 
-          builder: (context) => PanelPicker(
+          child: PanelPicker(
             layoutController: layoutController,
             targetSlot: slot,
           ),

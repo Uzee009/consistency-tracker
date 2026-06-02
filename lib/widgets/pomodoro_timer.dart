@@ -6,6 +6,8 @@ import '../theme/app_spacing.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 
+import '../utils/motion_dialog.dart';
+
 class PomodoroTimer extends StatefulWidget {
   final DashboardController controller;
   const PomodoroTimer({super.key, required this.controller});
@@ -194,9 +196,9 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
     final longController = TextEditingController(text: (controller.timerDurations['longBreak']! ~/ 60).toString());
     final goalController = TextEditingController(text: controller.todayRecord.pomodoroGoal.toString());
 
-    showDialog(
+    showMotionDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      child: AlertDialog(
         title: const Text('Timer Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,

@@ -20,6 +20,7 @@ import '../widgets/motion/press_scale.dart';
 import '../widgets/motion/cursor_glow.dart';
 import '../widgets/app_card.dart';
 import '../utils/demo_seeder.dart';
+import '../utils/motion_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1010,10 +1011,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    showDialog(
+    showMotionDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
+      child: const AlertDialog(
         content: Row(
           children: [
             CircularProgressIndicator(),
@@ -1035,9 +1036,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleDemoWipe() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showMotionDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      child: AlertDialog(
         title: const Text('Wipe demo data'),
         content: const Text('Wipe all demo tasks and history?'),
         actions: [
@@ -1056,10 +1057,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    showDialog(
+    showMotionDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
+      child: const AlertDialog(
         content: Row(
           children: [
             CircularProgressIndicator(),

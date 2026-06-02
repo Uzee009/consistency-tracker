@@ -1,6 +1,6 @@
 **Module:** Step 17 — Motion System (Apple-Tier Animation Polish)
 **Branch:** feature/ux-fixes (stacking on Step 16; revisit after Step 16 merges to master)
-**State:** IN_PROGRESS — Phase 4 (Layout Choreography) implemented; pending flutter analyze + visual verify
+**State:** IN_PROGRESS — Phase 5 (Navigation & Modals, reduced scope) implemented; pending flutter analyze + visual verify
 **Last updated:** 2026-06-02
 
 ## Scope (locked with user)
@@ -61,14 +61,14 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 - [x] Rubber-band at scroll boundaries
 
 ### Phase 5 — Navigation, Modals, Palette (Batch 01 + 03)
-- [ ] Hero transitions task list → task detail (shared element on the card)
-- [ ] Detail pane: slide-in from right; switching tasks crossfades pane CONTENT only, container stays
-- [ ] Audit `CupertinoPageRoute` coverage (started in Step 16 Phase 3); finish
-- [ ] Tab switches: direction-aware slide + crossfade
-- [ ] Cmd+K command palette: scale-in from 96%, backdrop blur 0→8px over 200ms, FLIP-reorder results as user types, selected result subtle pulse
-- [ ] Modal/dialog: scale-from-origin + slight downward translate + small overshoot; backdrop blur ease (not opacity fade)
-- [ ] Right-click context menus: origin-aware scale; submenu slide-and-fade from parent's right edge; 300ms submenu open delay
-- [ ] Animated focus ring travels between focused controls (shared element style, not blink-cut)
+- [N/A] Hero transitions — app has no separate detail screen; editing happens in modal bottom sheet. Not applicable.
+- [N/A] Detail pane slide-in — see hero transitions note. App uses bottom sheet, not detail pane.
+- [x] Audit `CupertinoPageRoute` coverage (confirmed all sites use CupertinoPageRoute; no MaterialPageRoute left in lib/)
+- [x] Tab switches: direction-aware slide (TabBarView + BouncingScrollPhysics)
+- [ ] Cmd+K command palette (deferred to its own future module — substantial new feature, not motion polish)
+- [x] Modal/dialog: scale-from-origin + backdrop blur + translate (implemented via `showMotionDialog`)
+- [x] Right-click context menus on task tiles (origin-aware scale; shared menu items with kebab)
+- [ ] Animated focus ring travels between focused controls (deferred to Phase 9 polish — needs custom Focus tree painting; low ROI for mouse-driven desktop app)
 
 ### Phase 6 — Drag & Drop, Toasts (Batch 03)
 - [ ] Drag preview: lift off page + shadow expansion + ~2° rotation + 90% opacity
@@ -112,7 +112,7 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 
 ## Next Action
 
-Orchestrator runs flutter analyze + visual smoke on task list cascade-in, drag lift/rotate, scroll feel. On pass, proceed to Phase 5 (Navigation, Modals, Palette).
+Orchestrator runs flutter analyze + visual smoke on dialog blur+scale, right-click context menu on tasks. On pass, proceed to Phase 6 (Drag & Drop + Toasts).
 
 ## Review History
 
