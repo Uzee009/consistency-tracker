@@ -3,6 +3,9 @@ import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/day_record_model.dart';
 import '../services/database_service.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 class AddTaskBottomSheet extends StatefulWidget {
   final TaskType type;
@@ -68,13 +71,13 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        top: 8,
-        left: 24,
-        right: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
+        top: AppSpacing.xs,
+        left: AppSpacing.xl,
+        right: AppSpacing.xl,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -83,32 +86,32 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
+                width: AppSpacing.xxxl,
+                height: AppSpacing.xxs,
+                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white10 : Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+                  color: isDark ? Colors.white10 : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
               ),
             ),
             if (!isToday && widget.task == null) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1), // Amber[500]
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.history, size: 16, color: Colors.amber),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.history, size: AppIconSize.md, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         'Adding task starting from $dateStr',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFF59E0B)),
                       ),
                     ),
                   ],
@@ -124,17 +127,17 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Define your new consistency goal below.',
               style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 14),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               'Task Name',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             TextField(
               controller: _nameController,
               style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
@@ -145,7 +148,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               textCapitalization: TextCapitalization.sentences,
             ),
             if (widget.type == TaskType.daily) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 children: [
                   Expanded(
@@ -155,7 +158,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                       onSelected: (s) => setState(() => _frequencyType = FrequencyType.daily),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: _buildChoiceChip(
                       label: 'Weekly Goal',
@@ -166,12 +169,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                 ],
               ),
               if (_frequencyType == FrequencyType.weekly) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.lg),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                   decoration: BoxDecoration(
                     color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
@@ -189,12 +192,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                         children: [
                           IconButton(
                             onPressed: _weeklyTarget > 1 ? () => setState(() => _weeklyTarget--) : null,
-                            icon: const Icon(Icons.remove_circle_outline, size: 20),
+                            icon: const Icon(Icons.remove_circle_outline, size: AppIconSize.xl),
                           ),
                           Text('$_weeklyTarget', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                           IconButton(
                             onPressed: _weeklyTarget < 7 ? () => setState(() => _weeklyTarget++) : null,
-                            icon: const Icon(Icons.add_circle_outline, size: 20),
+                            icon: const Icon(Icons.add_circle_outline, size: AppIconSize.xl),
                           ),
                         ],
                       ),
@@ -202,12 +205,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.lg),
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(AppSpacing.xxs),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                 ),
                 child: SwitchListTile(
@@ -223,12 +226,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                 ),
               ),
               if (!_isPerpetual) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   'Duration in Days',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
                 TextField(
                   controller: _durationController,
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
@@ -241,12 +244,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               ],
             ],
             if (!isToday && widget.task == null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.lg),
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(AppSpacing.xxs),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                 ),
                 child: SwitchListTile(
@@ -262,7 +265,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: AppSpacing.xxl),
             Row(
               children: [
                 Expanded(
@@ -270,13 +273,13 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                     ),
                     child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _saveTask,
@@ -304,7 +307,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       selectedColor: isDark ? Colors.white : Colors.black,
       backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
       showCheckmark: false,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide.none),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md), side: BorderSide.none),
     );
   }
 
@@ -350,7 +353,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, 'restart'),
-                child: const Text('RESTART FRESH', style: TextStyle(color: Colors.red)),
+                child: Text('RESTART FRESH', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, 'revive'),
@@ -448,4 +451,3 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     }
   }
 }
-

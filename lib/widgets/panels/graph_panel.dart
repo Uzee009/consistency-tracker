@@ -5,6 +5,8 @@ import '../../controllers/dashboard_controller.dart';
 import '../../controllers/dashboard_layout_controller.dart';
 import '../../widgets/analytics_kpis.dart';
 import '../../widgets/analytics_carousel.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_radius.dart';
 
 class GraphPanel extends StatelessWidget {
   final DashboardController controller;
@@ -37,7 +39,7 @@ class GraphPanel extends StatelessWidget {
         
         Divider(height: 1, color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05), indent: 16, endIndent: 16),
         
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm),
 
         Expanded(
           flex: 7,
@@ -65,7 +67,7 @@ class _GraphRangeAction extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -74,12 +76,12 @@ class _GraphRangeAction extends StatelessWidget {
           return GestureDetector(
             onTap: () => controller.setHeatmapRange(range),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xxs),
               decoration: BoxDecoration(
                 color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: Text(range, style: TextStyle(fontSize: 8, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500, color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey)),
+              child: Text(range, style: TextStyle(fontSize: 8, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500, color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant)),
             ),
           );
         }).toList(),

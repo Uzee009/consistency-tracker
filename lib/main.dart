@@ -282,12 +282,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           title: 'Consistency Tracker',
           themeMode: _currentThemeMode,
           theme: ThemeData(
-            textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+            textTheme: _buildAppTextTheme(Brightness.light),
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.grey,
               primary: primaryColor,
               surface: Colors.white,
               onSurface: const Color(0xFF09090B),
+              tertiary: const Color(0xFFEA580C),
+              error: const Color(0xFFDC2626),
             ),
             useMaterial3: true,
             scaffoldBackgroundColor: Colors.white,
@@ -371,13 +373,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           darkTheme: ThemeData(
-            textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+            textTheme: _buildAppTextTheme(Brightness.dark),
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.grey,
               brightness: Brightness.dark,
               primary: primaryColor,
               surface: const Color(0xFF09090B),
               onSurface: Colors.white,
+              tertiary: const Color(0xFFFB923C),
+              error: const Color(0xFFF87171),
             ),
             useMaterial3: true,
             scaffoldBackgroundColor: const Color(0xFF09090B),
@@ -469,4 +473,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       },
     );
   }
+}
+
+TextTheme _buildAppTextTheme(Brightness brightness) {
+  final base = brightness == Brightness.dark
+      ? ThemeData.dark().textTheme
+      : ThemeData.light().textTheme;
+  return GoogleFonts.interTextTheme(base).copyWith(
+    displayLarge: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+    headlineSmall: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700),
+    titleLarge: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700),
+    titleMedium: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+    titleSmall: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+    labelLarge: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+    labelMedium: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+    labelSmall: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+    bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400),
+    bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w400),
+    bodySmall: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+  );
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/scoring_service.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_radius.dart';
 
 class AnalyticsKPIs extends StatelessWidget {
   final AnalyticsResult analytics;
@@ -39,10 +41,10 @@ class AnalyticsKPIs extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: AppSpacing.md),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
           color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
         ),
@@ -53,8 +55,8 @@ class AnalyticsKPIs extends StatelessWidget {
 
   List<Widget> _buildItems(BuildContext context, bool isDark) {
     final separator = isHorizontal 
-        ? VerticalDivider(color: isDark ? Colors.white10 : Colors.black12, width: 20, indent: 4, endIndent: 4)
-        : Divider(color: isDark ? Colors.white10 : Colors.black12, height: 16);
+        ? VerticalDivider(color: isDark ? Colors.white10 : Colors.black12, width: AppSpacing.lg, indent: 4, endIndent: 4)
+        : Divider(color: isDark ? Colors.white10 : Colors.black12, height: AppSpacing.md);
 
     if (isFocused) {
       // Individual Habit KPIs
@@ -64,7 +66,7 @@ class AnalyticsKPIs extends StatelessWidget {
           label: analytics.isAtRisk ? 'STREAK AT RISK' : 'CURRENT',
           value: analytics.currentStreak.toString(),
           subtitle: analytics.isAtRisk ? 'SAVE IT TODAY!' : 'STREAK',
-          color: analytics.isAtRisk ? Colors.orange[700]! : Theme.of(context).colorScheme.primary,
+          color: analytics.isAtRisk ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.primary,
           isWarning: analytics.isAtRisk,
         ),
         separator,
@@ -73,7 +75,7 @@ class AnalyticsKPIs extends StatelessWidget {
           label: 'LONGEST',
           value: analytics.longestStreak.toString(),
           subtitle: 'STREAK',
-          color: Colors.orange[400]!,
+          color: Theme.of(context).colorScheme.tertiary,
           isClickable: analytics.longestStreakStart != null,
           onTap: analytics.longestStreakStart != null ? () => onJump?.call(analytics.longestStreakStart!) : null,
         ),
@@ -102,7 +104,7 @@ class AnalyticsKPIs extends StatelessWidget {
           label: 'TEMP TASKS',
           value: analytics.totalTempCompleted.toString(),
           subtitle: 'DONE',
-          color: Colors.blue[400]!,
+          color: Theme.of(context).colorScheme.primary,
         ),
         separator,
         _buildKPIItem(
@@ -116,11 +118,12 @@ class AnalyticsKPIs extends StatelessWidget {
     }
   }
 
+  // Semantic consistency gradient — colors are intentionally not theme-mapped.
   Color _getConsistencyColor(double rate) {
     if (rate >= 0.8) return const Color(0xFF10B981); // High: Green
-    if (rate >= 0.6) return Colors.orange[400]!;     // Med-High: Orange
-    if (rate >= 0.4) return Colors.yellow[600]!;     // Med-Low: Yellow
-    return Colors.red[400]!;                         // Low: Red
+    if (rate >= 0.6) return const Color(0xFFFB923C); // Med-High: Orange (Colors.orange[400])
+    if (rate >= 0.4) return const Color(0xFFCA8A04); // Med-Low: Yellow (Colors.yellow[600])
+    return const Color(0xFFF87171);                  // Low: Red (Colors.red[400])
   }
 
   Widget _buildKPIItem(
@@ -154,17 +157,17 @@ class AnalyticsKPIs extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
-                      color: isWarning ? Colors.orange[700] : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                      color: isWarning ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   if (isClickable) ...[
-                    const SizedBox(width: 4),
-                    const Icon(Icons.north_east_rounded, size: 10, color: Colors.grey),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Icon(Icons.north_east_rounded, size: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -181,14 +184,14 @@ class AnalyticsKPIs extends StatelessWidget {
               ),
             ),
             if (isWarning) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xxs),
               Text(
                 subtitle,
                 maxLines: 1,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
-                  color: Colors.orange[700],
+                  color: Theme.of(context).colorScheme.tertiary,
                 ),
               ),
             ],

@@ -888,3 +888,29 @@ Read `CURRENT_MODULE.md` (Working Context + Next Action). Then read this entry. 
 1. Have the user re-launch the app and verify the four Phase 1b items above.
 2. If all four look good, decide: merge Phase 1+1b to master now (with `#minor` token → v1.5.0), OR continue to Phase 2 on the same branch and bundle everything.
 3. Whichever path, Phase 2 = Design System Foundation as detailed in `CURRENT_MODULE.md`. Start with `lib/theme/app_spacing.dart`, `app_radius.dart`, `app_icon_size.dart`, and a shared `lib/widgets/app_card.dart` extracted from the two duplicated `_buildCard` helpers (`settings_screen.dart:756` and `analytics_explorer_screen.dart:356`).
+
+---
+## 2026-06-02 — Step 16 Phase 2 (Design System Foundation)
+
+**What happened:**
+Built out the design-system primitives that Phases 3 + 4 will sit on top of. Created `lib/theme/app_spacing.dart`, `app_radius.dart`, `app_icon_size.dart`, and `lib/widgets/app_card.dart` extracted from the duplicated `_buildCard` helpers. Strengthened `lib/main.dart`'s `textTheme` (9 explicit roles via `_buildAppTextTheme(Brightness)`) and added explicit `colorScheme.tertiary` (brand orange) + `colorScheme.error` overrides to both light and dark themes. Then swept every screen and widget under `lib/` to replace hard-coded `Colors.*` with theme tokens and tokenize `BorderRadius.circular(N)` / `Icon(size: N)` on the standard scale.
+
+**Files touched:** 21 modified, 4 new. ~+450 / -300 lines net.
+
+**Outcome metrics:**
+- Zero raw `Colors.red|orange|grey|blue|green|yellow|amber|purple` in `lib/screens/` and `lib/widgets/` (only comment references in `analytics_kpis._getConsistencyColor` remain, intentionally).
+- All standard-scale border radius / icon sizes now token-sourced.
+- `flutter analyze` clean throughout (run after every batch).
+- `_buildCard` helper removed; both `settings_screen.dart` and `analytics_explorer_screen.dart` now use `AppCard`.
+- `syncStatusColor` signature changed to accept `ColorScheme`; both call sites updated.
+
+**What's open:**
+- ~40 raw `TextStyle(fontSize:…)` instances still in screens/widgets — `textTheme` is strengthened and ready, but the call-site migration was deferred. Will be picked up in Phase 3 or a follow-up.
+- Manual visual smoke on Linux Mint (dual style × dual brightness) — pending user verification.
+- Decision next session: merge Phase 1+1b+2 with `#minor` → v1.5.0, OR continue stacking through Phase 3+4.
+
+**How the work was done:**
+Plan saved to `/home/uzee/.claude/plans/scalable-painting-dove.md`. Eight batched gemini specs executed via Bash (subagents still not registered per existing memory). Orchestrator verified each batch with `flutter analyze` + targeted greps. One gemini batch had a transient file-corruption that gemini self-recovered via full file rewrite; one `const` violation was caught at analyze time and fixed mid-stream.
+
+**Cold-resume:** Read `CURRENT_MODULE.md` + this entry. Branch: `feature/ux-fixes`. Next: ask user to spot-check the running app, then choose between merging or continuing to Phase 3.
+

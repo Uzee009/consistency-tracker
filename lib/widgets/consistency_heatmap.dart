@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/style_service.dart';
 import '../main.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
@@ -188,7 +190,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           child: hasStar ? const Center(child: Icon(Icons.star, size: 6, color: Colors.white)) : null,
         ),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+        Text(text, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -215,7 +217,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Row(
                     children: ['1M', '3M', '6M', '1Y'].map((range) {
@@ -230,14 +232,14 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                           child: Text(
                             range,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                              color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500],
+                              color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -258,7 +260,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                     }
                     _scrollToCurrentMonth();
                   }, 
-                  icon: const Icon(Icons.today_rounded, size: 16),
+                  icon: const Icon(Icons.today_rounded, size: AppIconSize.md),
                   label: const Text('JUMP TO TODAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
                   style: TextButton.styleFrom(
                     foregroundColor: Theme.of(context).colorScheme.primary,
@@ -274,7 +276,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   icon: Icon(
                     _isReportMode ? Icons.analytics : Icons.analytics_outlined,
                     color: Theme.of(context).colorScheme.primary,
-                    size: 20,
+                    size: AppIconSize.xl,
                   ),
                   tooltip: 'Toggle Historical Data',
                 ),
@@ -287,7 +289,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (widget.focusedTaskName == null) ...[
-                _buildLegendItem(Colors.orange[400]!, 'Cheat'),
+                _buildLegendItem(Theme.of(context).colorScheme.tertiary, 'Cheat'),
                 const SizedBox(width: 12),
                 _buildLegendItem(const Color(0xFF10B981), 'Star', hasStar: true),
                 const SizedBox(width: 12),
@@ -379,7 +381,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             Color cellColor;
 
             if (intensity == -1) {
-              cellColor = Colors.orange[400]!;
+              cellColor = Theme.of(context).colorScheme.tertiary;
             } else if (intensity == -2) {
               cellColor = const Color(0xFF10B981);
             } else if (intensity == 1) {
@@ -422,7 +424,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: finalCellColor,
-                      borderRadius: BorderRadius.circular(8), // Increased radius
+                      borderRadius: BorderRadius.circular(AppRadius.md), // Increased radius
                       border: isSelected 
                           ? Border.all(
                               color: isDark ? Colors.white : Colors.black, // High contrast
@@ -460,7 +462,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left, color: Colors.grey, size: 22),
+                icon: Icon(Icons.chevron_left, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 22),
                 onPressed: () {
                   setState(() {
                     _current1MDate = DateTime(_current1MDate.year, _current1MDate.month - 1, 1);
@@ -478,7 +480,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right, color: Colors.grey, size: 22),
+                icon: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 22),
                 onPressed: () {
                   setState(() {
                     _current1MDate = DateTime(_current1MDate.year, _current1MDate.month + 1, 1);
@@ -497,7 +499,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             children: [
               ...weekdays.map((day) => SizedBox(
                 width: cellWidth,
-                child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5))),
+                child: Center(child: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurfaceVariant, letterSpacing: 0.5))),
               )),
             ],
           ),
@@ -578,7 +580,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
       child: Column(
         children: weekdays.map((name) => SizedBox(
           height: dynamicTotalCellHeight,
-          child: Center(child: Text(name, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.grey[500]))),
+          child: Center(child: Text(name, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurfaceVariant))),
         )).toList(),
       ),
     );
@@ -618,7 +620,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           Color cellColor;
 
           if (intensity == -1) {
-            cellColor = Colors.orange[400]!;
+            cellColor = Theme.of(context).colorScheme.tertiary;
           } else if (intensity == -2) {
             cellColor = const Color(0xFF10B981);
           } else if (intensity == 1) {
@@ -714,7 +716,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
           decoration: BoxDecoration(
             color: showHighlight ? StyleService.getHeatmapHighlight(style, isDark) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: showHighlight 
                 ? (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05))
@@ -739,7 +741,7 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
-                        color: isCurrentMonth ? Theme.of(context).colorScheme.onSurface : Colors.grey[600])),
+                        color: isCurrentMonth ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant)),
               ),
               Row(mainAxisSize: MainAxisSize.min, children: thisMonthWeeks),
             ],

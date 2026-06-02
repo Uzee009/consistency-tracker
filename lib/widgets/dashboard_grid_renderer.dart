@@ -8,6 +8,8 @@ import '../models/panel_definition.dart';
 import '../widgets/panels/add_panel_placeholder.dart';
 import '../widgets/panel_picker.dart';
 import '../services/style_service.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 import '../main.dart';
 
 class DashboardGridRenderer extends StatelessWidget {
@@ -121,11 +123,11 @@ class DashboardGridRenderer extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
             border: Border.all(
               color: isHovered 
                   ? Theme.of(context).colorScheme.primary 
-                  : (isEdit ? Colors.grey.withValues(alpha: 0.2) : Colors.transparent),
+                  : (isEdit ? Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.2) : Colors.transparent),
               width: isHovered ? 2 : 1,
             ),
             color: isHovered ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05) : Colors.transparent,
@@ -155,14 +157,14 @@ class DashboardGridRenderer extends StatelessWidget {
       maxSimultaneousDrags: layoutController.isEditMode ? 1 : 0,
       feedback: Material(
         elevation: 10,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
         color: Colors.transparent,
         child: Container(
           width: 300,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
             border: Border.all(color: isDark ? Colors.white24 : Colors.transparent),
           ),
           child: Row(
@@ -208,7 +210,7 @@ class DashboardGridRenderer extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
         border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
       ),
       child: Column(
@@ -220,7 +222,7 @@ class DashboardGridRenderer extends StatelessWidget {
             child: Row(
               children: [
                 if (isEdit) ...[
-                  const Icon(Icons.drag_indicator_rounded, size: 16, color: Colors.grey),
+                  Icon(Icons.drag_indicator_rounded, size: AppIconSize.md, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 8),
                 ],
                 Icon(def.icon, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
@@ -234,7 +236,7 @@ class DashboardGridRenderer extends StatelessWidget {
                     onTap: () => layoutController.removePanel(def.id),
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.error, shape: BoxShape.circle),
                       child: const Icon(Icons.close_rounded, size: 10, color: Colors.white),
                     ),
                   ),
@@ -287,7 +289,7 @@ class DashboardGridRenderer extends StatelessWidget {
           width: 8,
           color: Colors.transparent,
           child: Center(
-            child: Container(width: 2, height: 40, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(1))),
+            child: Container(width: 2, height: 40, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(1))),
           ),
         ),
       ),
@@ -303,7 +305,7 @@ class DashboardGridRenderer extends StatelessWidget {
           height: 8,
           color: Colors.transparent,
           child: Center(
-            child: Container(height: 2, width: 40, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(1))),
+            child: Container(height: 2, width: 40, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(1))),
           ),
         ),
       ),

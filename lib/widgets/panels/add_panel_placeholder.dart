@@ -1,5 +1,6 @@
 // lib/widgets/panels/add_panel_placeholder.dart
 import 'package:flutter/material.dart';
+import '../../theme/app_radius.dart';
 
 class AddPanelPlaceholder extends StatelessWidget {
   final VoidCallback onPressed;
@@ -10,7 +11,7 @@ class AddPanelPlaceholder extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
           width: 2,

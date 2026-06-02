@@ -6,6 +6,9 @@ import '../../controllers/dashboard_layout_controller.dart';
 import '../../models/task_model.dart';
 import '../../widgets/task_section.dart';
 import '../../widgets/add_task_bottom_sheet.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_icon_size.dart';
 
 class TaskPanel extends StatefulWidget {
   final DashboardController controller;
@@ -22,7 +25,7 @@ class TaskPanel extends StatefulWidget {
   static List<Widget> getActions(BuildContext context, DashboardController controller, DashboardLayoutController layoutController) {
     return [
       _TaskAddAction(controller: controller, layoutController: layoutController),
-      const SizedBox(width: 8),
+      const SizedBox(width: AppSpacing.xs),
       _TaskCheatAction(controller: controller),
     ];
   }
@@ -69,7 +72,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
       children: [
         // INTEGRATED DATE INDICATOR
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xxs, AppSpacing.md, AppSpacing.sm),
           child: Row(
             children: [
               Text(
@@ -82,12 +85,12 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
                 ),
               ),
               if (!isToday) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(
                     "History", 
@@ -101,12 +104,12 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
 
         // TABS
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xxs),
           child: Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(AppSpacing.xxs),
             decoration: BoxDecoration(
               color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Row(
               children: [
@@ -116,7 +119,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -153,7 +156,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
                 children: <TextSpan>[
                   TextSpan(text: 'Remove "${t.name}"?\n'),
                   const TextSpan(text: 'Archive to hide it while keeping history.\n\n'), // Added extra \n
-                  TextSpan(text: 'Delete to permanently erase all data.', style: TextStyle(color: Colors.red)),
+                  TextSpan(text: 'Delete to permanently erase all data.', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ],
               ),
             ),
@@ -172,8 +175,8 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
                 label: const Text('Delete'), // Changed from 'Delete Permanently'
                 onPressed: () => Navigator.pop(context, 'deletePermanently'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(color: Theme.of(context).colorScheme.error),
                 ),
               ),
               TextButton(
@@ -192,7 +195,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Confirm Permanent Deletion'),
-              content: Text('WARNING: Deleting this task permanently will erase ALL its progress data. This action cannot be undone. Are you sure?', style: TextStyle(color: Colors.red)),
+              content: Text('Permanently delete this task and all its progress?\n\nThis cannot be undone.', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
@@ -200,7 +203,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Delete', style: TextStyle(color: Colors.red)), // Changed from 'Delete Permanently'
+                  child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)), // Changed from 'Delete Permanently'
                 ),
               ],
             ),
@@ -239,7 +242,7 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
   Widget _buildInnerPillTab(String label, int index) {
     final isSelected = _tabController.index == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(child: GestureDetector(onTap: () => _tabController.animateTo(index), child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))] : null), child: Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey[500])))));
+    return Expanded(child: GestureDetector(onTap: () => _tabController.animateTo(index), child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: isSelected ? (isDark ? Colors.white12 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(AppRadius.md), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))] : null), child: Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant)))));
   }
 }
 
@@ -264,7 +267,7 @@ class _TaskAddAction extends StatelessWidget {
             onTaskAdded: () => controller.initialize(controller.selectedDate, showLoading: false)
           )
         ),
-        icon: const Icon(Icons.add_rounded, size: 18),
+        icon: const Icon(Icons.add_rounded, size: AppIconSize.lg),
         label: const Text(
           'ADD TASK', 
           style: TextStyle(
@@ -275,7 +278,7 @@ class _TaskAddAction extends StatelessWidget {
         ),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           // Background is handled by Theme primary via FilledButton
         ),
       ),
@@ -292,15 +295,15 @@ class _TaskCheatAction extends StatelessWidget {
     final bool isCheatUsed = controller.todayRecord.cheatUsed;
     final int tokens = (controller.currentUser?.monthlyCheatDays ?? 0) - controller.cheatDaysUsed;
     final bool canUseCheat = controller.selectedDate.day == DateTime.now().day && tokens > 0 && controller.todayRecord.completedTaskIds.isEmpty && !isCheatUsed;
-    final Color mainColor = isCheatUsed ? Colors.orange : (canUseCheat ? Colors.orange : Colors.grey[400]!);
+    final Color mainColor = isCheatUsed ? Theme.of(context).colorScheme.tertiary : (canUseCheat ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onSurfaceVariant);
 
     return GestureDetector(
       onTap: canUseCheat ? () => _onDeclareCheatDay(context) : (isCheatUsed ? () => _onUndoCheatDay(context) : null),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: isCheatUsed ? Colors.orange : mainColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: mainColor.withValues(alpha: 0.2))),
+        decoration: BoxDecoration(color: isCheatUsed ? Theme.of(context).colorScheme.tertiary : mainColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: mainColor.withValues(alpha: 0.2))),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(isCheatUsed ? Icons.celebration_rounded : Icons.celebration_outlined, size: 12, color: isCheatUsed ? Colors.white : mainColor),
+          Icon(isCheatUsed ? Icons.celebration_rounded : Icons.celebration_outlined, size: AppIconSize.xs, color: isCheatUsed ? Colors.white : mainColor),
           const SizedBox(width: 6),
           Text(isCheatUsed ? 'Used' : 'Cheat ($tokens)', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: isCheatUsed ? Colors.white : mainColor, letterSpacing: 0.5)),
         ]),
@@ -309,12 +312,12 @@ class _TaskCheatAction extends StatelessWidget {
   }
 
   void _onUndoCheatDay(BuildContext context) async {
-    final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Undo Cheat Day?'), content: const Text('Reclaim token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Undo', style: TextStyle(color: Colors.orange)))]));
+    final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Undo Cheat Day?'), content: const Text('Reclaim token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Undo', style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))]));
     if (confirm == true) await controller.undoCheatDay();
   }
 
   void _onDeclareCheatDay(BuildContext context) async {
-    final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Use Cheat Day?'), content: const Text('Use a token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Use Token', style: TextStyle(color: Colors.orange)))]));
+    final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('Use Cheat Day?'), content: const Text('Use a token?'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Use Token', style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))]));
     if (confirm == true) await controller.claimCheatDay();
   }
 }

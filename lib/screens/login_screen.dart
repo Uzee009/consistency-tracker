@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/screens/signup_screen.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 String _friendlyAuthError(Object e, {required bool isSignUp}) {
   final s = e.toString().toLowerCase();
@@ -121,19 +123,20 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'PocketBase Account',
+                  'Welcome back',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
+                    letterSpacing: 0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sign in to sync your tasks across devices.',
+                  'Sign in to sync your tasks across devices. New here? Create an account below.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFFA1A1AA),
+                    height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -173,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _showAdvanced
                             ? Icons.expand_less
                             : Icons.expand_more,
-                        size: 20,
+                        size: AppIconSize.xl,
                         color: const Color(0xFFA1A1AA),
                       ),
                       const SizedBox(width: 8),
@@ -206,14 +209,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                      border: Border.all(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.red,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
                         fontSize: 13,
                       ),
                     ),
@@ -227,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isLoading ? null : _handleSignIn,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -241,8 +244,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
                     onPressed: _isLoading
                         ? null
                         : () {
@@ -253,7 +257,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             );
                           },
-                    child: const Text("Don't have an account? Create one"),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
+                    ),
+                    child: const Text('Create Account'),
                   ),
                 ),
               ],

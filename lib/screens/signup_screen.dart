@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 String _friendlyAuthError(Object e, {required bool isSignUp}) {
   final s = e.toString().toLowerCase();
@@ -196,7 +198,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Icon(
                         _showAdvanced ? Icons.expand_less : Icons.expand_more,
-                        size: 20,
+                        size: AppIconSize.xl,
                         color: const Color(0xFFA1A1AA),
                       ),
                       const SizedBox(width: 8),
@@ -229,14 +231,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                      border: Border.all(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.red,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
                         fontSize: 13,
                       ),
                     ),
@@ -250,7 +252,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     onPressed: _isLoading ? null : _handleSignUp,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
                     ),
                     child: _isLoading
                         ? const SizedBox(

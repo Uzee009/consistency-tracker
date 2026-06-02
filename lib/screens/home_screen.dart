@@ -13,6 +13,8 @@ import '../services/connectivity_service.dart';
 import '../services/pocketbase_service.dart';
 import '../services/update_service.dart';
 import '../widgets/sync_status.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -103,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.system_update,
-                            size: 20, color: Theme.of(context).colorScheme.tertiary),
+                            size: AppIconSize.xl, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ValueListenableBuilder<UpdateProgress>(
@@ -214,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       }
                                     },
                                     style: TextButton.styleFrom(
-                                      foregroundColor: Colors.grey[600],
+                                      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                     child: const Text('Later',
                                         style: TextStyle(
@@ -305,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.timer_rounded, size: 14, color: color),
+          Icon(Icons.timer_rounded, size: AppIconSize.sm, color: color),
           const SizedBox(width: 6),
           Text(
             timeStr,
@@ -322,14 +324,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 _dataController.isTimerRunning
                     ? Icons.pause_rounded
                     : Icons.play_arrow_rounded,
-                size: 16,
+                size: AppIconSize.md,
                 color: color),
           ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: _dataController.resetTimer,
             child: Icon(Icons.refresh_rounded,
-                size: 12, color: color.withValues(alpha: 0.5)),
+                size: AppIconSize.xs, color: color.withValues(alpha: 0.5)),
           ),
         ],
       ),
@@ -377,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey[500],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         letterSpacing: 1)),
               ],
             ),
@@ -399,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 8),
               IconButton(
                 onPressed: () => _dataController.initialize(_dataController.selectedDate),
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: const Icon(Icons.refresh, size: AppIconSize.lg),
                 tooltip: 'Refresh',
                 color: Theme.of(context).colorScheme.onSurface,
               ),
@@ -417,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: isDark
             ? Colors.white.withValues(alpha: 0.05)
             : Colors.black.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -456,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? Icons.check_circle_rounded
                       : Icons.dashboard_customize_rounded,
                   color: color,
-                  size: 18),
+                  size: AppIconSize.lg),
               const SizedBox(width: 8),
               Text(
                 isEdit ? 'FINISH' : 'CUSTOMIZE LAYOUT',
@@ -485,7 +487,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? Colors.white12
                   : Colors.white)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           boxShadow: isSelected
               ? [
                   BoxShadow(
@@ -498,10 +500,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           children: [
             Icon(icon,
-                size: 14,
+                size: AppIconSize.sm,
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Colors.grey),
+                    : Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(label,
                 style: TextStyle(
@@ -509,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                     color: isSelected
                         ? Theme.of(context).colorScheme.onSurface
-                        : Colors.grey,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     letterSpacing: 0.5)),
           ],
         ),
@@ -530,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context, isAuthed, _) {
                 final readiness = computeSyncReadiness(
                     serverReachable: isOnline, authed: isAuthed);
-                final dotColor = syncStatusColor(readiness);
+                final dotColor = syncStatusColor(readiness, Theme.of(context).colorScheme);
                 final tooltipMsg =
                     syncStatusTooltip(readiness, authed: isAuthed);
 
@@ -562,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: primary),
                                   )
-                                : Icon(Icons.sync, size: 18, color: primary),
+                                : Icon(Icons.sync, size: AppIconSize.lg, color: primary),
                             const SizedBox(width: 8),
                             Text(
                               isSyncing ? 'SYNCING…' : 'SYNC',

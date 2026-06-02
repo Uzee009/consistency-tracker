@@ -4,6 +4,9 @@ import '../models/day_record_model.dart';
 import '../services/style_service.dart';
 import '../main.dart';
 import 'task_item.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 class TaskSection extends StatelessWidget {
   final String title;
@@ -57,12 +60,12 @@ class TaskSection extends StatelessWidget {
             : StyleService.getTempTaskBorder(style, isDark));
 
     return Container(
-      margin: isEmbedded ? EdgeInsets.zero : const EdgeInsets.all(8.0),
+      margin: isEmbedded ? EdgeInsets.zero : const EdgeInsets.all(AppSpacing.xs),
       decoration: isEmbedded 
         ? const BoxDecoration(color: Colors.transparent) // V6 Seamless
         : BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: borderColor, width: 1),
             boxShadow: [
               BoxShadow(
@@ -99,13 +102,13 @@ class TaskSection extends StatelessWidget {
                         icon: Icons.celebration_outlined,
                         color: dayRecord.completedTaskIds.isNotEmpty
                             ? (isDark ? Colors.white10 : Colors.black12)
-                            : Colors.orange[400]!,
+                            : Theme.of(context).colorScheme.tertiary,
                         tooltip: dayRecord.completedTaskIds.isNotEmpty
                             ? 'Cheat Day locked'
                             : 'Declare Cheat Day',
                         onPressed: onCheatPressed!,
                       ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xxs),
                     _buildHeaderButton(
                       context,
                       icon: Icons.add_rounded,
@@ -116,12 +119,11 @@ class TaskSection extends StatelessWidget {
                   ],
                 ),
               ],
-                          ),
-                        ),
-                      if (showTitle) const Divider(),
-                      Expanded(
-                        child: filteredTasks.isEmpty
-            
+            ),
+          ),
+          if (showTitle) const Divider(),
+          Expanded(
+            child: filteredTasks.isEmpty
                 ? Center(
                     child: Text(
                       'No tasks yet',
@@ -129,7 +131,7 @@ class TaskSection extends StatelessWidget {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: AppSpacing.xs),
                     itemCount: filteredTasks.length,
                     itemBuilder: (context, index) {
                       final task = filteredTasks[index];
@@ -172,12 +174,12 @@ class TaskSection extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xxs),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -191,9 +193,9 @@ class TaskSection extends StatelessWidget {
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xxs),
                 ],
-                Icon(icon, size: 16, color: color),
+                Icon(icon, size: AppIconSize.md, color: color),
               ],
             ),
           ),

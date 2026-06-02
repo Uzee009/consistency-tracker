@@ -12,6 +12,9 @@ import 'package:consistency_tracker_v1/main.dart';
 import 'package:consistency_tracker_v1/widgets/sync_status.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
+import '../widgets/app_card.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -125,7 +128,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildSectionHeader('PROFILE',
                             'Manage your identity and daily allowance.'),
-                        _buildCard(context, [
+                        AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                           _buildLabel('Email (from auth)'),
                           Text(
                             pbRecord.getStringValue('email').isEmpty
@@ -147,24 +153,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
+                              color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
                             ),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Icon(Icons.info, size: 16, color: Colors.orange),
-                                SizedBox(width: 8),
+                                Icon(Icons.info, size: AppIconSize.md, color: Theme.of(context).colorScheme.tertiary),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     'Profile setup pending. Complete setup in Settings.',
                                     style: TextStyle(
-                                        fontSize: 13, color: Colors.orange),
+                                        fontSize: 13, color: Theme.of(context).colorScheme.tertiary),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ]),
+                        ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -187,7 +195,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildSectionHeader(
                       'PROFILE', 'Manage your identity and daily allowance.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     _buildLabel('Display Name'),
                     TextField(
                       controller: _nameController,
@@ -207,11 +218,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   i == 1 ? '1 day / mo' : '$i days / mo'))),
                       onChanged: (v) => setState(() => _monthlyCheatDays = v),
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('APPEARANCE',
                       'Customize the visual personality of the app.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     _buildLabel('Theme Mode'),
                     ValueListenableBuilder<ThemeMode>(
                       valueListenable: themeNotifier,
@@ -252,11 +268,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('SOUND & FEEDBACK',
                       'Configure notification sounds and haptics.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     ValueListenableBuilder<bool>(
                       valueListenable: AudioService.instance.isEnabled,
                       builder: (context, enabled, _) => SwitchListTile(
@@ -304,11 +325,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             'Goal Reached', AudioType.goalReached),
                       ],
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('SYNC & CONNECTIVITY',
                       'Manage cloud synchronization across devices.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     ValueListenableBuilder<bool>(
                       valueListenable: PocketBaseService.instance.authState,
                       builder: (context, isAuthenticated, _) {
@@ -321,15 +347,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
                                       Icon(Icons.sync_disabled,
-                                          size: 16, color: Colors.orange),
-                                      SizedBox(width: 8),
+                                          size: AppIconSize.md, color: Theme.of(context).colorScheme.tertiary),
+                                      const SizedBox(width: 8),
                                       Text(
                                         'Sync off — not signed in',
                                         style: TextStyle(
-                                            fontSize: 14, color: Colors.orange),
+                                            fontSize: 14, color: Theme.of(context).colorScheme.tertiary),
                                       ),
                                     ],
                                   ),
@@ -366,7 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 children: [
                                   Icon(
                                     Icons.check_circle_outline,
-                                    size: 18,
+                                    size: AppIconSize.lg,
                                     color:
                                         Theme.of(context).colorScheme.primary,
                                   ),
@@ -435,7 +461,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           builder: (context, isAuthed, _) {
                             final readiness = computeSyncReadiness(
                                 serverReachable: isOnline, authed: isAuthed);
-                            final color = syncStatusColor(readiness);
+                            final color = syncStatusColor(readiness, Theme.of(context).colorScheme);
                             final tooltip =
                                 syncStatusTooltip(readiness, authed: isAuthed);
 
@@ -493,24 +519,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           child: CircularProgressIndicator(
                                               strokeWidth: 2),
                                         )
-                                      : const Icon(Icons.sync, size: 18),
+                                      : const Icon(Icons.sync, size: AppIconSize.lg),
                                   label:
                                       Text(isSyncing ? 'Syncing…' : 'Sync Now'),
                                 ),
                                 if (!isAuthed) ...[
                                   const SizedBox(height: 8),
-                                  const Text(
+                                  Text(
                                     'Sign in or create an account to enable sync.',
                                     style: TextStyle(
-                                        fontSize: 12, color: Colors.grey),
+                                        fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                 ] else if (SyncService.instance.lastSyncedAt !=
                                     null) ...[
                                   const SizedBox(height: 8),
                                   Text(
                                     'Last synced: ${_formatLastSynced(SyncService.instance.lastSyncedAt!)}',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey),
+                                    style: TextStyle(
+                                        fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                 ],
                               ],
@@ -519,10 +545,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     // Current Version display
                     _buildLabel('Current Version'),
                     Text(
@@ -568,7 +599,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.system_update, size: 18),
+                          : const Icon(Icons.system_update, size: AppIconSize.lg),
                       label: Text(
                           _checkingUpdate ? 'Checking…' : 'Check for Updates'),
                     ),
@@ -591,7 +622,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     onPressed: () => UpdateService.instance
                                         .downloadAndApply(),
                                     icon:
-                                        const Icon(Icons.restart_alt, size: 18),
+                                        const Icon(Icons.restart_alt, size: AppIconSize.lg),
                                     label: const Text('Update & Restart'),
                                   ),
                                   const SizedBox(height: 4),
@@ -672,7 +703,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(AppRadius.xs),
                                     child: LinearProgressIndicator(
                                       value: progress.pct,
                                       minHeight: 8,
@@ -685,7 +716,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -722,7 +755,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: const Text('SETTINGS'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: AppIconSize.lg),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -744,27 +777,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: Theme.of(context).colorScheme.primary)),
           const SizedBox(height: 4),
           Text(subtitle,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCard(BuildContext context, List<Widget> children) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color:
-                isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
       ),
     );
   }
@@ -773,11 +787,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 2),
       child: Text(text,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
-              color: Colors.grey)),
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
     );
   }
 
@@ -792,13 +806,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: isDark
             ? Colors.black.withValues(alpha: 0.2)
             : const Color(0xFFF4F4F5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: AppIconSize.lg),
           style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -815,20 +829,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () => AudioService.instance.playSound(type),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isDark
               ? Colors.white.withValues(alpha: 0.05)
               : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.play_arrow_rounded,
-                size: 12, color: Theme.of(context).colorScheme.primary),
+                size: AppIconSize.xs, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 4),
             Text(label,
                 style:

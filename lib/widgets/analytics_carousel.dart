@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/scoring_service.dart';
+import '../theme/app_radius.dart';
 
 class AnalyticsCarousel extends StatefulWidget {
   final List<MomentumPoint> momentumData;
@@ -129,7 +130,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         child: Icon(
           icon, 
@@ -143,7 +144,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
   }
 
   Widget _buildMomentumChart(BuildContext context, bool isDark) {
-    if (widget.momentumData.isEmpty) return _buildEmptyState('Not enough data');
+    if (widget.momentumData.isEmpty) return _buildEmptyState('Not enough data', context);
     
     final accentColor = Theme.of(context).colorScheme.primary;
     final spots = widget.momentumData.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value)).toList();
@@ -175,7 +176,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                   return LineTooltipItem(
                     '$dateLabel\n',
                     TextStyle(
-                      color: Colors.grey[500],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
                     ),
@@ -217,6 +218,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                   if (index >= 0 && index < widget.momentumData.length) {
                     final date = widget.momentumData[index].date;
                     return _buildAxisLabel(
+                      context,
                       widget.title == '1Y' ? _getMonthName(date.month) : date.day.toString(),
                     );
                   }
@@ -230,9 +232,9 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                 interval: 0.5,
                 reservedSize: 32,
                 getTitlesWidget: (value, meta) {
-                  if (value == 0) return _buildAxisLabel('0%');
-                  if (value == 0.5) return _buildAxisLabel('50%');
-                  if (value == 1.0) return _buildAxisLabel('100%');
+                  if (value == 0) return _buildAxisLabel(context, '0%');
+                  if (value == 0.5) return _buildAxisLabel(context, '50%');
+                  if (value == 1.0) return _buildAxisLabel(context, '100%');
                   return const SizedBox();
                 },
               ),
@@ -277,9 +279,9 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
   }
 
   Widget _buildVolumeChart(BuildContext context, bool isDark) {
-    if (widget.volumeData.isEmpty) return _buildEmptyState('No tasks completed');
+    if (widget.volumeData.isEmpty) return _buildEmptyState('No tasks completed', context);
 
-    final accentColor = Colors.blue[400]!;
+    const accentColor = Color(0xFF60A5FA); // Semantic chart accent
     final barGroups = widget.volumeData.asMap().entries.map((e) {
       return BarChartGroupData(
         x: e.key,
@@ -326,7 +328,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                 return BarTooltipItem(
                   '$dateLabel\n',
                   TextStyle(
-                    color: Colors.grey[500],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
                   ),
@@ -359,6 +361,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                   if (index >= 0 && index < widget.volumeData.length) {
                     final date = widget.volumeData[index].date;
                     return _buildAxisLabel(
+                      context,
                       widget.title == '1Y' ? _getMonthName(date.month) : date.day.toString(),
                     );
                   }
@@ -372,7 +375,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                 reservedSize: 32,
                 getTitlesWidget: (value, meta) {
                   if (value == 0 || value == maxY.floor() || value == (maxY / 2).floor()) {
-                    return _buildAxisLabel(value.toInt().toString());
+                    return _buildAxisLabel(context, value.toInt().toString());
                   }
                   return const SizedBox();
                 },
@@ -388,7 +391,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     );
   }
 
-  Widget _buildAxisLabel(String text) {
+  Widget _buildAxisLabel(BuildContext context, String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Text(
@@ -396,7 +399,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
         style: TextStyle(
           fontSize: 8, 
           fontWeight: FontWeight.w900, 
-          color: Colors.grey[500],
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -407,11 +410,11 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
     return months[month - 1];
   }
 
-  Widget _buildEmptyState(String message) {
+  Widget _buildEmptyState(String message, BuildContext context) {
     return Center(
       child: Text(
         message,
-        style: const TextStyle(fontSize: 8, color: Colors.grey),
+        style: TextStyle(fontSize: 8, color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
   }

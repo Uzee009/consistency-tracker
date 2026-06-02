@@ -9,6 +9,9 @@ import '../services/scoring_service.dart';
 import '../widgets/consistency_heatmap.dart';
 import '../widgets/analytics_kpis.dart';
 import '../widgets/analytics_carousel.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
+import '../widgets/app_card.dart';
 
 import '../controllers/dashboard_controller.dart';
 
@@ -295,21 +298,21 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
             if (streakRange != null) 
               Row(
                 children: [
-                  Text("Streak Started: ", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                  Text("Streak Started: ", style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
                   _clickableDate(streakRange.start),
-                  Text(" • Ended: ", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                  Text(" • Ended: ", style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
                   _clickableDate(streakRange.end),
                 ],
               )
             else if (sel != null)
               Row(
                 children: [
-                  Text("Habit Start Date: ", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                  Text("Habit Start Date: ", style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
                   _clickableDate(sel.createdAt),
                 ],
               )
             else
-              Text('Aggregated metrics for all habits.', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+              Text('Aggregated metrics for all habits.', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
           ]
         );
       }
@@ -351,14 +354,13 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
   }
 
   Widget _section(BuildContext context, String title, String help, Widget child) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05))),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-          Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.grey[500])),
+          Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(width: 8),
-          const Icon(Icons.info_outline, size: 14, color: Colors.grey),
+          Icon(Icons.info_outline, size: AppIconSize.sm, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ])),
         const Divider(height: 1),
         child,
@@ -433,7 +435,7 @@ class _SearchSidebarState extends State<_SearchSidebar> {
       child: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 20, 16, 12), child: TextField(
           controller: _ctrl, onChanged: _onSearchChanged,
-          decoration: InputDecoration(hintText: 'Search habits...', prefixIcon: const Icon(Icons.search, size: 16), suffixIcon: _ctrl.text.isNotEmpty ? IconButton(onPressed: () { _ctrl.clear(); _applyFilter(); }, icon: const Icon(Icons.close, size: 14)) : null, contentPadding: EdgeInsets.zero),
+          decoration: InputDecoration(hintText: 'Search habits...', prefixIcon: const Icon(Icons.search, size: AppIconSize.md), suffixIcon: _ctrl.text.isNotEmpty ? IconButton(onPressed: () { _ctrl.clear(); _applyFilter(); }, icon: const Icon(Icons.close, size: AppIconSize.sm)) : null, contentPadding: EdgeInsets.zero),
           style: const TextStyle(fontSize: 13),
         )),
         _tile(null),
@@ -446,14 +448,14 @@ class _SearchSidebarState extends State<_SearchSidebar> {
   }
 
   Widget _tabs(bool isDark) {
-    return Container(margin: const EdgeInsets.symmetric(horizontal: 16), padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)), child: Row(children: [
+    return Container(margin: const EdgeInsets.symmetric(horizontal: 16), padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(AppRadius.md)), child: Row(children: [
       _t(0, 'Daily'), _t(1, 'Temp'), _t(2, 'Archive'),
     ]));
   }
 
   Widget _t(int i, String l) {
     final s = _cat == i;
-    return Expanded(child: GestureDetector(onTap: () { setState(() => _cat = i); _applyFilter(); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: s ? (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(6)), child: Text(l, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: s ? FontWeight.w700 : FontWeight.w500)))));
+    return Expanded(child: GestureDetector(onTap: () { setState(() => _cat = i); _applyFilter(); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 6), decoration: BoxDecoration(color: s ? (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(AppRadius.sm)), child: Text(l, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: s ? FontWeight.w700 : FontWeight.w500)))));
   }
 
   Widget _tile(Task? t) {
@@ -467,18 +469,18 @@ class _SearchSidebarState extends State<_SearchSidebar> {
 
         return Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2), child: InkWell(
           onTap: () => widget.selectedTaskNotifier.value = t,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), 
-            decoration: BoxDecoration(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent, borderRadius: BorderRadius.circular(8), border: Border.all(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3) : Colors.transparent)), 
+            decoration: BoxDecoration(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: sel ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3) : Colors.transparent)), 
             child: Row(children: [
               Icon(
                 isG ? Icons.insights_rounded : (t.isPerpetual ? Icons.cached : Icons.timer_outlined), 
-                size: 16, color: sel ? Theme.of(context).colorScheme.primary : (isPrimary ? Colors.grey : Colors.grey.withValues(alpha: 0.5))
+                size: AppIconSize.md, color: sel ? Theme.of(context).colorScheme.primary : (isPrimary ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5))
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text(displayName, style: TextStyle(fontSize: 12, fontWeight: sel ? FontWeight.w900 : FontWeight.w600, color: sel ? Theme.of(context).colorScheme.primary : (isPrimary ? null : Colors.grey)))),
-              if (!isG) IconButton(onPressed: () => widget.onToggleArchive(t), icon: Icon(t.isActive ? Icons.archive_outlined : Icons.unarchive_outlined, size: 14), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+              Expanded(child: Text(displayName, style: TextStyle(fontSize: 12, fontWeight: sel ? FontWeight.w900 : FontWeight.w600, color: sel ? Theme.of(context).colorScheme.primary : (isPrimary ? null : Theme.of(context).colorScheme.onSurfaceVariant)))),
+              if (!isG) IconButton(onPressed: () => widget.onToggleArchive(t), icon: Icon(t.isActive ? Icons.archive_outlined : Icons.unarchive_outlined, size: AppIconSize.sm), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
             ])
           ),
         ));
@@ -518,7 +520,7 @@ class _Inspector extends StatelessWidget {
       child: Column(children: [
         Padding(padding: const EdgeInsets.all(24), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('DAY LOG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey)),
+            Text('DAY LOG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             Text("${date.day} ${mNames[date.month-1]} ${date.year}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           ]),
           IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
@@ -526,7 +528,7 @@ class _Inspector extends StatelessWidget {
         const Divider(height: 1),
         _score(context, isC),
         Expanded(child: ListView(padding: const EdgeInsets.symmetric(horizontal: 24), children: [
-          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('HABITS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey))),
+          Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text('HABITS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurfaceVariant))),
           ...tasks.map((t) => _tTile(context, t)),
         ])),
       ]),
@@ -534,16 +536,16 @@ class _Inspector extends StatelessWidget {
   }
 
   Widget _score(BuildContext context, bool isC) {
-    final color = isC ? Colors.orange[400]! : Theme.of(context).colorScheme.primary;
-    return Container(margin: const EdgeInsets.all(24), padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: color.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withValues(alpha: 0.1))), child: Row(children: [
+    final color = isC ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.primary;
+    return Container(margin: const EdgeInsets.all(24), padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: color.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(AppRadius.xl), border: Border.all(color: color.withValues(alpha: 0.1))), child: Row(children: [
       Stack(alignment: Alignment.center, children: [
         SizedBox(width: 48, height: 48, child: CircularProgressIndicator(value: isC ? 1.0 : (record?.completionScore ?? 0), strokeWidth: 5, valueColor: AlwaysStoppedAnimation(color))),
-        Text(isC ? '100%' : '${((record?.completionScore ?? 0)*100).toInt()}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: isC ? Colors.orange[700] : null)),
+        Text(isC ? '100%' : '${((record?.completionScore ?? 0)*100).toInt()}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: isC ? Theme.of(context).colorScheme.tertiary : null)),
       ]),
       const SizedBox(width: 16),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(isC ? 'CHEAT DAY' : 'DAILY SCORE', style: TextStyle(fontWeight: FontWeight.w900, color: isC ? Colors.orange[700] : null)),
-        Text(isC ? 'Streak protected' : 'Completion rate', style: TextStyle(fontSize: 11, color: isC ? Colors.orange[400] : Colors.grey[500])),
+        Text(isC ? 'CHEAT DAY' : 'DAILY SCORE', style: TextStyle(fontWeight: FontWeight.w900, color: isC ? Theme.of(context).colorScheme.tertiary : null)),
+        Text(isC ? 'Streak protected' : 'Completion rate', style: TextStyle(fontSize: 11, color: isC ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onSurfaceVariant)),
       ])),
     ]));
   }
@@ -551,10 +553,10 @@ class _Inspector extends StatelessWidget {
   Widget _tTile(BuildContext context, Task t) {
     final c = record?.completedTaskIds.contains(t.sid) ?? false;
     final s = record?.skippedTaskIds.contains(t.sid) ?? false;
-    return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withValues(alpha: 0.05))), child: Row(children: [
-      Checkbox(value: c, onChanged: (v) => onToggleComp(t, v ?? false), activeColor: Colors.green),
-      Expanded(child: Text(t.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c ? null : (s ? Colors.orange[700] : null), decoration: c ? TextDecoration.lineThrough : null))),
-      IconButton(onPressed: () => onToggleSkip(t), icon: Icon(s ? Icons.block_flipped : Icons.block, size: 18, color: s ? Colors.orange[700] : Colors.grey[300])),
+    return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: Colors.black.withValues(alpha: 0.05))), child: Row(children: [
+      Checkbox(value: c, onChanged: (v) => onToggleComp(t, v ?? false), activeColor: const Color(0xFF10B981)),
+      Expanded(child: Text(t.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c ? null : (s ? Theme.of(context).colorScheme.tertiary : null), decoration: c ? TextDecoration.lineThrough : null))),
+      IconButton(onPressed: () => onToggleSkip(t), icon: Icon(s ? Icons.block_flipped : Icons.block, size: AppIconSize.lg, color: s ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5))),
     ]));
   }
 }

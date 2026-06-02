@@ -7,6 +7,8 @@ import 'package:consistency_tracker_v1/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:consistency_tracker_v1/widgets/app_logo.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
 
 class FirstRunSetupScreen extends StatefulWidget {
   const FirstRunSetupScreen({super.key});
@@ -65,7 +67,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
             color: isSelected 
                 ? (isDark ? Colors.white : Colors.black)
                 : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02)),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: isSelected ? Colors.transparent : Colors.transparent,
               width: 1,
@@ -75,7 +77,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
             children: [
               Icon(
                 icon,
-                size: 20,
+                size: AppIconSize.xl,
                 color: isSelected 
                     ? (isDark ? Colors.black : Colors.white)
                     : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
