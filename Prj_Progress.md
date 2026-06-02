@@ -816,3 +816,208 @@ Merged `feature/sync-engine` → `master` as merge commit `c44d8d9` with `#minor
 - PocketBase server backups still NOT enabled — user to enable in Admin UI → Settings → Backups.
 - macOS `.dmg` universal-vs-arm64 unverified (carry-over from Step 14).
 - T5 deploy-order dependency is now documented; future schema changes should follow the same "land migration on server first, then ship client" cadence.
+
+## Monday, 1 June 2026 (evening) — Step 16 Phase 1 + 1b: UI/UX Quick Wins (IN PROGRESS, not yet merged)
+
+### What happened
+
+Kicked off Step 16 — UI/UX Overhaul: Apple-Level Polish. Pre-work:
+1. Created branch `feature/ux-fixes` off master.
+2. Ran a full Explore-subagent audit of `lib/` (42 dart files) that surfaced 14+ ad-hoc spacing values, 7+ border-radius values, 13 icon sizes, ~91 hard-coded color instances, redundant nav entry points, weak error/empty/loading state UX, and no desktop keyboard polish.
+3. Wrote a 4-phase plan into `DEVELOPMENT_PLAN.md` (new `### Step 16` section) and initialized `CURRENT_MODULE.md` with the Phase 1 sub-task list.
+
+### Phase 1 — Quick Wins (7 items, one commit)
+
+User-flagged issues + audit highlights, delegated to gemini-coder in one batch:
+
+1. **Sync Log panel deleted** from `settings_screen.dart` (the `if (kDebugMode) ...` block at the old lines 495-524). `kDebugMode` import and `_formatAge` helper also removed as orphans.
+2. **REFRESH text label stripped** from header refresh button in `home_screen.dart`. `TextButton.icon` → `IconButton(tooltip: 'Refresh', color: theme.colorScheme.onSurface)`.
+3. **Top-right UserMenu removed** from `home_screen.dart`. PROFILE bottom-nav tab already opens the embedded SettingsScreen, so it was a redundant entry point. `lib/widgets/user_menu.dart` deleted entirely (137 lines).
+4. **UPDATES card colors themed**: hard-coded `Colors.orange[700]` / `Colors.red[700]` in the home update banner and the Settings UPDATES section replaced with `Theme.of(context).colorScheme.tertiary` / `.error`. Five unrelated `Colors.orange` instances in PROFILE and CHEAT DAYS info-icons remain — deferred to Phase 2 sweep.
+5. **Create Account / Sign In buttons in signup_screen and login_screen** got local `RoundedRectangleBorder(4)` style overrides. (INSUFFICIENT — see Phase 1b below.)
+6. **Auth UX**: `autofocus: true` on email; `textInputAction.next` + onSubmitted to advance focus; `textInputAction.done` + onSubmitted to submit on Enter from password. Both login and signup screens.
+7. **Tap-target bumps**: `task_item.dart` action button padding 8→12; `pomodoro_timer.dart` mode toggles h10/v6 → h14/v10.
+
+### Phase 1b — User spot-check follow-up (4 fixes, same commit)
+
+User ran the app and reported via screenshots that:
+- Settings "Create Account" OutlinedButton was STILL pill-shaped. Root cause: only `ElevatedButtonTheme` is defined globally in `main.dart`; `OutlinedButtonTheme` was never set, so Material 3 default (`StadiumBorder`, a pill) applied. The Phase 1 local override on `signup_screen.dart` had nothing to do with the Settings card button.
+- Settings → UPDATES card was narrow, not full-width like its sibling cards. Root cause: `_buildCard` Container had no width constraint and was sizing to its short content.
+- Wrong-password attempts surfaced the raw `ClientException: {url: …, isAbort: false, statusCode: 400, response: {data: {}, message: Failed to authenticate., …}}` blob. Root cause: `_errorMessage = e.toString()` in the catch block of both `login_screen.dart` and `signup_screen.dart`. (Originally scoped for Phase 3 but the user wanted it fixed now.)
+- Signed-in Sync & Connectivity card layout was cramped — email stacked above a hard-coded red `Sign Out` ElevatedButton.
+
+Fixes (delegated to gemini-coder in one follow-up batch):
+- **A — Global theme**: added `OutlinedButtonTheme` and `TextButtonTheme` to BOTH light and dark themes in `lib/main.dart`, each with the same `RoundedRectangleBorder(BorderRadius.circular(4))` shape and Inter typography spec as the existing ElevatedButtonTheme. Pills app-wide are now dead at the root.
+- **B — Card width**: added `width: double.infinity` to the Container in `_buildCard` (`settings_screen.dart:756`). UPDATES card now spans the same width as PROFILE/APPEARANCE/SYNC cards.
+- **C — Friendly auth errors**: new top-level helper `_friendlyAuthError(Object e, {required bool isSignUp})` in both `login_screen.dart` and `signup_screen.dart` that maps common errors to human copy:
+  - "Failed to authenticate" / 400 / 401 / 403 / invalid → "Wrong email or password." (or signup-flavor copy).
+  - SocketException / connection / timeout / network → "Can't reach the server. Check your internet connection and try again."
+  - 5xx / server → "Server hiccup. Please try again in a moment."
+  - else → "Sign-in failed. Please try again." (or signup-flavor).
+  Raw error still logged via `debugPrint('Login error: $e')` so devs can debug.
+- **D — Sync card signed-in layout**: replaced the vertical Column at `settings_screen.dart:363-383` with a horizontal Row: `Icons.check_circle_outline` (`colorScheme.primary`) + a small "Signed in" label and the email on the left (Expanded), `OutlinedButton` "Sign Out" on the right styled with `foregroundColor: colorScheme.error` and a faded error-color border.
+
+### Verification
+
+`flutter analyze`: **No issues found** after both Phase 1 and Phase 1b.
+
+Code-reviewer subagent is not currently registered in the harness (project-local `.claude/agents/gemini-coder.md` and `code-reviewer.md` exist but Claude Code surfaces only the built-ins). Orchestrator (Claude) performed inline diff review for both phases — both PASS, minimal collateral, on-spec.
+
+Gemini-coder also had to be invoked via Bash + `gemini --yolo -p` directly (same mechanism the subagent uses internally) rather than via the Agent tool, for the same reason.
+
+Phase 1b ran into a Gemini "RESOURCE_EXHAUSTED" 429 on `gemini-3-flash-preview` mid-execution but the model self-recovered after retry and completed all four edits successfully. Worth keeping an eye on if it happens again.
+
+### What's NOT done / open
+
+- User has NOT yet spot-checked the Phase 1b results in the running app. First task next session: re-run the app and confirm:
+  1. Settings "Create Account" OutlinedButton is now rectangular.
+  2. UPDATES card spans full width.
+  3. Wrong-password error shows "Wrong email or password." not the raw exception.
+  4. Signed-in Sync card has the new row layout with green check + themed Sign Out.
+- Phase 1 + 1b changes are COMMITTED on `feature/ux-fixes` but NOT MERGED to master. The branch sits ahead by one commit. Decision for next session: merge Phase 1+1b alone as an early ship, OR keep accumulating phases 2-4 and merge the whole module as one release.
+- Phases 2, 3, 4 of Step 16 are queued in `CURRENT_MODULE.md`. Phase 2 (Design System Foundation) is the immediate next.
+- Five `Colors.orange` instances remain in `settings_screen.dart` (info-icons in PROFILE and CHEAT DAYS cards) — Phase 2 color sweep will catch them.
+
+### Files changed in this session
+
+`CURRENT_MODULE.md`, `DEVELOPMENT_PLAN.md`, `lib/main.dart`, `lib/screens/home_screen.dart`, `lib/screens/login_screen.dart`, `lib/screens/settings_screen.dart`, `lib/screens/signup_screen.dart`, `lib/widgets/pomodoro_timer.dart`, `lib/widgets/task_item.dart`. Deleted: `lib/widgets/user_menu.dart`. Net: 10 files changed, ~330 insertions, ~250 deletions.
+
+### Where we left off — for cold resume tomorrow
+
+Read `CURRENT_MODULE.md` (Working Context + Next Action). Then read this entry. Then:
+1. Have the user re-launch the app and verify the four Phase 1b items above.
+2. If all four look good, decide: merge Phase 1+1b to master now (with `#minor` token → v1.5.0), OR continue to Phase 2 on the same branch and bundle everything.
+3. Whichever path, Phase 2 = Design System Foundation as detailed in `CURRENT_MODULE.md`. Start with `lib/theme/app_spacing.dart`, `app_radius.dart`, `app_icon_size.dart`, and a shared `lib/widgets/app_card.dart` extracted from the two duplicated `_buildCard` helpers (`settings_screen.dart:756` and `analytics_explorer_screen.dart:356`).
+
+---
+## 2026-06-02 — Step 16 Phase 2 (Design System Foundation)
+
+**What happened:**
+Built out the design-system primitives that Phases 3 + 4 will sit on top of. Created `lib/theme/app_spacing.dart`, `app_radius.dart`, `app_icon_size.dart`, and `lib/widgets/app_card.dart` extracted from the duplicated `_buildCard` helpers. Strengthened `lib/main.dart`'s `textTheme` (9 explicit roles via `_buildAppTextTheme(Brightness)`) and added explicit `colorScheme.tertiary` (brand orange) + `colorScheme.error` overrides to both light and dark themes. Then swept every screen and widget under `lib/` to replace hard-coded `Colors.*` with theme tokens and tokenize `BorderRadius.circular(N)` / `Icon(size: N)` on the standard scale.
+
+**Files touched:** 21 modified, 4 new. ~+450 / -300 lines net.
+
+**Outcome metrics:**
+- Zero raw `Colors.red|orange|grey|blue|green|yellow|amber|purple` in `lib/screens/` and `lib/widgets/` (only comment references in `analytics_kpis._getConsistencyColor` remain, intentionally).
+- All standard-scale border radius / icon sizes now token-sourced.
+- `flutter analyze` clean throughout (run after every batch).
+- `_buildCard` helper removed; both `settings_screen.dart` and `analytics_explorer_screen.dart` now use `AppCard`.
+- `syncStatusColor` signature changed to accept `ColorScheme`; both call sites updated.
+
+**What's open:**
+- ~40 raw `TextStyle(fontSize:…)` instances still in screens/widgets — `textTheme` is strengthened and ready, but the call-site migration was deferred. Will be picked up in Phase 3 or a follow-up.
+- Manual visual smoke on Linux Mint (dual style × dual brightness) — pending user verification.
+- Decision next session: merge Phase 1+1b+2 with `#minor` → v1.5.0, OR continue stacking through Phase 3+4.
+
+**How the work was done:**
+Plan saved to `/home/uzee/.claude/plans/scalable-painting-dove.md`. Eight batched gemini specs executed via Bash (subagents still not registered per existing memory). Orchestrator verified each batch with `flutter analyze` + targeted greps. One gemini batch had a transient file-corruption that gemini self-recovered via full file rewrite; one `const` violation was caught at analyze time and fixed mid-stream.
+
+**Cold-resume:** Read `CURRENT_MODULE.md` + this entry. Branch: `feature/ux-fixes`. Next: ask user to spot-check the running app, then choose between merging or continuing to Phase 3.
+
+---
+## 2026-06-02 — Step 16 Phase 3 (UX Polish)
+
+**What happened:**
+Layered UX polish on top of the Phase 2 design system. Created `lib/widgets/empty_state.dart` (reusable icon+title+subtitle+action placeholder) and applied it to the task list and analytics search sidebar. Migrated login + signup error UI from a separate red Container to inline `InputDecoration.errorText` that clears on edit. Removed the dead `SettingsScreen.isEmbedded=false` standalone-push variant (CANCEL button + AppBar + back chevron) — Settings is always the PROFILE tab now. Added `_isSavingSettings` state with a button spinner. Swapped all 4 `MaterialPageRoute` push sites to `CupertinoPageRoute` for smoother desktop transitions.
+
+**Files touched:** 7 modified, 1 new (`empty_state.dart`). ~+64 / -85 lines net (deletions exceed insertions thanks to dead-code removal).
+
+**What stayed put:**
+- First-run live preview already wired (`styleNotifier.value = style` on tap) — no edit needed.
+- Login + signup async disable already correct — no edit needed.
+- Other async paths (timer save, task add/delete) are local DB writes completing in ms; spinner instrumentation would be noise.
+
+**What's open:**
+- ~40 raw `TextStyle(fontSize:…)` instances pending migration to `textTheme` (Phase 2 carryover). Defer to follow-up.
+- Manual visual smoke on Linux Mint pending (especially: error states in login/signup, empty task list, empty analytics search, settings save spinner).
+- Decision: merge Phases 1-3 with `#minor` → v1.5.0 now, or stack Phase 4 first.
+
+**How the work was done:**
+Plan in CURRENT_MODULE.md task list. One big batched gemini spec covering EmptyState + form errorText + Settings de-embed + Cupertino swap + save spinner. Orchestrator verified with `flutter analyze` + targeted grep audits after gemini wrapped. Gemini had a few `replace` failures mid-spec and recovered via `write_file` rewrites; final state verified analyze-clean and matches the spec.
+
+**Cold-resume:** Read CURRENT_MODULE.md + this entry. Branch: `feature/ux-fixes`. Three Phase-2/3 commits accumulated; not merged to master. Next: ask user to spot-check, then choose between merging or starting Phase 4 (Motion & Micro-interactions).
+
+---
+## 2026-06-02 — Step 16 Phase 4 (Motion & Micro-interactions) + Module Close
+
+**What happened:**
+Layered implicit animations and desktop hover affordances on top of Phases 1-3. Heatmap cells now animate color transitions (AnimatedContainer, 220ms easeOut) and carry hover tooltips with formatted dates + cursor:click via MouseRegion. Task tiles use AnimatedOpacity for the dim-on-complete fade and AnimatedContainer for chrome state, with MouseRegion wrapping the row. Home screen sync dot wrapped in AnimatedContainer so color tween between ready/notSignedIn/unreachable is smooth. Update banner wrapped in AnimatedSize so appearance/dismissal collapses gracefully instead of snap-hiding. Pomodoro mode tabs already had AnimatedContainer from before — verified intact.
+
+**Files touched:** 3 modified, 0 new.
+- lib/widgets/consistency_heatmap.dart (cells in both 1M and generic views)
+- lib/widgets/task_item.dart
+- lib/screens/home_screen.dart
+
+**What stayed put:**
+- Pomodoro tabs already animated (no edit needed).
+- intl dep not added — used manual short-form date formatting in heatmap tooltips.
+
+**Module complete:**
+Step 16 — UI/UX Overhaul shipped across Phases 1+1b+2+3+4 on branch feature/ux-fixes (4 commits, all `[skip release]`). No merge to master yet. Decision pending: merge with `#minor` → v1.5.0 OR continue iterating.
+
+**What remains open across the whole module:**
+- ~40 raw TextStyle(fontSize:…) call-site migrations to textTheme (Phase 2 carryover, never strictly blocking)
+- Manual visual smoke on Linux Mint
+- The merge decision itself
+
+**How the work was done:**
+One batched gemini spec covering all 4 animation targets. Orchestrator verified with flutter analyze + grep audits (AnimatedContainer/AnimatedOpacity/AnimatedSize/MouseRegion/Tooltip presence in expected files). Two gemini replace failures recovered via re-targeted edits; final state clean.
+
+**Cold-resume:** Read CURRENT_MODULE.md + this entry. Branch: feature/ux-fixes. Four commits on the branch. Either (a) spot-check + merge to master, or (b) continue iterating UX. After merge, flip DEVELOPMENT_PLAN.md Step 16 to DONE and pick next module from the deferred list (Step 12, Step 11, PB backups).
+---
+
+## 2026-06-02 — Task Row UX (Kebab Menu + Manual Ordering)
+
+**What happened:**
+Two-phase polish on the task list, prompted by user feedback that three trailing buttons per row "looked junior". Phase A collapsed Skip / Edit / Delete into a single kebab (`PopupMenuButton`) on the right; the kebab is now always visible (including on completed rows), with Skip greyed when isCompleted and a context-aware "Skip"/"Unskip" label. Phase B added persisted manual ordering and drag-to-reorder, and removed the auto-sort entirely.
+
+**Sort behavior change (intentional):**
+- The Required-Today/Optional bucket separation is GONE.
+- The alphabetical tiebreaker is GONE.
+- Tasks now render strictly in user-controlled `sort_order`. Completing a task does not move it. New tasks append at the bottom.
+
+**Files touched:** 7 modified, 0 new.
+- lib/widgets/task_item.dart — 3 buttons → 1 PopupMenuButton (plus dead `_buildActionButton` removed in closeout)
+- lib/models/task_model.dart — new `sortOrder` int + copyWith
+- lib/services/database_service.dart — schema v9 → v10, `sort_order` column, ALTER+backfill from `created_at` ASC, `addTask` auto-assigns `max(sort_order)+1`, new `reorderTasks(sids, values)` transactional writer that bumps `dirty=1` + `updated_at`
+- lib/controllers/dashboard_controller.dart — bucketed+alpha sort deleted; replaced with `a.sortOrder.compareTo(b.sortOrder)`; new `reorderTasksWithinType(type, oldIndex, newIndex)` rotates only that type's sort_order pool
+- lib/widgets/task_section.dart — `ListView.builder` → `ReorderableListView.builder`, `buildDefaultDragHandles: false`, drag handle (`Icons.drag_indicator`) wrapped in `ReorderableDragStartListener` left of each row's checkbox, `ValueKey(task.sid)` per item
+- lib/widgets/panels/task_panel.dart — wires `onReorder` through to controller
+- CURRENT_MODULE.md — updated then archived as part of module closeout
+
+**What stayed put:**
+- Checkbox remains the primary inline action (one-click complete).
+- Per-row dimming on completion (`AnimatedOpacity 0.4`) untouched.
+- Long-press on the row body still triggers `onFocusRequested`.
+- TaskItem's surrounding container styling untouched — drag handle sits OUTSIDE the row card, by design.
+
+**What's open / known follow-ups:**
+- PocketBase `tasks` collection needs a `sort_order` numeric field added so reorders sync across devices. Until then, dirty rows push but the field may be dropped/rejected by PB depending on collection schema mode. Local UX works regardless. (Sync server: `/home/uzeeslive/pb` on GCP.)
+- Dragging on a past date also reorders today (sort_order is global, not date-scoped). Documented as intentional.
+- Drag handle is always visible on every row. Phase B spec deferred the "hover-only on desktop, always on touch" polish — easy follow-up.
+- Demo seeder commit (cc61f56) still not user-verified end-to-end. Park.
+
+**How the work was done:**
+Plan agreed with user via three structured AskUserQuestion rounds (kebab vs swipe, bucket-drop scope, drag-handle placement). Phase A dispatched as a single gemini spec; user visually confirmed before Phase B. Phase B dispatched as one batched gemini spec covering model + DB migration + controller + widget + panel + CURRENT_MODULE.md update. Orchestrator verified each phase via `flutter analyze` + per-file `git diff` reads (per `gemini-coder-verify` memory — gemini's self-report had several mid-stream `replace` failures, but the final on-disk state matched the spec). Closeout cycle deletes the leftover unused helper, appends this log entry, archives CURRENT_MODULE.md.
+
+**Cold-resume:** Branch `feature/ux-fixes`, commits `cc61f56` (demo seeder, parked + not visually verified) and the upcoming Task Row UX commit. Step 16 module already closed in a prior entry; this is a focused follow-up driven by user feedback. After commit, decide whether to keep stacking small UX commits on `feature/ux-fixes` or merge with `#minor` → next minor release.
+---
+
+## 2026-06-02 — Step 17 Motion System (Phases 1-9)
+
+**Summary:**
+- **What happened:** Step 17 introduced a Apple-tier motion system across the desktop app — design tokens, accessibility plumbing, hover & cursor system, layout choreography, navigation polish, drag chrome, personality (breathing sync, focus/blur dim, idle dim, reactive background), eased determinate progress, final audit.
+- **Files touched per phase summary:**
+    - **Phase 1:** Created `lib/theme/motion.dart` (tokens) and `lib/utils/motion_accessibility.dart` (provider); added settings UI for speed/reduce-motion.
+    - **Phase 2:** Migrated existing implicit animations to new tokens; added `PressScale` to all controls; checkbox completion choreography; `AnimatedNumber` counters.
+    - **Phase 3:** `HoverLift` on cards; hover-reveal action icons; cursor proximity glow; animated tooltips.
+    - **Phase 4:** Staggered list entry; FLIP-style reorder proxyDecorator; inertial scroll / rubber-banding.
+    - **Phase 5:** Direction-aware tab switches; `showMotionDialog` with origin-aware scale and backdrop blur; right-click context menus.
+    - **Phase 6:** Panel drag chrome (lift/shadow/rotate); `showMotionToast` (slide-in bottomSnackBar).
+    - **Phase 7:** Breathing sync indicator (sine-wave opacity); reactive background gradient (time-of-day hue shifts); window focus/blur/idle desaturation.
+    - **Phase 8:** Eased determinate progress rings; optimistic interaction refinement.
+    - **Phase 9:** Full accessibility audit; speed/reduce-motion validation; performance-mode toggle.
+- **What stayed deferred:** Cmd+K palette (its own module), animated focus ring travel, magnetic cursor, hero transitions (no detail screen), drop-zone breathe (single drop zone), Esc-cancel + drag-out-fade (Flutter ReorderableListView API limits), streak flame (no flame icon exists), focused-task pulse (no concept), progress ring ambient pulse (no dedicated ring), earned celebrations (substantial feature work — best as own module), emotional weight by action (cross-cutting refactor), skeleton screens, progressive reveal, window resize easing (would feel laggy).
+- **Commits list:** e4bdf21, 56b01f7, 3bf7370, 5097bf0, 184eca5, 102e692, 574c83e.
+- **How verified:** `flutter analyze` clean at every phase; user spot-checked visually and signed off.
+- **Cold-resume:** post-merge state on master, v1.1.0 published.

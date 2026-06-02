@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/dashboard_layout_controller.dart';
 import '../../widgets/pomodoro_timer.dart';
+import '../../theme/app_icon_size.dart';
 
 class FocusPanel extends StatelessWidget {
   final DashboardController controller;
@@ -13,7 +14,7 @@ class FocusPanel extends StatelessWidget {
 
   static List<Widget> getActions(BuildContext context, DashboardController controller, DashboardLayoutController layoutController) {
     return [
-      const Icon(Icons.timer_rounded, size: 14, color: Colors.grey),
+      Icon(Icons.timer_rounded, size: AppIconSize.sm, color: Theme.of(context).colorScheme.onSurfaceVariant),
     ];
   }
 

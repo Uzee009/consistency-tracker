@@ -11,14 +11,14 @@ SyncReadiness computeSyncReadiness({
   return SyncReadiness.ready;
 }
 
-Color syncStatusColor(SyncReadiness r) {
+Color syncStatusColor(SyncReadiness r, ColorScheme cs) {
   switch (r) {
     case SyncReadiness.ready:
-      return Colors.green;
+      return const Color(0xFF10B981); // semantic success green — keep as constant since ColorScheme has no success slot
     case SyncReadiness.notSignedIn:
-      return Colors.orange;
+      return cs.tertiary;
     case SyncReadiness.unreachable:
-      return Colors.red;
+      return cs.error;
   }
 }
 

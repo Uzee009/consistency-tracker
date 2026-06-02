@@ -14,6 +14,7 @@ class Task {
   final bool isActive;
   final FrequencyType frequencyType;
   final int weeklyTarget;
+  final int sortOrder;
 
   // Sync metadata
   final int updatedAt; // Unix timestamp (ms)
@@ -30,6 +31,7 @@ class Task {
     this.isActive = true,
     this.frequencyType = FrequencyType.daily,
     this.weeklyTarget = 1,
+    this.sortOrder = 0,
     this.updatedAt = 0,
     this.deleted = false,
     this.dirty = false,
@@ -47,6 +49,7 @@ class Task {
       'is_active': isActive ? 1 : 0,
       'frequency_type': frequencyType.toString().split('.').last,
       'weekly_target': weeklyTarget,
+      'sort_order': sortOrder,
       'updated_at': updatedAt,
       'deleted': deleted ? 1 : 0,
       'dirty': dirty ? 1 : 0,
@@ -71,14 +74,47 @@ class Task {
         orElse: () => FrequencyType.daily,
       ),
       weeklyTarget: map['weekly_target'] ?? 1,
+      sortOrder: map['sort_order'] ?? 0,
       updatedAt: map['updated_at'] ?? 0,
       deleted: (map['deleted'] ?? 0) == 1,
       dirty: (map['dirty'] ?? 0) == 1,
     );
   }
 
+  Task copyWith({
+    String? sid,
+    String? name,
+    TaskType? type,
+    int? durationDays,
+    bool? isPerpetual,
+    DateTime? createdAt,
+    bool? isActive,
+    FrequencyType? frequencyType,
+    int? weeklyTarget,
+    int? sortOrder,
+    int? updatedAt,
+    bool? deleted,
+    bool? dirty,
+  }) {
+    return Task(
+      sid: sid ?? this.sid,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      durationDays: durationDays ?? this.durationDays,
+      isPerpetual: isPerpetual ?? this.isPerpetual,
+      createdAt: createdAt ?? this.createdAt,
+      isActive: isActive ?? this.isActive,
+      frequencyType: frequencyType ?? this.frequencyType,
+      weeklyTarget: weeklyTarget ?? this.weeklyTarget,
+      sortOrder: sortOrder ?? this.sortOrder,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      dirty: dirty ?? this.dirty,
+    );
+  }
+
   @override
   String toString() {
-    return 'Task(sid: $sid, name: $name, type: $type, durationDays: $durationDays, isPerpetual: $isPerpetual, createdAt: $createdAt, isActive: $isActive, frequencyType: $frequencyType, weeklyTarget: $weeklyTarget)';
+    return 'Task(sid: $sid, name: $name, type: $type, durationDays: $durationDays, isPerpetual: $isPerpetual, createdAt: $createdAt, isActive: $isActive, frequencyType: $frequencyType, weeklyTarget: $weeklyTarget, sortOrder: $sortOrder)';
   }
 }

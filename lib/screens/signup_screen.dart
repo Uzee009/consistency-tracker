@@ -2,6 +2,40 @@
 
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
+import '../widgets/motion/press_scale.dart';
+
+String _friendlyAuthError(Object e, {required bool isSignUp}) {
+  final s = e.toString().toLowerCase();
+  if (s.contains('failed to authenticate') ||
+      s.contains('400') ||
+      s.contains('401') ||
+      s.contains('403') ||
+      s.contains('invalid') ||
+      s.contains('failed to create record')) {
+    return isSignUp
+        ? 'Could not create account. Email may already be in use, or the password is too weak.'
+        : 'Wrong email or password.';
+  }
+  if (s.contains('socketexception') ||
+      s.contains('failed host lookup') ||
+      s.contains('connection') ||
+      s.contains('timeout') ||
+      s.contains('network')) {
+    return 'Can\'t reach the server. Check your internet connection and try again.';
+  }
+  if (s.contains('500') ||
+      s.contains('502') ||
+      s.contains('503') ||
+      s.contains('504') ||
+      s.contains('server')) {
+    return 'Server hiccup. Please try again in a moment.';
+  }
+  return isSignUp
+      ? 'Sign-up failed. Please try again.'
+      : 'Sign-in failed. Please try again.';
+}
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -75,7 +109,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          debugPrint('Signup error: $e');
+          _errorMessage = _friendlyAuthError(e, isSignUp: true);
         });
       }
     } finally {
@@ -120,12 +155,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 // Email field
                 TextField(
                   controller: _emailController,
+                  autofocus: true,
                   decoration: InputDecoration(
                     hintText: 'Email',
                     labelText: 'Email',
                     enabled: !_isLoading,
                   ),
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
+                  onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 ),
                 const SizedBox(height: 16),
                 // Password field
@@ -135,8 +176,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     hintText: 'Password',
                     labelText: 'Password',
                     enabled: !_isLoading,
+                    errorText: _errorMessage,
                   ),
                   obscureText: true,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
+                  onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 ),
                 const SizedBox(height: 16),
                 // Confirm Password field
@@ -148,6 +195,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     enabled: !_isLoading,
                   ),
                   obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
+                  onSubmitted: (_) => _isLoading ? null : _handleSignUp(),
                 ),
                 const SizedBox(height: 16),
                 // Advanced section (server URL)
@@ -157,7 +209,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Icon(
                         _showAdvanced ? Icons.expand_less : Icons.expand_more,
-                        size: 20,
+                        size: AppIconSize.xl,
                         color: const Color(0xFFA1A1AA),
                       ),
                       const SizedBox(width: 8),
@@ -185,39 +237,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                // Error message
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 // Create Account button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleSignUp,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Create Account'),
+                  child: PressScale(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleSignUp,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Create Account'),
+                    ),
                   ),
                 ),
               ],

@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/dashboard_layout_controller.dart';
 import '../../widgets/consistency_heatmap.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_icon_size.dart';
+import '../motion/animated_tooltip.dart';
 
 class CalendarPanel extends StatefulWidget {
   final DashboardController controller;
@@ -44,21 +48,21 @@ class _CalendarResetAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
+    return AnimatedTooltip(
       message: 'Reset to Today',
       child: GestureDetector(
         onTap: () => controller.setSelectedDate(DateTime.now(), showLoading: false),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xxs),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(6)
+            borderRadius: BorderRadius.circular(AppRadius.sm)
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.today_rounded, size: 12, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 4),
+              Icon(Icons.today_rounded, size: AppIconSize.xs, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: AppSpacing.xxs),
               Text(
                 'TODAY',
                 style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
@@ -14,6 +15,9 @@ import 'package:window_manager/window_manager.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
+import 'package:consistency_tracker_v1/services/motion_settings_service.dart';
+import 'package:consistency_tracker_v1/utils/idle_detector.dart';
+import 'package:consistency_tracker_v1/widgets/motion/ambient_dim.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -22,6 +26,9 @@ import 'package:path/path.dart' as p;
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
 final ValueNotifier<VisualStyle> styleNotifier =
     ValueNotifier(VisualStyle.minimalist);
+final ValueNotifier<MotionSettings> motionNotifier = ValueNotifier(const MotionSettings());
+final ValueNotifier<bool> windowFocusedNotifier = ValueNotifier(true);
+final ValueNotifier<bool> userActiveNotifier = ValueNotifier(true);
 
 void _cleanupOldUpdate() {
   try {
@@ -102,6 +109,10 @@ void main() async {
           0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
 
+  motionNotifier.value = await MotionSettingsService.load();
+
+  IdleDetector.instance.initialize(userActiveNotifier);
+
   await AudioService.instance.initialize();
 
   // Initialize PocketBase service (handles auth token restoration)
@@ -155,7 +166,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver, WindowListener {
   late Future<bool> _isFirstRun;
   bool _isFirstRunCached = false;
   late ThemeMode _currentThemeMode;
@@ -167,6 +178,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      windowManager.addListener(this);
+    }
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _initializationFuture = _initializeThemeAndStyle();
     themeNotifier.addListener(_updateThemeAndStyle);
     styleNotifier.addListener(_updateThemeAndStyle);
@@ -175,11 +190,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      windowManager.removeListener(this);
+    }
     WidgetsBinding.instance.removeObserver(this);
     themeNotifier.removeListener(_updateThemeAndStyle);
     styleNotifier.removeListener(_updateThemeAndStyle);
     DatabaseService.instance.activeDbRevision.removeListener(_onActiveDbChanged);
     super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    IdleDetector.instance.touch();
+    return false;
+  }
+
+  @override
+  void onWindowFocus() {
+    windowFocusedNotifier.value = true;
+    IdleDetector.instance.touch();
+  }
+
+  @override
+  void onWindowBlur() {
+    windowFocusedNotifier.value = false;
   }
 
   void _onActiveDbChanged() {
@@ -278,16 +313,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         final primaryColor =
             StyleService.getPrimaryColor(_currentVisualStyle, _isDark);
 
-        return MaterialApp(
-          title: 'Consistency Tracker',
+        return AmbientDim(
+          windowFocused: windowFocusedNotifier,
+          userActive: userActiveNotifier,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerHover: (_) => IdleDetector.instance.touch(),
+            onPointerDown: (_) => IdleDetector.instance.touch(),
+            child: MaterialApp(
+              title: 'Consistency Tracker',
           themeMode: _currentThemeMode,
           theme: ThemeData(
-            textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+            textTheme: _buildAppTextTheme(Brightness.light),
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.grey,
               primary: primaryColor,
               surface: Colors.white,
               onSurface: const Color(0xFF09090B),
+              tertiary: const Color(0xFFEA580C),
+              error: const Color(0xFFDC2626),
             ),
             useMaterial3: true,
             scaffoldBackgroundColor: Colors.white,
@@ -340,6 +384,30 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     letterSpacing: 0.5),
               ),
             ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                textStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    letterSpacing: 0.5),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                textStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    letterSpacing: 0.5),
+              ),
+            ),
             dividerTheme: const DividerThemeData(
               thickness: 1,
               color: Color(0xFFF4F4F5),
@@ -347,13 +415,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           darkTheme: ThemeData(
-            textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+            textTheme: _buildAppTextTheme(Brightness.dark),
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.grey,
               brightness: Brightness.dark,
               primary: primaryColor,
               surface: const Color(0xFF09090B),
               onSurface: Colors.white,
+              tertiary: const Color(0xFFFB923C),
+              error: const Color(0xFFF87171),
             ),
             useMaterial3: true,
             scaffoldBackgroundColor: const Color(0xFF09090B),
@@ -407,6 +477,30 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     letterSpacing: 0.5),
               ),
             ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                textStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    letterSpacing: 0.5),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                textStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    letterSpacing: 0.5),
+              ),
+            ),
             dividerTheme: const DividerThemeData(
               thickness: 1,
               color: Color(0xFF18181B),
@@ -417,8 +511,29 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           home: _isFirstRunCached
               ? const FirstRunSetupScreen()
               : const HomeScreen(),
+            ),
+          ),
         );
       },
     );
   }
+}
+
+TextTheme _buildAppTextTheme(Brightness brightness) {
+  final base = brightness == Brightness.dark
+      ? ThemeData.dark().textTheme
+      : ThemeData.light().textTheme;
+  return GoogleFonts.interTextTheme(base).copyWith(
+    displayLarge: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+    headlineSmall: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700),
+    titleLarge: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700),
+    titleMedium: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+    titleSmall: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+    labelLarge: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+    labelMedium: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+    labelSmall: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+    bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400),
+    bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w400),
+    bodySmall: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+  );
 }

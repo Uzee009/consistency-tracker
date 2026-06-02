@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
-import '../widgets/user_menu.dart';
 import '../widgets/app_logo.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
@@ -14,6 +13,15 @@ import '../services/connectivity_service.dart';
 import '../services/pocketbase_service.dart';
 import '../services/update_service.dart';
 import '../widgets/sync_status.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
+import '../theme/motion.dart';
+import '../utils/motion_accessibility.dart';
+import '../widgets/motion/animated_tooltip.dart';
+import '../widgets/motion/breathing.dart';
+import '../widgets/motion/reactive_background.dart';
+
+import '../utils/motion_toast.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -83,8 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Scaffold(
-          body: Column(
-            children: [
+          body: ReactiveBackground(
+            child: Column(
+              children: [
               // 1. GLOBAL HEADER
               _buildGlobalHeader(context),
 
@@ -92,143 +101,144 @@ class _HomeScreenState extends State<HomeScreen> {
               ValueListenableBuilder<UpdateInfo?>(
                 valueListenable: UpdateService.instance.available,
                 builder: (context, available, _) {
-                  if (available == null ||
-                      _dismissedUpdateVersion == available.version) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    child: Row(
-                      children: [
-                        Icon(Icons.system_update,
-                            size: 20, color: Colors.orange[700]),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ValueListenableBuilder<UpdateProgress>(
-                            valueListenable: UpdateService.instance.progress,
-                            builder: (context, progress, _) {
-                              String label =
-                                  'Update available: v${available.version}';
-                              bool isError =
-                                  progress.stage == UpdateStage.error;
-
-                              if (progress.stage == UpdateStage.downloading) {
-                                final pct = (progress.pct ?? 0) * 100;
-                                label = 'Downloading update… ${pct.round()}%';
-                              } else if (progress.stage ==
-                                  UpdateStage.verifying) {
-                                label = 'Verifying update…';
-                              } else if (progress.stage ==
-                                  UpdateStage.applying) {
-                                label = 'Installing update…';
-                              } else if (progress.stage ==
-                                  UpdateStage.restarting) {
-                                label = 'Restarting…';
-                              } else if (isError) {
-                                label = progress.message ?? 'Update failed';
-                              }
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    label,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isError
-                                          ? Colors.red[700]
-                                          : Colors.orange[700],
-                                    ),
-                                  ),
-                                  if (progress.stage != UpdateStage.idle &&
-                                      progress.stage != UpdateStage.error) ...[
-                                    const SizedBox(height: 8),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(2),
-                                      child: LinearProgressIndicator(
-                                        value: progress.pct,
-                                        minHeight: 4,
-                                        backgroundColor: Colors.orange
-                                            .withValues(alpha: 0.1),
-                                        valueColor: AlwaysStoppedAnimation(
-                                            Colors.orange[700]),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ValueListenableBuilder<UpdateProgress>(
-                          valueListenable: UpdateService.instance.progress,
-                          builder: (context, progress, _) {
-                            if (progress.stage != UpdateStage.idle &&
-                                progress.stage != UpdateStage.error) {
-                              return const SizedBox.shrink();
-                            }
-
-                            final isError = progress.stage == UpdateStage.error;
-
-                            return Row(
-                              mainAxisSize: MainAxisSize.min,
+                  return AnimatedSize(
+                    duration: MotionAccessibility.of(context).apply(Motion.medium),
+                    curve: Motion.standardEase,
+                    child: (available == null ||
+                            _dismissedUpdateVersion == available.version)
+                        ? const SizedBox.shrink()
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+                            child: Row(
                               children: [
-                                TextButton(
-                                  onPressed: () =>
-                                      UpdateService.instance.downloadAndApply(),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.orange[700],
-                                  ),
-                                  child: Text(
-                                      isError
-                                          ? 'Try again'
-                                          : 'Update & Restart',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w900)),
-                                ),
-                                const SizedBox(width: 4),
-                                TextButton(
-                                  onPressed: () =>
-                                      UpdateService.instance.openDownload(),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.orange[700],
-                                  ),
-                                  child: const Text('Manual',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600)),
-                                ),
-                                if (!isError) ...[
-                                  const SizedBox(width: 4),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await UpdateService.instance
-                                          .dismiss(available.version);
-                                      if (mounted) {
-                                        setState(() => _dismissedUpdateVersion =
-                                            available.version);
+                                Icon(Icons.system_update,
+                                    size: AppIconSize.xl, color: Theme.of(context).colorScheme.tertiary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ValueListenableBuilder<UpdateProgress>(
+                                    valueListenable: UpdateService.instance.progress,
+                                    builder: (context, progress, _) {
+                                      String label =
+                                          'Update available: v${available.version}';
+                                      bool isError =
+                                          progress.stage == UpdateStage.error;
+
+                                      if (progress.stage == UpdateStage.downloading) {
+                                        final pct = (progress.pct ?? 0) * 100;
+                                        label = 'Downloading update… ${pct.round()}%';
+                                      } else if (progress.stage ==
+                                          UpdateStage.verifying) {
+                                        label = 'Verifying update…';
+                                      } else if (progress.stage ==
+                                          UpdateStage.applying) {
+                                        label = 'Installing update…';
+                                      } else if (progress.stage ==
+                                          UpdateStage.restarting) {
+                                        label = 'Restarting…';
+                                      } else if (isError) {
+                                        label = progress.message ?? 'Update failed';
                                       }
+
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            label,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: isError
+                                                  ? Theme.of(context).colorScheme.error
+                                                  : Theme.of(context).colorScheme.tertiary,
+                                            ),
+                                          ),
+                                          if (progress.stage != UpdateStage.idle &&
+                                              progress.stage != UpdateStage.error) ...[
+                                            const SizedBox(height: 8),
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(2),
+                                              child: LinearProgressIndicator(
+                                                value: progress.pct,
+                                                minHeight: 4,
+                                                backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+                                                valueColor: AlwaysStoppedAnimation(
+                                                    Theme.of(context).colorScheme.tertiary),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      );
                                     },
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Colors.grey[600],
-                                    ),
-                                    child: const Text('Later',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600)),
                                   ),
-                                ],
+                                ),
+                                const SizedBox(width: 12),
+                                ValueListenableBuilder<UpdateProgress>(
+                                  valueListenable: UpdateService.instance.progress,
+                                  builder: (context, progress, _) {
+                                    if (progress.stage != UpdateStage.idle &&
+                                        progress.stage != UpdateStage.error) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    final isError = progress.stage == UpdateStage.error;
+
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              UpdateService.instance.downloadAndApply(),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Theme.of(context).colorScheme.tertiary,
+                                          ),
+                                          child: Text(
+                                              isError
+                                                  ? 'Try again'
+                                                  : 'Update & Restart',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w900)),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        TextButton(
+                                          onPressed: () =>
+                                              UpdateService.instance.openDownload(),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Theme.of(context).colorScheme.tertiary,
+                                          ),
+                                          child: const Text('Manual',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600)),
+                                        ),
+                                        if (!isError) ...[
+                                          const SizedBox(width: 4),
+                                          TextButton(
+                                            onPressed: () async {
+                                              await UpdateService.instance
+                                                  .dismiss(available.version);
+                                              if (mounted) {
+                                                setState(() => _dismissedUpdateVersion =
+                                                    available.version);
+                                              }
+                                            },
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            ),
+                                            child: const Text('Later',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.w600)),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                ),
                               ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                            ),
+                          ),
                   );
                 },
               ),
@@ -261,17 +271,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildActiveView() {
     if (_activeTabIndex == 1) {
       // V9: Pass controller to Explorer
       return AnalyticsExplorerScreen(controller: _dataController);
     } else if (_activeTabIndex == 2) {
-      return const SettingsScreen(isEmbedded: true);
+      return const SettingsScreen();
     }
 
     // DEFAULT: DASHBOARD
@@ -307,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.timer_rounded, size: 14, color: color),
+          Icon(Icons.timer_rounded, size: AppIconSize.sm, color: color),
           const SizedBox(width: 6),
           Text(
             timeStr,
@@ -324,14 +335,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 _dataController.isTimerRunning
                     ? Icons.pause_rounded
                     : Icons.play_arrow_rounded,
-                size: 16,
+                size: AppIconSize.md,
                 color: color),
           ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: _dataController.resetTimer,
             child: Icon(Icons.refresh_rounded,
-                size: 12, color: color.withValues(alpha: 0.5)),
+                size: AppIconSize.xs, color: color.withValues(alpha: 0.5)),
           ),
         ],
       ),
@@ -379,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey[500],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         letterSpacing: 1)),
               ],
             ),
@@ -399,33 +410,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               _buildSyncButton(context),
               const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () =>
-                    _dataController.initialize(_dataController.selectedDate),
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text(
-                  'REFRESH',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 40,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: UserMenu(
-                    currentUser: _dataController.currentUser,
-                    onSettingsReturn: () => _dataController.initialize(
-                        _dataController.selectedDate,
-                        showLoading: false),
-                  ),
-                ),
+              IconButton(
+                onPressed: () => _dataController.initialize(_dataController.selectedDate),
+                icon: const Icon(Icons.refresh, size: AppIconSize.lg),
+                tooltip: 'Refresh',
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ],
           ),
@@ -441,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: isDark
             ? Colors.white.withValues(alpha: 0.05)
             : Colors.black.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -480,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? Icons.check_circle_rounded
                       : Icons.dashboard_customize_rounded,
                   color: color,
-                  size: 18),
+                  size: AppIconSize.lg),
               const SizedBox(width: 8),
               Text(
                 isEdit ? 'FINISH' : 'CUSTOMIZE LAYOUT',
@@ -509,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? Colors.white12
                   : Colors.white)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           boxShadow: isSelected
               ? [
                   BoxShadow(
@@ -522,10 +511,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           children: [
             Icon(icon,
-                size: 14,
+                size: AppIconSize.sm,
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Colors.grey),
+                    : Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(label,
                 style: TextStyle(
@@ -533,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                     color: isSelected
                         ? Theme.of(context).colorScheme.onSurface
-                        : Colors.grey,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     letterSpacing: 0.5)),
           ],
         ),
@@ -554,11 +543,11 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context, isAuthed, _) {
                 final readiness = computeSyncReadiness(
                     serverReachable: isOnline, authed: isAuthed);
-                final dotColor = syncStatusColor(readiness);
+                final dotColor = syncStatusColor(readiness, Theme.of(context).colorScheme);
                 final tooltipMsg =
                     syncStatusTooltip(readiness, authed: isAuthed);
 
-                return Tooltip(
+                return AnimatedTooltip(
                   message: tooltipMsg,
                   child: Material(
                     color: primary.withValues(alpha: 0.1),
@@ -572,11 +561,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                  shape: BoxShape.circle, color: dotColor),
+                            ValueListenableBuilder<bool>(
+                              valueListenable: SyncService.instance.isSyncing,
+                              builder: (context, syncing, child) {
+                                return Breathing(
+                                  active: syncing,
+                                  minOpacity: 0.55,
+                                  maxOpacity: 1.0,
+                                  child: child!,
+                                );
+                              },
+                              child: AnimatedContainer(
+                                duration: MotionAccessibility.of(context).apply(Motion.medium),
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle, color: dotColor),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             isSyncing
@@ -586,7 +587,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: primary),
                                   )
-                                : Icon(Icons.sync, size: 18, color: primary),
+                                : Icon(Icons.sync, size: AppIconSize.lg, color: primary),
                             const SizedBox(width: 8),
                             Text(
                               isSyncing ? 'SYNCING…' : 'SYNC',
@@ -611,37 +612,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _handleSync() async {
-    final messenger = ScaffoldMessenger.of(context);
     final serverReachable = ConnectivityService.instance.isOnline.value;
     final isAuthed = PocketBaseService.instance.isAuthenticated;
     final readiness = computeSyncReadiness(
         serverReachable: serverReachable, authed: isAuthed);
 
     if (readiness == SyncReadiness.notSignedIn) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Not signed in — sign in to sync across your devices.'),
-          action: SnackBarAction(
-            label: 'SETTINGS',
-            onPressed: () => setState(() => _activeTabIndex = 2),
-          ),
+      showMotionToast(
+        context,
+        'Not signed in — sign in to sync across your devices.',
+        action: SnackBarAction(
+          label: 'SETTINGS',
+          onPressed: () => setState(() => _activeTabIndex = 2),
         ),
       );
       return;
     }
 
     if (readiness == SyncReadiness.unreachable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(syncStatusTooltip(readiness, authed: isAuthed)),
-        ),
+      showMotionToast(
+        context,
+        syncStatusTooltip(readiness, authed: isAuthed),
       );
       return;
     }
 
     final result = await SyncService.instance.sync();
     if (!mounted) return;
-    messenger.showSnackBar(SnackBar(content: Text(result.summary)));
+    showMotionToast(context, result.summary);
   }
 }

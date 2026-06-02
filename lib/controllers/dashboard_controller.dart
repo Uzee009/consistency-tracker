@@ -71,22 +71,8 @@ class DashboardController extends ChangeNotifier {
     final allTasks = await DatabaseService.instance.getAllTasks();
     if (requestId != _lastRequestId) return;
 
-    // V12 SORTING LOGIC: Stable Buckets
-    // Bucket 1: Required Today (Daily + Weekly tasks needing sessions)
-    // Bucket 2: Optional Today (Weekly tasks with goals met or not required today)
-    todaysTasks.sort((a, b) {
-      final progA = ScoringService.getWeeklyProgress(a, selectedDate, allRecords);
-      final progB = ScoringService.getWeeklyProgress(b, selectedDate, allRecords);
-
-      // A task is "Primary" if it's Daily OR if it's Weekly and required today.
-      final bool isPrimaryA = a.frequencyType == FrequencyType.daily || progA.isRequiredToday;
-      final bool isPrimaryB = b.frequencyType == FrequencyType.daily || progB.isRequiredToday;
-
-      if (isPrimaryA != isPrimaryB) return isPrimaryA ? -1 : 1;
-      
-      // Secondary sort: Alphabetical
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
+    // V13 SORTING LOGIC: Manual Ordering
+    todaysTasks.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     final taskTypeMap = {for (var t in allTasks) t.sid: t.type};
 
@@ -203,6 +189,31 @@ class DashboardController extends ChangeNotifier {
 
   Future<void> deleteTaskPermanently(String sid) async {
     await DatabaseService.instance.deleteTaskPermanently(sid);
+    await initialize(selectedDate, showLoading: false);
+  }
+
+  /// Persists a user-driven reorder within a single TaskType. Only the
+  /// sort_order values currently held by tasks of [type] are rotated among
+  /// themselves; other tasks' sort_order is left untouched, so cross-type
+  /// ordering is preserved.
+  Future<void> reorderTasksWithinType(TaskType type, int oldIndex, int newIndex) async {
+    // ReorderableListView quirk: adjust newIndex when moving down.
+    if (newIndex > oldIndex) newIndex -= 1;
+    // Build the slice for this type from todaysTasks (already sorted by sort_order).
+    final typeTasks = todaysTasks.where((t) => t.type == type).toList();
+    if (oldIndex < 0 || oldIndex >= typeTasks.length) return;
+    if (newIndex < 0 || newIndex > typeTasks.length - 1) {
+      newIndex = typeTasks.length - 1;
+    }
+    if (oldIndex == newIndex) return;
+    final moved = typeTasks.removeAt(oldIndex);
+    typeTasks.insert(newIndex, moved);
+    // The pool of sort_order values currently held by this type's tasks,
+    // sorted ascending — we redistribute them in the new order.
+    final orderValues = typeTasks.map((t) => t.sortOrder).toList()..sort();
+    final orderedSids = typeTasks.map((t) => t.sid).toList();
+    await DatabaseService.instance.reorderTasks(orderedSids, orderValues);
+    // Refresh local list to reflect new sort_order so UI doesn't flicker.
     await initialize(selectedDate, showLoading: false);
   }
 

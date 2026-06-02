@@ -2,6 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:consistency_tracker_v1/controllers/dashboard_controller.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
+
+import '../utils/motion_dialog.dart';
 
 class PomodoroTimer extends StatefulWidget {
   final DashboardController controller;
@@ -27,7 +32,7 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
     final accentColor = _getAccentColor(context, mode);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Stack(
         children: [
           // 1. MODE SELECTORS (Pinned Top Left)
@@ -37,9 +42,9 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
             child: Row(
               children: [
                 _buildModeButton(context, 'Focus', 'focus', mode),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xxs),
                 _buildModeButton(context, 'Short', 'shortBreak', mode),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xxs),
                 _buildModeButton(context, 'Long', 'longBreak', mode),
               ],
             ),
@@ -57,7 +62,7 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
                   onPressed: controller.resetTimer,
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xxs),
                 _buildHeaderControl(
                   context,
                   icon: Icons.settings_outlined,
@@ -73,7 +78,7 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 24), // Offset for the pinned controls
+                const SizedBox(height: AppSpacing.xl), // Offset for the pinned controls
                 MouseRegion(
                   onEnter: (_) => setState(() => _isHovering = true),
                   onExit: (_) => setState(() => _isHovering = false),
@@ -106,7 +111,7 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 // Session Progress Dots
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -138,10 +143,10 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
       onTap: () => widget.controller.setTimerMode(modeId),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? accentColor.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(color: isSelected ? accentColor.withValues(alpha: 0.2) : Colors.transparent),
         ),
         child: Text(
@@ -160,20 +165,21 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
   Widget _buildHeaderControl(BuildContext context, {required IconData icon, required VoidCallback onPressed, required Color color}) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(padding: const EdgeInsets.all(4.0), child: Icon(icon, size: 16, color: color)),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(padding: const EdgeInsets.all(AppSpacing.xxs), child: Icon(icon, size: AppIconSize.md, color: color)),
       ),
     );
   }
 
   Color _getAccentColor(BuildContext context, String mode) {
+    // Semantic mode accents
     switch (mode) {
       case 'focus': return Theme.of(context).colorScheme.primary;
       case 'shortBreak': return const Color(0xFF10B981);
-      case 'longBreak': return Colors.blue[400]!;
+      case 'longBreak': return const Color(0xFF60A5FA);
       default: return Theme.of(context).colorScheme.primary;
     }
   }
@@ -190,9 +196,9 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
     final longController = TextEditingController(text: (controller.timerDurations['longBreak']! ~/ 60).toString());
     final goalController = TextEditingController(text: controller.todayRecord.pomodoroGoal.toString());
 
-    showDialog(
+    showMotionDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      child: AlertDialog(
         title: const Text('Timer Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -232,7 +238,7 @@ class _PomodoroTimerState extends State<PomodoroTimer> {
           labelText: label,
           labelStyle: const TextStyle(fontSize: 12),
           isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         ),
       ),
     );

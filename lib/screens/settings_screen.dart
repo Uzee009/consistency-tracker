@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
@@ -7,16 +7,23 @@ import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/services/connectivity_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
+import 'package:consistency_tracker_v1/services/motion_settings_service.dart';
 import 'package:consistency_tracker_v1/screens/login_screen.dart';
 import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:consistency_tracker_v1/widgets/sync_status.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_icon_size.dart';
+import '../widgets/motion/press_scale.dart';
+import '../widgets/app_card.dart';
+import '../utils/demo_seeder.dart';
+import '../utils/motion_dialog.dart';
+import '../utils/motion_toast.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final bool isEmbedded;
-  const SettingsScreen({super.key, this.isEmbedded = false});
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -29,12 +36,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int? _monthlyCheatDays;
   String? _currentVersion;
   bool _checkingUpdate = false;
+  bool _isSavingSettings = false;
+  double _motionSpeed = 1.0;
+  bool _motionPerfMode = false;
 
   @override
   void initState() {
     super.initState();
     _userFuture = _loadUserData();
     _loadCurrentVersion();
+    _motionSpeed = motionNotifier.value.speed;
+    _motionPerfMode = motionNotifier.value.performanceMode;
   }
 
   Future<void> _loadCurrentVersion() async {
@@ -63,22 +75,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
-    final user = await _userFuture;
-    if (user != null && _monthlyCheatDays != null) {
-      final updatedUser = User(
-        id: user.id,
-        name: _nameController.text,
-        createdAt: user.createdAt,
-        monthlyCheatDays: _monthlyCheatDays!,
-      );
-      await DatabaseService.instance.updateUser(updatedUser);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved successfully.')),
+    setState(() => _isSavingSettings = true);
+    try {
+      final user = await _userFuture;
+      if (user != null && _monthlyCheatDays != null) {
+        final updatedUser = User(
+          id: user.id,
+          name: _nameController.text,
+          createdAt: user.createdAt,
+          monthlyCheatDays: _monthlyCheatDays!,
         );
-        if (!widget.isEmbedded) Navigator.of(context).pop();
+        await DatabaseService.instance.updateUser(updatedUser);
       }
+      
+      // Persist motion settings
+      await MotionSettingsService.save(motionNotifier.value);
+
+      if (mounted) {
+        showMotionToast(context, 'Settings saved successfully.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingSettings = false);
     }
+  }
+
+  void _updateMotionSpeed(double v) {
+    setState(() => _motionSpeed = v);
+    motionNotifier.value = motionNotifier.value.copyWith(speed: v);
+  }
+
+  void _updateMotionPerfMode(bool v) {
+    setState(() => _motionPerfMode = v);
+    motionNotifier.value = motionNotifier.value.copyWith(performanceMode: v);
   }
 
   Future<void> _updateTheme(ThemeMode mode) async {
@@ -92,17 +120,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(
         DatabaseService.prefixedKey('visual_style'), style.index);
-  }
-
-  String _formatAge(int tsMs) {
-    final ageMs = DateTime.now().millisecondsSinceEpoch - tsMs;
-    final ageSecs = (ageMs / 1000).round();
-    if (ageSecs < 5) return 'now';
-    if (ageSecs < 60) return '${ageSecs}s';
-    final ageMins = (ageSecs / 60).round();
-    if (ageMins < 60) return '${ageMins}m';
-    final ageHours = (ageMins / 60).round();
-    return '${ageHours}h';
   }
 
   @override
@@ -130,6 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24.0, vertical: 32.0),
                     child: Column(
@@ -137,7 +155,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildSectionHeader('PROFILE',
                             'Manage your identity and daily allowance.'),
-                        _buildCard(context, [
+                        AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                           _buildLabel('Email (from auth)'),
                           Text(
                             pbRecord.getStringValue('email').isEmpty
@@ -159,24 +180,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
+                              color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
                             ),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Icon(Icons.info, size: 16, color: Colors.orange),
-                                SizedBox(width: 8),
+                                Icon(Icons.info, size: AppIconSize.md, color: Theme.of(context).colorScheme.tertiary),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     'Profile setup pending. Complete setup in Settings.',
                                     style: TextStyle(
-                                        fontSize: 13, color: Colors.orange),
+                                        fontSize: 13, color: Theme.of(context).colorScheme.tertiary),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ]),
+                        ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -192,6 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               padding:
                   const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
@@ -199,7 +223,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildSectionHeader(
                       'PROFILE', 'Manage your identity and daily allowance.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     _buildLabel('Display Name'),
                     TextField(
                       controller: _nameController,
@@ -219,11 +246,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   i == 1 ? '1 day / mo' : '$i days / mo'))),
                       onChanged: (v) => setState(() => _monthlyCheatDays = v),
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('APPEARANCE',
                       'Customize the visual personality of the app.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     _buildLabel('Theme Mode'),
                     ValueListenableBuilder<ThemeMode>(
                       valueListenable: themeNotifier,
@@ -264,11 +296,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('SOUND & FEEDBACK',
                       'Configure notification sounds and haptics.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     ValueListenableBuilder<bool>(
                       valueListenable: AudioService.instance.isEnabled,
                       builder: (context, enabled, _) => SwitchListTile(
@@ -316,11 +353,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             'Goal Reached', AudioType.goalReached),
                       ],
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('SYNC & CONNECTIVITY',
                       'Manage cloud synchronization across devices.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     ValueListenableBuilder<bool>(
                       valueListenable: PocketBaseService.instance.authState,
                       builder: (context, isAuthenticated, _) {
@@ -333,15 +375,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
                                       Icon(Icons.sync_disabled,
-                                          size: 16, color: Colors.orange),
-                                      SizedBox(width: 8),
+                                          size: AppIconSize.md, color: Theme.of(context).colorScheme.tertiary),
+                                      const SizedBox(width: 8),
                                       Text(
                                         'Sync off — not signed in',
                                         style: TextStyle(
-                                            fontSize: 14, color: Colors.orange),
+                                            fontSize: 14, color: Theme.of(context).colorScheme.tertiary),
                                       ),
                                     ],
                                   ),
@@ -350,44 +392,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     spacing: 12,
                                     runSpacing: 8,
                                     children: [
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const LoginScreen()),
+                                      PressScale(
+                                        child: ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).push(
+                                            CupertinoPageRoute(
+                                                builder: (context) =>
+                                                    const LoginScreen()),
+                                          ),
+                                          child: const Text('Sign In'),
                                         ),
-                                        child: const Text('Sign In'),
                                       ),
-                                      OutlinedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const SignUpScreen()),
+                                      PressScale(
+                                        child: OutlinedButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).push(
+                                            CupertinoPageRoute(
+                                                builder: (context) =>
+                                                    const SignUpScreen()),
+                                          ),
+                                          child: const Text('Create Account'),
                                         ),
-                                        child: const Text('Create Account'),
                                       ),
                                     ],
                                   ),
                                 ],
                               )
                             else
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    'Signed in as ${PocketBaseService.instance.userEmail ?? 'unknown'}',
-                                    style: const TextStyle(fontSize: 14),
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    size: AppIconSize.lg,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Signed in',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.5,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          PocketBaseService.instance
+                                                  .userEmail ??
+                                              'unknown',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  OutlinedButton(
                                     onPressed: () =>
                                         PocketBaseService.instance.logout(),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          Colors.red.withValues(alpha: 0.1),
-                                      foregroundColor: Colors.red,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.error,
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error
+                                            .withValues(alpha: 0.5),
+                                      ),
                                     ),
                                     child: const Text('Sign Out'),
                                   ),
@@ -408,7 +493,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           builder: (context, isAuthed, _) {
                             final readiness = computeSyncReadiness(
                                 serverReachable: isOnline, authed: isAuthed);
-                            final color = syncStatusColor(readiness);
+                            final color = syncStatusColor(readiness, Theme.of(context).colorScheme);
                             final tooltip =
                                 syncStatusTooltip(readiness, authed: isAuthed);
 
@@ -455,35 +540,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ElevatedButton.icon(
-                                  onPressed: (isSyncing || !isAuthed)
-                                      ? null
-                                      : _handleSyncNow,
-                                  icon: isSyncing
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
-                                      : const Icon(Icons.sync, size: 18),
-                                  label:
-                                      Text(isSyncing ? 'Syncing…' : 'Sync Now'),
+                                PressScale(
+                                  child: ElevatedButton.icon(
+                                    onPressed: (isSyncing || !isAuthed)
+                                        ? null
+                                        : _handleSyncNow,
+                                    icon: isSyncing
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2),
+                                          )
+                                        : const Icon(Icons.sync, size: AppIconSize.lg),
+                                    label:
+                                        Text(isSyncing ? 'Syncing…' : 'Sync Now'),
+                                  ),
                                 ),
                                 if (!isAuthed) ...[
                                   const SizedBox(height: 8),
-                                  const Text(
+                                  Text(
                                     'Sign in or create an account to enable sync.',
                                     style: TextStyle(
-                                        fontSize: 12, color: Colors.grey),
+                                        fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                 ] else if (SyncService.instance.lastSyncedAt !=
                                     null) ...[
                                   const SizedBox(height: 8),
                                   Text(
                                     'Last synced: ${_formatLastSynced(SyncService.instance.lastSyncedAt!)}',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey),
+                                    style: TextStyle(
+                                        fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                 ],
                               ],
@@ -492,40 +579,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 16),
-                      Text('DEBUG: Sync Log (last 50)', style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<int>(
-                        valueListenable: SyncService.instance.syncEventsRevision,
-                        builder: (context, _, __) {
-                          final all = SyncService.instance.syncEvents;
-                          final events = all
-                              .where((e) => !(e.result == 'noop' || e.result == 'skipped' || e.result == 'busy' || e.result == 'offline' || e.result == 'notSignedIn'))
-                              .toList();
-                          if (events.isEmpty) {
-                            return Text(
-                              '(no sync work in the last 50 events — idle)',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            );
-                          }
-                          return Column(
-                            children: events.reversed.map((e) {
-                              final age = _formatAge(e.ts);
-                              final detail = e.detail != null ? ' (${e.detail})' : '';
-                              return Text(
-                                '${e.reason} — ${e.result} (Δ ${age}$detail)',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              );
-                            }).toList(),
-                          );
-                        },
-                      ),
-                    ],
-                  ]),
+                  ],
+                          ),
+                        ),
+                  const SizedBox(height: 40),
+                  _buildSectionHeader('MOTION & ANIMATION',
+                      'Control the speed and frequency of animations.'),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel(
+                            'Animation Speed (${_motionSpeed.toStringAsFixed(2)}x)'),
+                        Slider(
+                          value: _motionSpeed,
+                          min: 0.5,
+                          max: 2.0,
+                          divisions: 6,
+                          label: '${_motionSpeed.toStringAsFixed(2)}x',
+                          onChanged: _updateMotionSpeed,
+                        ),
+                        const SizedBox(height: 24),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Performance Mode',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
+                          subtitle: const Text(
+                              'Disables ambient animations for lower-end systems.',
+                              style: TextStyle(fontSize: 12)),
+                          value: _motionPerfMode,
+                          onChanged: _updateMotionPerfMode,
+                          activeThumbColor:
+                              Theme.of(context).colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
-                  _buildCard(context, [
+                  AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                     // Current Version display
                     _buildLabel('Current Version'),
                     Text(
@@ -546,7 +642,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.orange[700] ?? Colors.orange,
+                              color: Theme.of(context).colorScheme.tertiary,
                             ),
                           );
                         } else {
@@ -554,7 +650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             'You\'re on the latest version.',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[500],
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           );
                         }
@@ -563,17 +659,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
 
                     // Check for Updates Button
-                    ElevatedButton.icon(
-                      onPressed: _checkingUpdate ? null : _handleCheckForUpdate,
-                      icon: _checkingUpdate
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.system_update, size: 18),
-                      label: Text(
-                          _checkingUpdate ? 'Checking…' : 'Check for Updates'),
+                    PressScale(
+                      child: ElevatedButton.icon(
+                        onPressed: _checkingUpdate ? null : _handleCheckForUpdate,
+                        icon: _checkingUpdate
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.system_update, size: AppIconSize.lg),
+                        label: Text(
+                            _checkingUpdate ? 'Checking…' : 'Check for Updates'),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
@@ -590,12 +688,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => UpdateService.instance
-                                        .downloadAndApply(),
-                                    icon:
-                                        const Icon(Icons.restart_alt, size: 18),
-                                    label: const Text('Update & Restart'),
+                                  PressScale(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => UpdateService.instance
+                                          .downloadAndApply(),
+                                      icon:
+                                          const Icon(Icons.restart_alt, size: AppIconSize.lg),
+                                      label: const Text('Update & Restart'),
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   TextButton(
@@ -619,7 +719,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   Text(
                                     progress.message ?? 'Update failed',
                                     style: TextStyle(
-                                        color: Colors.red[700],
+                                        color: Theme.of(context).colorScheme.error,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600),
                                   ),
@@ -675,7 +775,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(AppRadius.xs),
                                     child: LinearProgressIndicator(
                                       value: progress.pct,
                                       minHeight: 8,
@@ -688,25 +788,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                  ]),
+                  ],
+                          ),
+                        ),
+                  _buildDemoSection(),
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (!widget.isEmbedded)
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('CANCEL'),
-                        ),
-                      const SizedBox(width: 12),
                       if (_hasLocalUserRow)
-                        ElevatedButton(
-                          onPressed: _saveSettings,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 16),
+                        PressScale(
+                          child: ElevatedButton(
+                            onPressed: _isSavingSettings ? null : _saveSettings,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 16),
+                            ),
+                            child: _isSavingSettings
+                                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Text('SAVE CHANGES'),
                           ),
-                          child: const Text('SAVE CHANGES'),
                         ),
                     ],
                   ),
@@ -718,19 +819,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
 
-    if (widget.isEmbedded)
-      return Scaffold(backgroundColor: Colors.transparent, body: content);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('SETTINGS'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: content,
-    );
+    return Scaffold(backgroundColor: Colors.transparent, body: content);
   }
 
   Widget _buildSectionHeader(String title, String subtitle) {
@@ -747,26 +836,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: Theme.of(context).colorScheme.primary)),
           const SizedBox(height: 4),
           Text(subtitle,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCard(BuildContext context, List<Widget> children) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color:
-                isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
       ),
     );
   }
@@ -775,11 +846,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 2),
       child: Text(text,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
-              color: Colors.grey)),
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
     );
   }
 
@@ -794,13 +865,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: isDark
             ? Colors.black.withValues(alpha: 0.2)
             : const Color(0xFFF4F4F5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: AppIconSize.lg),
           style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -817,20 +888,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () => AudioService.instance.playSound(type),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isDark
               ? Colors.white.withValues(alpha: 0.05)
               : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.play_arrow_rounded,
-                size: 12, color: Theme.of(context).colorScheme.primary),
+                size: AppIconSize.xs, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 4),
             Text(label,
                 style:
@@ -842,17 +913,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleSyncNow() async {
-    // Capture the messenger before the await to avoid using context across async gaps.
-    final messenger = ScaffoldMessenger.of(context);
     final result = await SyncService.instance.sync(reason: 'manual');
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(result.summary)),
-    );
+    showMotionToast(context, result.summary);
   }
 
   Future<void> _handleCheckForUpdate() async {
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _checkingUpdate = true);
     try {
       final result = await UpdateService.instance.checkForUpdate(manual: true);
@@ -877,7 +943,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           break;
       }
 
-      messenger.showSnackBar(SnackBar(content: Text(message)));
+      showMotionToast(context, message);
     } finally {
       if (mounted) {
         setState(() => _checkingUpdate = false);
@@ -889,5 +955,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final local = dt.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+  }
+
+  Widget _buildDemoSection() {
+    final email = PocketBaseService.instance.userEmail;
+    if (email != "demo@account.com") return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 40),
+        _buildSectionHeader(
+            'DEMO ACCOUNT', 'These actions only appear for the demo account.'),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ElevatedButton(
+                onPressed: _handleDemoSeed,
+                child: const Text('Seed demo data'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _handleDemoWipe,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .error
+                        .withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Text('Wipe demo data'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleDemoSeed() async {
+    final navigator = Navigator.of(context);
+
+    showMotionDialog(
+      context: context,
+      barrierDismissible: false,
+      child: const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text("Seeding demo data..."),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await DemoSeeder.seed();
+      navigator.pop();
+      showMotionToast(context, 'Demo data seeded.');
+    } catch (e) {
+      navigator.pop();
+      showMotionToast(context, 'Seed failed: $e');
+    }
+  }
+
+  Future<void> _handleDemoWipe() async {
+    final confirmed = await showMotionDialog<bool>(
+      context: context,
+      child: AlertDialog(
+        title: const Text('Wipe demo data'),
+        content: const Text('Wipe all demo tasks and history?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Wipe')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final navigator = Navigator.of(context);
+
+    showMotionDialog(
+      context: context,
+      barrierDismissible: false,
+      child: const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text("Wiping demo data..."),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await DemoSeeder.wipe();
+      navigator.pop();
+      showMotionToast(context, 'Demo data wiped.');
+    } catch (e) {
+      navigator.pop();
+      showMotionToast(context, 'Wipe failed: $e');
+    }
   }
 }

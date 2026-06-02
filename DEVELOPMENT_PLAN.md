@@ -60,6 +60,12 @@ A + B compound: one user edit → push → echo → sync → boundary re-pull �
 
 **Keep as-is:** retry/backoff ladder, 500ms debounce, tombstone prune.
 
----
+### Step 16 — UI/UX Overhaul: Apple-Level Polish — DONE (2026-06-02)
+**Goal:** Smooth, simple, thoughtful UI/UX matching Apple-level standards. Eliminate visual fragmentation (spacing, radius, icon sizes, hard-coded colors) and UX inconsistencies (error states, empty states, loading states). Design system tokens established in `lib/theme/`. Shipped with v1.5.0-equivalent (merged with Step 17).
+
+### Step 17 — Motion System (Apple-Tier Polish) — DONE (2026-06-02)
+Motion tokens + 11 reusable motion widgets, hover/cursor/drag/modal polish, breathing sync indicator, window focus/blur + idle dim, reactive background, full accessibility plumbing. Deferred items as see follow-up modules: Cmd+K palette, Celebrations, Skeleton screens.
+
+**Branch:** master (post-merge). Merge to master with `#minor` token → CI cuts v1.1.0 (reset/sync with UI/UX overhaul).
 
 *History note:* the original verbose Step 13 appendix (USN rejection, architecture rationale, hosting options, build-order phases) has been removed now that sync is built and shipped. The decisions it documented are preserved in `Prj_Progress.md`. The current sync code is the source of truth for "how it works"; this plan tracks "what's next."
