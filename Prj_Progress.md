@@ -965,3 +965,40 @@ One batched gemini spec covering all 4 animation targets. Orchestrator verified 
 
 **Cold-resume:** Read CURRENT_MODULE.md + this entry. Branch: feature/ux-fixes. Four commits on the branch. Either (a) spot-check + merge to master, or (b) continue iterating UX. After merge, flip DEVELOPMENT_PLAN.md Step 16 to DONE and pick next module from the deferred list (Step 12, Step 11, PB backups).
 ---
+
+## 2026-06-02 — Task Row UX (Kebab Menu + Manual Ordering)
+
+**What happened:**
+Two-phase polish on the task list, prompted by user feedback that three trailing buttons per row "looked junior". Phase A collapsed Skip / Edit / Delete into a single kebab (`PopupMenuButton`) on the right; the kebab is now always visible (including on completed rows), with Skip greyed when isCompleted and a context-aware "Skip"/"Unskip" label. Phase B added persisted manual ordering and drag-to-reorder, and removed the auto-sort entirely.
+
+**Sort behavior change (intentional):**
+- The Required-Today/Optional bucket separation is GONE.
+- The alphabetical tiebreaker is GONE.
+- Tasks now render strictly in user-controlled `sort_order`. Completing a task does not move it. New tasks append at the bottom.
+
+**Files touched:** 7 modified, 0 new.
+- lib/widgets/task_item.dart — 3 buttons → 1 PopupMenuButton (plus dead `_buildActionButton` removed in closeout)
+- lib/models/task_model.dart — new `sortOrder` int + copyWith
+- lib/services/database_service.dart — schema v9 → v10, `sort_order` column, ALTER+backfill from `created_at` ASC, `addTask` auto-assigns `max(sort_order)+1`, new `reorderTasks(sids, values)` transactional writer that bumps `dirty=1` + `updated_at`
+- lib/controllers/dashboard_controller.dart — bucketed+alpha sort deleted; replaced with `a.sortOrder.compareTo(b.sortOrder)`; new `reorderTasksWithinType(type, oldIndex, newIndex)` rotates only that type's sort_order pool
+- lib/widgets/task_section.dart — `ListView.builder` → `ReorderableListView.builder`, `buildDefaultDragHandles: false`, drag handle (`Icons.drag_indicator`) wrapped in `ReorderableDragStartListener` left of each row's checkbox, `ValueKey(task.sid)` per item
+- lib/widgets/panels/task_panel.dart — wires `onReorder` through to controller
+- CURRENT_MODULE.md — updated then archived as part of module closeout
+
+**What stayed put:**
+- Checkbox remains the primary inline action (one-click complete).
+- Per-row dimming on completion (`AnimatedOpacity 0.4`) untouched.
+- Long-press on the row body still triggers `onFocusRequested`.
+- TaskItem's surrounding container styling untouched — drag handle sits OUTSIDE the row card, by design.
+
+**What's open / known follow-ups:**
+- PocketBase `tasks` collection needs a `sort_order` numeric field added so reorders sync across devices. Until then, dirty rows push but the field may be dropped/rejected by PB depending on collection schema mode. Local UX works regardless. (Sync server: `/home/uzeeslive/pb` on GCP.)
+- Dragging on a past date also reorders today (sort_order is global, not date-scoped). Documented as intentional.
+- Drag handle is always visible on every row. Phase B spec deferred the "hover-only on desktop, always on touch" polish — easy follow-up.
+- Demo seeder commit (cc61f56) still not user-verified end-to-end. Park.
+
+**How the work was done:**
+Plan agreed with user via three structured AskUserQuestion rounds (kebab vs swipe, bucket-drop scope, drag-handle placement). Phase A dispatched as a single gemini spec; user visually confirmed before Phase B. Phase B dispatched as one batched gemini spec covering model + DB migration + controller + widget + panel + CURRENT_MODULE.md update. Orchestrator verified each phase via `flutter analyze` + per-file `git diff` reads (per `gemini-coder-verify` memory — gemini's self-report had several mid-stream `replace` failures, but the final on-disk state matched the spec). Closeout cycle deletes the leftover unused helper, appends this log entry, archives CURRENT_MODULE.md.
+
+**Cold-resume:** Branch `feature/ux-fixes`, commits `cc61f56` (demo seeder, parked + not visually verified) and the upcoming Task Row UX commit. Step 16 module already closed in a prior entry; this is a focused follow-up driven by user feedback. After commit, decide whether to keep stacking small UX commits on `feature/ux-fixes` or merge with `#minor` → next minor release.
+---

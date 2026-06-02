@@ -96,7 +96,7 @@ class DatabaseService {
     String path = await _dbPathFor(_activeUserId);
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onConfigure: (db) async {
         await db.execute('PRAGMA journal_mode=WAL;');
         await db.execute('PRAGMA busy_timeout=5000;');
@@ -219,6 +219,7 @@ class DatabaseService {
         is_active INTEGER NOT NULL,
         frequency_type TEXT DEFAULT 'daily',
         weekly_target INTEGER DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
         updated_at INTEGER NOT NULL DEFAULT 0,
         deleted INTEGER NOT NULL DEFAULT 0,
         dirty INTEGER NOT NULL DEFAULT 0
@@ -471,6 +472,21 @@ class DatabaseService {
         )
       ''');
     }
+    if (oldVersion < 10) {
+      await db.execute("ALTER TABLE $tasksTable ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+      // Backfill sort_order from existing createdAt ascending order so legacy data
+      // preserves today's insertion order.
+      final rows = await db.query(tasksTable, columns: ['sid'], orderBy: 'created_at ASC');
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      for (var i = 0; i < rows.length; i++) {
+        await db.update(
+          tasksTable,
+          {'sort_order': i, 'updated_at': nowMs, 'dirty': 1},
+          where: 'sid = ?',
+          whereArgs: [rows[i]['sid']],
+        );
+      }
+    }
   }
 
   // Parse a legacy comma-joined int-id CSV into sids, dropping any id that no
@@ -712,7 +728,14 @@ class DatabaseService {
   Future<int> addTask(Task task) async {
     Database db = await instance.database;
     final now = DateTime.now().millisecondsSinceEpoch;
+    
+    // Auto-assign sort_order as max + 1
+    final List<Map<String, dynamic>> resultMax = await db.rawQuery('SELECT MAX(sort_order) as m FROM $tasksTable');
+    final int maxOrder = (resultMax.first['m'] as int? ?? -1);
+    final nextOrder = maxOrder + 1;
+
     final taskMap = task.toMap();
+    taskMap['sort_order'] = nextOrder;
     taskMap['updated_at'] = now;
     taskMap['dirty'] = 1;
     final result = await db.insert(tasksTable, taskMap);
@@ -734,6 +757,31 @@ class DatabaseService {
     );
     _notifyLocalChange();
     return result;
+  }
+
+  /// Persists a new ordering for the given task sids. Each sid in [orderedSids]
+  /// gets the corresponding sort_order from [newSortValues], in a single
+  /// transaction. Bumps updated_at and dirty so sync picks the change up.
+  Future<void> reorderTasks(
+    List<String> orderedSids,
+    List<int> newSortValues,
+  ) async {
+    if (orderedSids.length != newSortValues.length) {
+      throw ArgumentError('orderedSids and newSortValues length mismatch');
+    }
+    final db = await instance.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.transaction((txn) async {
+      for (var i = 0; i < orderedSids.length; i++) {
+        await txn.update(
+          tasksTable,
+          {'sort_order': newSortValues[i], 'updated_at': now, 'dirty': 1},
+          where: 'sid = ?',
+          whereArgs: [orderedSids[i]],
+        );
+      }
+    });
+    _notifyLocalChange();
   }
 
   Future<int> archiveTask(String sid) async {

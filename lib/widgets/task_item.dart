@@ -161,65 +161,102 @@ class TaskItem extends StatelessWidget {
                 ),
               ),
             ),
-            if (!isCompleted) ...[
-              _buildActionButton(
-                context,
-                icon: isSkipped ? Icons.remove_circle : Icons.remove_circle_outline,
-                color: isSkipped ? Theme.of(context).colorScheme.tertiary : (isDark ? Colors.white : Colors.black),
-                bgColor: isSkipped ? Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1) : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03)),
-                tooltip: 'Skip',
-                onPressed: onToggleSkip,
+            PopupMenuButton<String>(
+              tooltip: 'More actions',
+              onSelected: (value) {
+                switch (value) {
+                  case 'skip':
+                    onToggleSkip();
+                    break;
+                  case 'edit':
+                    onEdit();
+                    break;
+                  case 'delete':
+                    onDelete();
+                    break;
+                }
+              },
+              offset: const Offset(0, 40),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              child: Material(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                shape: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Icon(
+                    Icons.more_vert,
+                    size: AppIconSize.md,
+                    color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.7),
+                  ),
+                ),
               ),
-              const SizedBox(width: 6),
-              _buildActionButton(
-                context,
-                icon: Icons.edit_outlined,
-                color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.7),
-                bgColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                tooltip: 'Edit',
-                onPressed: onEdit,
-              ),
-              const SizedBox(width: 6),
-              _buildActionButton(
-                context,
-                icon: Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
-                bgColor: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
-                tooltip: 'Delete',
-                onPressed: onDelete,
-              ),
-            ],
+              itemBuilder: (context) => [
+                PopupMenuItem<String>(
+                  value: 'skip',
+                  enabled: !isCompleted,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.remove_circle_outline,
+                        size: 20,
+                        color: isCompleted 
+                            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isSkipped ? 'Unskip' : 'Skip',
+                        style: TextStyle(
+                          color: isCompleted 
+                              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Edit',
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
           ),
           ),
           ),
           );
           }
-  Widget _buildActionButton(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required Color bgColor,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: bgColor,
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: onPressed,
-          customBorder: const CircleBorder(),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Icon(icon, size: AppIconSize.md, color: color),
-          ),
-        ),
-      ),
-    );
-  }
-
   String _toTitleCase(String text) {
     if (text.isEmpty) return text;
     return text.split(' ').map((str) {

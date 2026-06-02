@@ -22,6 +22,7 @@ class TaskSection extends StatelessWidget {
   final Function(Task) onEdit;
   final Function(Task) onDelete;
   final Function(Task) onTaskFocusRequested;
+  final Function(int oldIndex, int newIndex)? onReorder;
   final bool showTitle;
   final bool isEmbedded;
 
@@ -39,6 +40,7 @@ class TaskSection extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onTaskFocusRequested,
+    this.onReorder,
     this.showTitle = true,
     this.isEmbedded = false,
   });
@@ -130,9 +132,11 @@ class TaskSection extends StatelessWidget {
                     title: 'No tasks yet',
                     subtitle: 'Tap + to add your first one.',
                   )
-                : ListView.builder(
+                : ReorderableListView.builder(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: AppSpacing.xs),
                     itemCount: filteredTasks.length,
+                    onReorder: onReorder ?? (_, __) {},
+                    buildDefaultDragHandles: false,
                     itemBuilder: (context, index) {
                       final task = filteredTasks[index];
                       final isCompleted =
@@ -140,18 +144,42 @@ class TaskSection extends StatelessWidget {
                       final isSkipped =
                           dayRecord.skippedTaskIds.contains(task.sid);
 
-                      return TaskItem(
-                        task: task,
-                        history: history,
-                        selectedDate: DateTime.parse(dayRecord.date),
-                        isCompleted: isCompleted,
-                        isSkipped: isSkipped,
-                        onToggleCompletion: (val) =>
-                            onToggleCompletion(task, val),
-                        onToggleSkip: () => onToggleSkip(task),
-                        onEdit: () => onEdit(task),
-                        onDelete: () => onDelete(task),
-                        onFocusRequested: () => onTaskFocusRequested(task),
+                      return Padding(
+                        key: ValueKey(task.sid),
+                        padding: EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.grab,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Icon(
+                                    Icons.drag_indicator,
+                                    size: AppIconSize.md,
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: TaskItem(
+                                task: task,
+                                history: history,
+                                selectedDate: DateTime.parse(dayRecord.date),
+                                isCompleted: isCompleted,
+                                isSkipped: isSkipped,
+                                onToggleCompletion: (val) =>
+                                    onToggleCompletion(task, val),
+                                onToggleSkip: () => onToggleSkip(task),
+                                onEdit: () => onEdit(task),
+                                onDelete: () => onDelete(task),
+                                onFocusRequested: () => onTaskFocusRequested(task),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),

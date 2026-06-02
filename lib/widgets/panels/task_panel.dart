@@ -145,6 +145,9 @@ class _TaskPanelState extends State<TaskPanel> with SingleTickerProviderStateMix
       onToggleCompletion: _handleToggleTask, 
       onToggleSkip: (task) => widget.controller.toggleTaskSkip(task),
       onEdit: (t) => _editTask(t), 
+      onReorder: (oldIndex, newIndex) {
+        widget.controller.reorderTasksWithinType(type, oldIndex, newIndex);
+      },
       onDelete: (t) async {
         final result = await showDialog<String>(
           context: context,
