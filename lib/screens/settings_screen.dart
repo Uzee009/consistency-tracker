@@ -20,6 +20,7 @@ import '../widgets/motion/press_scale.dart';
 import '../widgets/app_card.dart';
 import '../utils/demo_seeder.dart';
 import '../utils/motion_dialog.dart';
+import '../utils/motion_toast.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -91,9 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await MotionSettingsService.save(motionNotifier.value);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved successfully.')),
-        );
+        showMotionToast(context, 'Settings saved successfully.');
       }
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);
@@ -914,17 +913,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleSyncNow() async {
-    // Capture the messenger before the await to avoid using context across async gaps.
-    final messenger = ScaffoldMessenger.of(context);
     final result = await SyncService.instance.sync(reason: 'manual');
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(result.summary)),
-    );
+    showMotionToast(context, result.summary);
   }
 
   Future<void> _handleCheckForUpdate() async {
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _checkingUpdate = true);
     try {
       final result = await UpdateService.instance.checkForUpdate(manual: true);
@@ -949,7 +943,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           break;
       }
 
-      messenger.showSnackBar(SnackBar(content: Text(message)));
+      showMotionToast(context, message);
     } finally {
       if (mounted) {
         setState(() => _checkingUpdate = false);
@@ -1003,7 +997,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleDemoSeed() async {
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
     showMotionDialog(
@@ -1023,10 +1016,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await DemoSeeder.seed();
       navigator.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Demo data seeded.')));
+      showMotionToast(context, 'Demo data seeded.');
     } catch (e) {
       navigator.pop();
-      messenger.showSnackBar(SnackBar(content: Text('Seed failed: $e')));
+      showMotionToast(context, 'Seed failed: $e');
     }
   }
 
@@ -1049,7 +1042,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirmed != true) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
     showMotionDialog(
@@ -1069,10 +1061,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await DemoSeeder.wipe();
       navigator.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Demo data wiped.')));
+      showMotionToast(context, 'Demo data wiped.');
     } catch (e) {
       navigator.pop();
-      messenger.showSnackBar(SnackBar(content: Text('Wipe failed: $e')));
+      showMotionToast(context, 'Wipe failed: $e');
     }
   }
 }

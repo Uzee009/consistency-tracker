@@ -19,6 +19,8 @@ import '../theme/motion.dart';
 import '../utils/motion_accessibility.dart';
 import '../widgets/motion/animated_tooltip.dart';
 
+import '../utils/motion_toast.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -595,37 +597,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _handleSync() async {
-    final messenger = ScaffoldMessenger.of(context);
     final serverReachable = ConnectivityService.instance.isOnline.value;
     final isAuthed = PocketBaseService.instance.isAuthenticated;
     final readiness = computeSyncReadiness(
         serverReachable: serverReachable, authed: isAuthed);
 
     if (readiness == SyncReadiness.notSignedIn) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Not signed in — sign in to sync across your devices.'),
-          action: SnackBarAction(
-            label: 'SETTINGS',
-            onPressed: () => setState(() => _activeTabIndex = 2),
-          ),
+      showMotionToast(
+        context,
+        'Not signed in — sign in to sync across your devices.',
+        action: SnackBarAction(
+          label: 'SETTINGS',
+          onPressed: () => setState(() => _activeTabIndex = 2),
         ),
       );
       return;
     }
 
     if (readiness == SyncReadiness.unreachable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(syncStatusTooltip(readiness, authed: isAuthed)),
-        ),
+      showMotionToast(
+        context,
+        syncStatusTooltip(readiness, authed: isAuthed),
       );
       return;
     }
 
     final result = await SyncService.instance.sync();
     if (!mounted) return;
-    messenger.showSnackBar(SnackBar(content: Text(result.summary)));
+    showMotionToast(context, result.summary);
   }
 }

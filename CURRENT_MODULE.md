@@ -1,6 +1,6 @@
 **Module:** Step 17 — Motion System (Apple-Tier Animation Polish)
 **Branch:** feature/ux-fixes (stacking on Step 16; revisit after Step 16 merges to master)
-**State:** IN_PROGRESS — Phase 5 (Navigation & Modals, reduced scope) implemented; pending flutter analyze + visual verify
+**State:** IN_PROGRESS — Phase 6 (Drag & Toasts, reduced scope) implemented; pending flutter analyze + visual verify
 **Last updated:** 2026-06-02
 
 ## Scope (locked with user)
@@ -71,12 +71,12 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 - [ ] Animated focus ring travels between focused controls (deferred to Phase 9 polish — needs custom Focus tree painting; low ROI for mouse-driven desktop app)
 
 ### Phase 6 — Drag & Drop, Toasts (Batch 03)
-- [ ] Drag preview: lift off page + shadow expansion + ~2° rotation + 90% opacity
-- [ ] Drop zones: valid targets breathe gently while dragging; invalid desaturate
-- [ ] Insert indicator: thin line slides between positions, never jumps
-- [ ] Drag cancel (Esc): springs back to origin
-- [ ] Drag outside window: preview fades as it leaves
-- [ ] Toast stack: slide in from top-right with eased push-down on prior toasts; hover pauses auto-dismiss + spreads stack
+- [x] Drag preview: lift off page + shadow expansion + ~2° rotation + 90% opacity (done in Phase 4 proxyDecorator for ReorderableListView; Phase 6 added panel drag chrome)
+- [N/A] Drop zones: breathe valid / desaturate invalid — single drop zone in task list, no invalid state distinction. Dashboard panel DragTarget gets a subtle highlight (Phase 6 (B)).
+- [x] Insert indicator: thin line slides between positions, never jumps (built-in ReorderableListView behavior)
+- [ ] Drag cancel (Esc): springs back to origin (deferred — Flutter ReorderableListView does not expose drag-cancel hook; would need custom drag implementation)
+- [ ] Drag outside window: preview fades as it leaves (deferred — same reason)
+- [x] Toast stack: slide in from top-right with eased push-down ... — adapted to bottom-floating SnackBar via showMotionToast helper; multiple-toast stacking handled by Flutter ScaffoldMessenger queue.
 
 ### Phase 7 — Personality & Ambient Life (Batch 02 personality + Batch 03 ambient + breathing sync)
 - [ ] ⭐ **Breathing sync indicator** (user's explicit ask) — sync dot opacity oscillates 0.6↔1.0 on a 2s sine while syncing; static when idle
@@ -112,7 +112,7 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 
 ## Next Action
 
-Orchestrator runs flutter analyze + visual smoke on dialog blur+scale, right-click context menu on tasks. On pass, proceed to Phase 6 (Drag & Drop + Toasts).
+Orchestrator runs flutter analyze + visual smoke on toast appearance and panel drag feel. On pass, proceed to Phase 7 (Personality & Ambient Life — includes user breathing-sync ask).
 
 ## Review History
 
