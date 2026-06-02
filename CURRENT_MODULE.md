@@ -1,6 +1,6 @@
 **Module:** Step 17 — Motion System (Apple-Tier Animation Polish)
 **Branch:** feature/ux-fixes (stacking on Step 16; revisit after Step 16 merges to master)
-**State:** IN_PROGRESS — Phase 6 (Drag & Toasts, reduced scope) implemented; pending flutter analyze + visual verify
+**State:** IN_PROGRESS — Phase 7 (Personality & Ambient Life, reduced scope) implemented; pending visual verify
 **Last updated:** 2026-06-02
 
 ## Scope (locked with user)
@@ -79,20 +79,20 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 - [x] Toast stack: slide in from top-right with eased push-down ... — adapted to bottom-floating SnackBar via showMotionToast helper; multiple-toast stacking handled by Flutter ScaffoldMessenger queue.
 
 ### Phase 7 — Personality & Ambient Life (Batch 02 personality + Batch 03 ambient + breathing sync)
-- [ ] ⭐ **Breathing sync indicator** (user's explicit ask) — sync dot opacity oscillates 0.6↔1.0 on a 2s sine while syncing; static when idle
-- [ ] Streak flame: procedural flicker on the streak badge; intensity bumps ~600ms when a task completes
-- [ ] Focused-task left-border pulse: current Pomodoro target / last-completed task gets a barely-perceptible 3s pulse
-- [ ] Progress ring ambient pulse: 1px breathing on the ring while < 100%
-- [ ] Reactive background gradient: accent gradient drifts through the day (morning→afternoon→evening hue/sat shift, applied via theme accent — no hard-coded colors)
-- [ ] Window focus/blur:
+- [x] ⭐ **Breathing sync indicator** (user's explicit ask) — sync dot opacity oscillates 0.6↔1.0 on a 2s sine while syncing; static when idle
+- [N/A] Streak flame: procedural flicker on the streak badge (deferred — no flame icon exists in current UI)
+- [N/A] Focused-task left-border pulse: current Pomodoro target / last-completed task (deferred — app has no 'focused task' concept apart from Pomodoro)
+- [N/A] Progress ring ambient pulse (deferred — no dedicated progress ring)
+- [x] Reactive background gradient: accent gradient drifts through the day (morning→afternoon→evening hue/sat shift, applied via theme accent)
+- [x] Window focus/blur:
   - On blur: pause ambient animations + 5% desaturation overlay
   - On regain: snap back over 200ms
-- [ ] Idle desaturation after N minutes (default 5min) of no input; wakes on first mouse move / keypress
-- [ ] Earned celebrations (short, distinct, NOT constant):
+- [x] Idle desaturation after N minutes (default 5min) of no input; wakes on first mouse move / keypress
+- [ ] Earned celebrations (deferred to future 'Celebrations' module — substantial feature work):
   - First task of the day → subtle sparkle on checkbox
   - 7-day streak milestone → confetti burst from streak badge
   - All today's tasks complete → progress ring victory sweep + faint glow
-- [ ] Emotional weight by action type:
+- [ ] Emotional weight by action type (deferred to Phase 9 polish — requires centralizing dialog/modal motion):
   - Destructive (delete) → 400ms slower, heavier ease, no bounce
   - Positive (complete) → 250ms with spring/bounce
   - Neutral (edit, save) → standard ease
@@ -112,7 +112,7 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 
 ## Next Action
 
-Orchestrator runs flutter analyze + visual smoke on toast appearance and panel drag feel. On pass, proceed to Phase 7 (Personality & Ambient Life — includes user breathing-sync ask).
+Orchestrator runs flutter analyze + visual smoke on sync breathing, focus/blur dim, idle dim, background drift. On pass, proceed to Phase 8 (Optimistic UI & Loading States).
 
 ## Review History
 

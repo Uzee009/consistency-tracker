@@ -18,6 +18,8 @@ import '../theme/app_icon_size.dart';
 import '../theme/motion.dart';
 import '../utils/motion_accessibility.dart';
 import '../widgets/motion/animated_tooltip.dart';
+import '../widgets/motion/breathing.dart';
+import '../widgets/motion/reactive_background.dart';
 
 import '../utils/motion_toast.dart';
 
@@ -89,8 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Scaffold(
-          body: Column(
-            children: [
+          body: ReactiveBackground(
+            child: Column(
+              children: [
               // 1. GLOBAL HEADER
               _buildGlobalHeader(context),
 
@@ -268,10 +271,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildActiveView() {
     if (_activeTabIndex == 1) {
@@ -557,12 +561,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            AnimatedContainer(
-                              duration: MotionAccessibility.of(context).apply(Motion.medium),
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                  shape: BoxShape.circle, color: dotColor),
+                            ValueListenableBuilder<bool>(
+                              valueListenable: SyncService.instance.isSyncing,
+                              builder: (context, syncing, child) {
+                                return Breathing(
+                                  active: syncing,
+                                  minOpacity: 0.55,
+                                  maxOpacity: 1.0,
+                                  child: child!,
+                                );
+                              },
+                              child: AnimatedContainer(
+                                duration: MotionAccessibility.of(context).apply(Motion.medium),
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle, color: dotColor),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             isSyncing

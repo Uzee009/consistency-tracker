@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
@@ -15,6 +16,8 @@ import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'package:consistency_tracker_v1/services/motion_settings_service.dart';
+import 'package:consistency_tracker_v1/utils/idle_detector.dart';
+import 'package:consistency_tracker_v1/widgets/motion/ambient_dim.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -24,6 +27,8 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
 final ValueNotifier<VisualStyle> styleNotifier =
     ValueNotifier(VisualStyle.minimalist);
 final ValueNotifier<MotionSettings> motionNotifier = ValueNotifier(const MotionSettings());
+final ValueNotifier<bool> windowFocusedNotifier = ValueNotifier(true);
+final ValueNotifier<bool> userActiveNotifier = ValueNotifier(true);
 
 void _cleanupOldUpdate() {
   try {
@@ -106,6 +111,8 @@ void main() async {
 
   motionNotifier.value = await MotionSettingsService.load();
 
+  IdleDetector.instance.initialize(userActiveNotifier);
+
   await AudioService.instance.initialize();
 
   // Initialize PocketBase service (handles auth token restoration)
@@ -159,7 +166,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver, WindowListener {
   late Future<bool> _isFirstRun;
   bool _isFirstRunCached = false;
   late ThemeMode _currentThemeMode;
@@ -171,6 +178,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      windowManager.addListener(this);
+    }
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _initializationFuture = _initializeThemeAndStyle();
     themeNotifier.addListener(_updateThemeAndStyle);
     styleNotifier.addListener(_updateThemeAndStyle);
@@ -179,11 +190,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      windowManager.removeListener(this);
+    }
     WidgetsBinding.instance.removeObserver(this);
     themeNotifier.removeListener(_updateThemeAndStyle);
     styleNotifier.removeListener(_updateThemeAndStyle);
     DatabaseService.instance.activeDbRevision.removeListener(_onActiveDbChanged);
     super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    IdleDetector.instance.touch();
+    return false;
+  }
+
+  @override
+  void onWindowFocus() {
+    windowFocusedNotifier.value = true;
+    IdleDetector.instance.touch();
+  }
+
+  @override
+  void onWindowBlur() {
+    windowFocusedNotifier.value = false;
   }
 
   void _onActiveDbChanged() {
@@ -282,8 +313,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         final primaryColor =
             StyleService.getPrimaryColor(_currentVisualStyle, _isDark);
 
-        return MaterialApp(
-          title: 'Consistency Tracker',
+        return AmbientDim(
+          windowFocused: windowFocusedNotifier,
+          userActive: userActiveNotifier,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerHover: (_) => IdleDetector.instance.touch(),
+            onPointerDown: (_) => IdleDetector.instance.touch(),
+            child: MaterialApp(
+              title: 'Consistency Tracker',
           themeMode: _currentThemeMode,
           theme: ThemeData(
             textTheme: _buildAppTextTheme(Brightness.light),
@@ -473,6 +511,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           home: _isFirstRunCached
               ? const FirstRunSetupScreen()
               : const HomeScreen(),
+            ),
+          ),
         );
       },
     );
