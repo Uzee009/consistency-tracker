@@ -936,4 +936,32 @@ Layered UX polish on top of the Phase 2 design system. Created `lib/widgets/empt
 Plan in CURRENT_MODULE.md task list. One big batched gemini spec covering EmptyState + form errorText + Settings de-embed + Cupertino swap + save spinner. Orchestrator verified with `flutter analyze` + targeted grep audits after gemini wrapped. Gemini had a few `replace` failures mid-spec and recovered via `write_file` rewrites; final state verified analyze-clean and matches the spec.
 
 **Cold-resume:** Read CURRENT_MODULE.md + this entry. Branch: `feature/ux-fixes`. Three Phase-2/3 commits accumulated; not merged to master. Next: ask user to spot-check, then choose between merging or starting Phase 4 (Motion & Micro-interactions).
+
+---
+## 2026-06-02 — Step 16 Phase 4 (Motion & Micro-interactions) + Module Close
+
+**What happened:**
+Layered implicit animations and desktop hover affordances on top of Phases 1-3. Heatmap cells now animate color transitions (AnimatedContainer, 220ms easeOut) and carry hover tooltips with formatted dates + cursor:click via MouseRegion. Task tiles use AnimatedOpacity for the dim-on-complete fade and AnimatedContainer for chrome state, with MouseRegion wrapping the row. Home screen sync dot wrapped in AnimatedContainer so color tween between ready/notSignedIn/unreachable is smooth. Update banner wrapped in AnimatedSize so appearance/dismissal collapses gracefully instead of snap-hiding. Pomodoro mode tabs already had AnimatedContainer from before — verified intact.
+
+**Files touched:** 3 modified, 0 new.
+- lib/widgets/consistency_heatmap.dart (cells in both 1M and generic views)
+- lib/widgets/task_item.dart
+- lib/screens/home_screen.dart
+
+**What stayed put:**
+- Pomodoro tabs already animated (no edit needed).
+- intl dep not added — used manual short-form date formatting in heatmap tooltips.
+
+**Module complete:**
+Step 16 — UI/UX Overhaul shipped across Phases 1+1b+2+3+4 on branch feature/ux-fixes (4 commits, all `[skip release]`). No merge to master yet. Decision pending: merge with `#minor` → v1.5.0 OR continue iterating.
+
+**What remains open across the whole module:**
+- ~40 raw TextStyle(fontSize:…) call-site migrations to textTheme (Phase 2 carryover, never strictly blocking)
+- Manual visual smoke on Linux Mint
+- The merge decision itself
+
+**How the work was done:**
+One batched gemini spec covering all 4 animation targets. Orchestrator verified with flutter analyze + grep audits (AnimatedContainer/AnimatedOpacity/AnimatedSize/MouseRegion/Tooltip presence in expected files). Two gemini replace failures recovered via re-targeted edits; final state clean.
+
+**Cold-resume:** Read CURRENT_MODULE.md + this entry. Branch: feature/ux-fixes. Four commits on the branch. Either (a) spot-check + merge to master, or (b) continue iterating UX. After merge, flip DEVELOPMENT_PLAN.md Step 16 to DONE and pick next module from the deferred list (Step 12, Step 11, PB backups).
 ---

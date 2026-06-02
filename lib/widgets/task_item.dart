@@ -47,23 +47,28 @@ class TaskItem extends StatelessWidget {
     // Dimming Logic: Dim if completed, goal already met for the week, or skipped.
     final bool isDimmed = isCompleted || isGoalMet || isSkipped;
 
-    return Opacity(
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
       opacity: isDimmed ? 0.4 : 1.0,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: AppSpacing.xxs),
-        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: isCompleted 
-              ? Colors.transparent 
-              : StyleService.getTaskItemBg(style, isDark, task.type),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: AppSpacing.xxs),
+          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: AppSpacing.sm),
+          decoration: BoxDecoration(
             color: isCompleted 
                 ? Colors.transparent 
-                : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03)),
-            width: 1,
+                : StyleService.getTaskItemBg(style, isDark, task.type),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: isCompleted 
+                  ? Colors.transparent 
+                  : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03)),
+              width: 1,
+            ),
           ),
-        ),
         child: Row(
           children: [
             SizedBox(
@@ -185,11 +190,11 @@ class TaskItem extends StatelessWidget {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-
+          ),
+          ),
+          ),
+          );
+          }
   Widget _buildActionButton(
     BuildContext context, {
     required IconData icon,

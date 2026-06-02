@@ -93,142 +93,144 @@ class _HomeScreenState extends State<HomeScreen> {
               ValueListenableBuilder<UpdateInfo?>(
                 valueListenable: UpdateService.instance.available,
                 builder: (context, available, _) {
-                  if (available == null ||
-                      _dismissedUpdateVersion == available.version) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
-                    child: Row(
-                      children: [
-                        Icon(Icons.system_update,
-                            size: AppIconSize.xl, color: Theme.of(context).colorScheme.tertiary),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ValueListenableBuilder<UpdateProgress>(
-                            valueListenable: UpdateService.instance.progress,
-                            builder: (context, progress, _) {
-                              String label =
-                                  'Update available: v${available.version}';
-                              bool isError =
-                                  progress.stage == UpdateStage.error;
-
-                              if (progress.stage == UpdateStage.downloading) {
-                                final pct = (progress.pct ?? 0) * 100;
-                                label = 'Downloading update… ${pct.round()}%';
-                              } else if (progress.stage ==
-                                  UpdateStage.verifying) {
-                                label = 'Verifying update…';
-                              } else if (progress.stage ==
-                                  UpdateStage.applying) {
-                                label = 'Installing update…';
-                              } else if (progress.stage ==
-                                  UpdateStage.restarting) {
-                                label = 'Restarting…';
-                              } else if (isError) {
-                                label = progress.message ?? 'Update failed';
-                              }
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    label,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isError
-                                          ? Theme.of(context).colorScheme.error
-                                          : Theme.of(context).colorScheme.tertiary,
-                                    ),
-                                  ),
-                                  if (progress.stage != UpdateStage.idle &&
-                                      progress.stage != UpdateStage.error) ...[
-                                    const SizedBox(height: 8),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(2),
-                                      child: LinearProgressIndicator(
-                                        value: progress.pct,
-                                        minHeight: 4,
-                                        backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
-                                        valueColor: AlwaysStoppedAnimation(
-                                            Theme.of(context).colorScheme.tertiary),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ValueListenableBuilder<UpdateProgress>(
-                          valueListenable: UpdateService.instance.progress,
-                          builder: (context, progress, _) {
-                            if (progress.stage != UpdateStage.idle &&
-                                progress.stage != UpdateStage.error) {
-                              return const SizedBox.shrink();
-                            }
-
-                            final isError = progress.stage == UpdateStage.error;
-
-                            return Row(
-                              mainAxisSize: MainAxisSize.min,
+                  return AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                    child: (available == null ||
+                            _dismissedUpdateVersion == available.version)
+                        ? const SizedBox.shrink()
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+                            child: Row(
                               children: [
-                                TextButton(
-                                  onPressed: () =>
-                                      UpdateService.instance.downloadAndApply(),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Theme.of(context).colorScheme.tertiary,
-                                  ),
-                                  child: Text(
-                                      isError
-                                          ? 'Try again'
-                                          : 'Update & Restart',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w900)),
-                                ),
-                                const SizedBox(width: 4),
-                                TextButton(
-                                  onPressed: () =>
-                                      UpdateService.instance.openDownload(),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Theme.of(context).colorScheme.tertiary,
-                                  ),
-                                  child: const Text('Manual',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600)),
-                                ),
-                                if (!isError) ...[
-                                  const SizedBox(width: 4),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await UpdateService.instance
-                                          .dismiss(available.version);
-                                      if (mounted) {
-                                        setState(() => _dismissedUpdateVersion =
-                                            available.version);
+                                Icon(Icons.system_update,
+                                    size: AppIconSize.xl, color: Theme.of(context).colorScheme.tertiary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ValueListenableBuilder<UpdateProgress>(
+                                    valueListenable: UpdateService.instance.progress,
+                                    builder: (context, progress, _) {
+                                      String label =
+                                          'Update available: v${available.version}';
+                                      bool isError =
+                                          progress.stage == UpdateStage.error;
+
+                                      if (progress.stage == UpdateStage.downloading) {
+                                        final pct = (progress.pct ?? 0) * 100;
+                                        label = 'Downloading update… ${pct.round()}%';
+                                      } else if (progress.stage ==
+                                          UpdateStage.verifying) {
+                                        label = 'Verifying update…';
+                                      } else if (progress.stage ==
+                                          UpdateStage.applying) {
+                                        label = 'Installing update…';
+                                      } else if (progress.stage ==
+                                          UpdateStage.restarting) {
+                                        label = 'Restarting…';
+                                      } else if (isError) {
+                                        label = progress.message ?? 'Update failed';
                                       }
+
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            label,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: isError
+                                                  ? Theme.of(context).colorScheme.error
+                                                  : Theme.of(context).colorScheme.tertiary,
+                                            ),
+                                          ),
+                                          if (progress.stage != UpdateStage.idle &&
+                                              progress.stage != UpdateStage.error) ...[
+                                            const SizedBox(height: 8),
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(2),
+                                              child: LinearProgressIndicator(
+                                                value: progress.pct,
+                                                minHeight: 4,
+                                                backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+                                                valueColor: AlwaysStoppedAnimation(
+                                                    Theme.of(context).colorScheme.tertiary),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      );
                                     },
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                    child: const Text('Later',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600)),
                                   ),
-                                ],
+                                ),
+                                const SizedBox(width: 12),
+                                ValueListenableBuilder<UpdateProgress>(
+                                  valueListenable: UpdateService.instance.progress,
+                                  builder: (context, progress, _) {
+                                    if (progress.stage != UpdateStage.idle &&
+                                        progress.stage != UpdateStage.error) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    final isError = progress.stage == UpdateStage.error;
+
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              UpdateService.instance.downloadAndApply(),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Theme.of(context).colorScheme.tertiary,
+                                          ),
+                                          child: Text(
+                                              isError
+                                                  ? 'Try again'
+                                                  : 'Update & Restart',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w900)),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        TextButton(
+                                          onPressed: () =>
+                                              UpdateService.instance.openDownload(),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Theme.of(context).colorScheme.tertiary,
+                                          ),
+                                          child: const Text('Manual',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600)),
+                                        ),
+                                        if (!isError) ...[
+                                          const SizedBox(width: 4),
+                                          TextButton(
+                                            onPressed: () async {
+                                              await UpdateService.instance
+                                                  .dismiss(available.version);
+                                              if (mounted) {
+                                                setState(() => _dismissedUpdateVersion =
+                                                    available.version);
+                                              }
+                                            },
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            ),
+                                            child: const Text('Later',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.w600)),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                ),
                               ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                            ),
+                          ),
                   );
                 },
               ),
@@ -550,7 +552,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(

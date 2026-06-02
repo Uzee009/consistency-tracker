@@ -410,41 +410,59 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               finalCellColor = Color.alphaBlend(overlayColor, cellColor);
             }
 
-            weekRowCells.add(
-              GestureDetector(
-                onTap: () {
-                  if (widget.onDateSelected != null) {
-                    widget.onDateSelected!(dDate);
-                  }
-                },
-                child: Container(
-                  width: cellWidth,
-                  height: cellHeight,
-                  padding: const EdgeInsets.all(2),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: finalCellColor,
-                      borderRadius: BorderRadius.circular(AppRadius.md), // Increased radius
-                      border: isSelected 
-                          ? Border.all(
-                              color: isDark ? Colors.white : Colors.black, // High contrast
-                              width: 2.0,
-                            )
-                          : null,
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.3),
-                          blurRadius: 4,
-                        )
-                      ] : null,
-                    ),
-                    child: Center(
-                       child: intensity == -2
-                        ? Icon(Icons.star, size: (cellHeight * 0.45).clamp(8, 32), color: Colors.white)
-                        : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.35).clamp(10, 24), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600)),
-                    ),
+            final bool hasData = intensity != 0 && intensity != -1;
+            final String tooltipMessage = '${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][dDate.weekday - 1]} ${dDate.day} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][dDate.month - 1]}';
+
+            Widget cell = GestureDetector(
+              onTap: () {
+                if (widget.onDateSelected != null) {
+                  widget.onDateSelected!(dDate);
+                }
+              },
+              child: Container(
+                width: cellWidth,
+                height: cellHeight,
+                padding: const EdgeInsets.all(2),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  decoration: BoxDecoration(
+                    color: finalCellColor,
+                    borderRadius: BorderRadius.circular(AppRadius.md), // Increased radius
+                    border: isSelected 
+                        ? Border.all(
+                            color: isDark ? Colors.white : Colors.black, // High contrast
+                            width: 2.0,
+                          )
+                        : null,
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.3),
+                        blurRadius: 4,
+                      )
+                    ] : null,
+                  ),
+                  child: Center(
+                     child: intensity == -2
+                      ? Icon(Icons.star, size: (cellHeight * 0.45).clamp(8, 32), color: Colors.white)
+                      : Text('${dDate.day}', style: TextStyle(fontSize: (cellHeight*0.35).clamp(10, 24), color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white, fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600)),
                   ),
                 ),
+              ),
+            );
+
+            if (hasData) {
+              cell = Tooltip(
+                message: tooltipMessage,
+                waitDuration: const Duration(milliseconds: 400),
+                child: cell,
+              );
+            }
+
+            weekRowCells.add(
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: cell,
               )
             );
          }
@@ -649,50 +667,68 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             finalCellColor = Color.alphaBlend(overlayColor, cellColor);
           }
 
-          dayCellsInWeek.add(
-            GestureDetector(
-              onTap: () {
-                if (widget.onDateSelected != null) {
-                  widget.onDateSelected!(day);
-                }
-              },
-              child: SizedBox(
-                width: dynamicTotalCellSize,
-                height: dynamicTotalCellHeight,
-                child: Padding(
-                  padding: const EdgeInsets.all(1.2),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: finalCellColor,
-                      borderRadius: BorderRadius.circular(3),
-                      border: isSelected 
-                          ? Border.all(
-                              color: isDark ? Colors.white : Colors.black, // High contrast border
-                              width: 2.0,
-                            )
-                          : null,
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.3),
-                          blurRadius: 4,
-                        )
-                      ] : null,
-                    ),
-                    child: Center(
-                      child: intensity == -2
-                          ? Icon(Icons.star, size: dynamicTotalCellHeight * 0.4, color: Colors.white)
-                          : Text(
-                              day.day.toString(),
-                              style: TextStyle(
-                                fontSize: (dynamicTotalCellHeight * 0.35).clamp(8, 12),
-                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
-                                color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white,
-                              ),
+          final bool hasData = intensity != 0 && intensity != -1;
+          final String tooltipMessage = '${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day.weekday - 1]} ${day.day} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][day.month - 1]}';
+
+          Widget cell = GestureDetector(
+            onTap: () {
+              if (widget.onDateSelected != null) {
+                widget.onDateSelected!(day);
+              }
+            },
+            child: SizedBox(
+              width: dynamicTotalCellSize,
+              height: dynamicTotalCellHeight,
+              child: Padding(
+                padding: const EdgeInsets.all(1.2),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  decoration: BoxDecoration(
+                    color: finalCellColor,
+                    borderRadius: BorderRadius.circular(3),
+                    border: isSelected 
+                        ? Border.all(
+                            color: isDark ? Colors.white : Colors.black, // High contrast border
+                            width: 2.0,
+                          )
+                        : null,
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.3),
+                        blurRadius: 4,
+                      )
+                    ] : null,
+                  ),
+                  child: Center(
+                    child: intensity == -2
+                        ? Icon(Icons.star, size: dynamicTotalCellHeight * 0.4, color: Colors.white)
+                        : Text(
+                            day.day.toString(),
+                            style: TextStyle(
+                              fontSize: (dynamicTotalCellHeight * 0.35).clamp(8, 12),
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
+                              color: (cellColor.computeLuminance() > 0.5) ? Colors.black87 : Colors.white,
                             ),
-                    ),
+                          ),
                   ),
                 ),
               ),
+            ),
+          );
+
+          if (hasData) {
+            cell = Tooltip(
+              message: tooltipMessage,
+              waitDuration: const Duration(milliseconds: 400),
+              child: cell,
+            );
+          }
+
+          dayCellsInWeek.add(
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: cell,
             ),
           );
           currentDay = currentDay.add(const Duration(days: 1));

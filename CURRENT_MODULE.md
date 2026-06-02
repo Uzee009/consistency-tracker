@@ -1,41 +1,39 @@
 **Module:** Step 16 — UI/UX Overhaul: Apple-Level Polish
 **Branch:** feature/ux-fixes
-**State:** IN_PROGRESS (Phase 1 + 1b + 2 + 3 shipped — Phase 4 next session)
-**Last updated:** 2026-06-02 (Phase 3 ship)
+**State:** COMPLETE (Phases 1 + 1b + 2 + 3 + 4 shipped — ready for merge decision)
+**Last updated:** 2026-06-02 (Phase 4 ship + module complete)
 
 ## Working Context
 
-Phase 3 — UX Polish — is complete on `feature/ux-fixes`. Shipped:
+Phase 4 — Motion & Micro-interactions — is complete on `feature/ux-fixes`. The whole Step 16 UX overhaul is now done across 4 phases (5 commits counting Phase 1b).
 
-- **`lib/widgets/empty_state.dart`** — new reusable EmptyState (icon + title + optional subtitle + optional action). Applied to the task list ('No tasks yet — tap + to add your first one') and to the analytics search sidebar (context-aware copy: 'No habits in this category' vs 'No matches' depending on whether a search term is active).
-- **Inline form validation** — login + signup screens migrated from a Container error banner to `InputDecoration.errorText` attached to the password field. Both screens also clear `_errorMessage` on `onChanged` of either email or password, so the error disappears as soon as the user starts correcting it.
-- **Settings de-embed** — `SettingsScreen.isEmbedded` parameter and all its dead-code branches removed; the screen is now always rendered as the PROFILE bottom-nav tab. `home_screen.dart` updated to drop the now-removed arg. The standalone push route (CANCEL button + AppBar + back chevron variant) is gone — one way to reach Settings.
-- **Settings save feedback** — added `_isSavingSettings` state; the SAVE CHANGES button now disables and shows a spinner during the async write to DatabaseService.
-- **Cupertino transitions** — all 4 `MaterialPageRoute` push sites swapped to `CupertinoPageRoute` (first-run → home, login → signup, settings → login, settings → signup). Smoother desktop-appropriate slide-in.
-- **First-run live preview** — already wired (`styleNotifier.value = style` fires on style tap in `_buildStyleOption`); confirmed working, no edit needed.
-- **Async audit** — login + signup already had full `_isLoading` disable + inline spinner. Settings save was the one gap, now closed. Other async paths (timer settings update, task add/delete, prefs writes) complete in milliseconds locally — instrumenting them would be noise, not signal.
+Shipped in Phase 4:
+- **Heatmap cell**: `AnimatedContainer` (220ms easeOut) wraps the cell so color transitions between intensities + selected/unselected feel smooth. Each day cell gets a `Tooltip` with a formatted date (manual short-form, no intl dep). `MouseRegion(cursor: click)` for desktop hover affordance. Applied in BOTH the 1M view and the generic multi-month view (~lines 414 and 684).
+- **Task tick state**: `Opacity` → `AnimatedOpacity` (200ms) for the dim-on-complete transition. Outer `Container` → `AnimatedContainer` for chrome shifts (border/background) when state changes. Whole row wrapped in `MouseRegion(cursor: click)` so hover state matches expectation on desktop.
+- **Sync dot**: `Container` → `AnimatedContainer` (300ms) so color tween between ready/notSignedIn/unreachable is buttery, not stepped.
+- **Update banner**: previously early-returned `SizedBox.shrink` when not available — now wrapped in `AnimatedSize` (300ms easeOut) so collapse/expand animates instead of snapping.
+- **Pomodoro tabs**: already had `AnimatedContainer` from earlier — verified still in place after Phase 2 sweep.
 
-`flutter analyze`: clean.
+`flutter analyze`: clean. Three commits accumulated on `feature/ux-fixes` (`5448296` Phase 1+1b, `f3eb6c4` Phase 2, `56484ac` Phase 3, plus the Phase 4 commit to follow). Nothing merged to master yet.
 
-**Honest deferral:** the ~40 raw `TextStyle(fontSize:…)` instances from Phase 2 are still pending migration to `textTheme`. Folded forward to a follow-up pass; not blocking Phase 4.
+**Honest deferral:** the ~40 raw `TextStyle(fontSize:…)` migrations to `textTheme` remain. They were never blocking — `textTheme` is strengthened and ready whenever the cleanup pass happens. Not strictly part of any phase deliverable.
 
 ## Next Action
 
-Resume by reading this file + the latest `Prj_Progress.md` entry. Two paths forward:
+Step 16 is functionally complete. Two decisions remain:
 
-1. **Merge Phase 1+1b+2 to master with `#minor` token → CI cuts v1.5.0**, then start Phase 3 on the same branch. The system is structurally healthier and ready for users to see.
-2. **Continue stacking on `feature/ux-fixes`** through Phase 3 + 4, ship as one larger release.
+1. **Spot-check on Linux Mint** — recommended before merge. Walk through home / settings / login / signup / first-run / analytics in both Visual Styles × both brightnesses. Focus on:
+   - Heatmap tap → AnimatedContainer smooth color transition; tooltip on hover
+   - Task complete/uncomplete → AnimatedOpacity dim + AnimatedContainer chrome
+   - Sync dot color change → smooth tween
+   - Update banner appear/dismiss → AnimatedSize collapse
+   - Page transitions (login → signup, settings → login, first-run → home) → Cupertino slide
+   - Empty task list → friendly EmptyState
+   - Wrong password → inline errorText below password field, clears on edit
 
-Recommendation: option 2 if user is comfortable continuing without a release; option 1 if a checkpoint feels valuable.
+2. **Merge decision** — push `feature/ux-fixes` to master with `#minor` token → CI cuts v1.5.0. All 4 commits on the branch carry `[skip release]`, so only the merge will trigger publication.
 
-If starting **Phase 3 — UX Polish**:
-- Unify form validation on inline `errorText` across login/signup/first-run/task creation
-- New `lib/widgets/empty_state.dart` and apply to task list / analytics-explorer-no-records / filter results
-- Audit every async action for spinner-or-disable feedback
-- First-run setup: live theme preview on toggle
-- Remove standalone Settings push route at `settings_screen.dart:721-732` — PROFILE tab only
-- Adopt `CupertinoPageRoute` (or themed Material variant) for nav transitions
-- (Optional cleanup) Migrate remaining raw `TextStyle(fontSize:…)` instances to `textTheme.*`
+After merge, this module is closed. The 4-phase plan in DEVELOPMENT_PLAN.md Step 16 should be flipped to DONE. The next module candidates (Step 12 Desktop Integration, Step 11 Wallpaper for Android, PB backups) are all deferred per existing notes.
 
 ---
 
