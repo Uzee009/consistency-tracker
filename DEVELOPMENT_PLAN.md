@@ -60,36 +60,12 @@ A + B compound: one user edit → push → echo → sync → boundary re-pull �
 
 **Keep as-is:** retry/backoff ladder, 500ms debounce, tombstone prune.
 
-### Step 16 — UI/UX Overhaul: Apple-Level Polish — IN PROGRESS
+### Step 16 — UI/UX Overhaul: Apple-Level Polish — DONE (2026-06-02)
+**Goal:** Smooth, simple, thoughtful UI/UX matching Apple-level standards. Eliminate visual fragmentation (spacing, radius, icon sizes, hard-coded colors) and UX inconsistencies (error states, empty states, loading states). Design system tokens established in `lib/theme/`. Shipped with v1.5.0-equivalent (merged with Step 17).
 
-**Goal:** Smooth, simple, thoughtful UI/UX matching Apple-level standards. Eliminate visual fragmentation (14+ ad-hoc spacing values, 7+ border-radius values, 13 icon sizes, ~91 hard-coded color instances across screens/widgets) and UX inconsistencies (error states, empty states, loading states, redundant navigation, weak desktop keyboard support).
+### Step 17 — Motion System (Apple-Tier Polish) — DONE (2026-06-02)
+Motion tokens + 11 reusable motion widgets, hover/cursor/drag/modal polish, breathing sync indicator, window focus/blur + idle dim, reactive background, full accessibility plumbing. Deferred items as see follow-up modules: Cmd+K palette, Celebrations, Skeleton screens.
 
-**North-star principles:**
-1. **One scale, everywhere.** Spacing on a 4/8/12/16/24/32 ladder. Border radius drawn from {8, 12, 16}. Icons from {12, 16, 24}. Anything off-scale must be justified or removed.
-2. **Theme is law.** All colors via `Theme.of(context).colorScheme`. No raw `Colors.orange`, `Colors.grey[N]`, hex literals in widget code — semantic roles only (primary, tertiary, error, outline, onSurface, surface, …).
-3. **Typography ladder.** ~5 type roles max, all routed through `Theme.of(context).textTheme`. No raw `TextStyle(fontSize: …)` in widgets.
-4. **Predictable feedback.** Every async action either shows a spinner or disables — never freezes. Every error renders human copy, never `e.toString()`.
-5. **One way to reach each thing.** No duplicate navigation entry points.
-
-**Design decisions baked in (override at exec time only if user disagrees):**
-- Brand orange stays as the accent color, mapped to `colorScheme.tertiary` so it is themed (not raw `Colors.orange`).
-- Settings reached only via the PROFILE bottom-nav tab; the standalone push route is removed.
-
-**Phase breakdown (each = separate commit on `feature/ux-fixes`):**
-
-- **Phase 1 — Quick Wins** (7 sub-tasks, ~30 min). User-flagged issues + audit highlights. Sync-log deletion, refresh icon-only, top-right user menu removal, Updates card fix, Create Account button de-pill, auth autofocus/Enter-to-submit, tap-target bumps.
-- **Phase 2 — Design System Foundation** (~2 hrs). New `lib/theme/app_spacing.dart`, `app_radius.dart`, `app_icon_size.dart`. New reusable `lib/widgets/app_card.dart` extracted from duplicated `_buildCard` helpers. Sweep all screens/widgets to use design-system constants. Replace ~91 hard-coded color instances with `colorScheme.*`. Replace raw `TextStyle(fontSize:…)` with `textTheme.*`. Strengthen `textTheme` definition in `main.dart` if currently thin.
-- **Phase 3 — UX Polish** (~3 hrs). Unify form validation on inline `errorText` in `InputDecoration`; stop leaking `e.toString()` (`signup_screen.dart:78`, `login_screen.dart:65`) — map to friendly copy. New `lib/widgets/empty_state.dart` and apply to task list, analytics explorer, filter results. Audit every async action for spinner/disable feedback. First-run setup: live style preview on toggle. Settings nav: remove standalone push (`settings_screen.dart:721-732`), keep PROFILE tab only. Adopt `CupertinoPageRoute` (or themed Material equivalent) for transitions.
-- **Phase 4 — Motion & Micro-interactions** (~1-2 hrs). Wrap state-changing widgets in `AnimatedSwitcher` / `AnimatedContainer` / `TweenAnimationBuilder`: heatmap cell color, task tick, sync status dot, update banner. Desktop hover states via `MouseRegion` + cursor change + subtle background shift on tasks, panels, nav tabs. Heatmap cell tap: subtle scale-down feedback + tooltip with date + score.
-
-**Branch:** `feature/ux-fixes`. Merge to master with `#minor` token → CI cuts v1.5.0.
-
-**Definition of done:**
-- `flutter analyze` clean after each phase.
-- code-reviewer PASS on each phase.
-- Manual visual verification on Linux Mint of: home, settings, login, signup, first-run setup, analytics explorer.
-- Audit metrics post-Phase-2: zero hard-coded `Colors.*[N]` outside theme files; zero raw `TextStyle(fontSize:…)` in `lib/screens/` and `lib/widgets/`; spacing/radius/icon values all sourced from the design-system constant classes.
-
-Full per-phase task list, sub-task statuses, and review history live in `CURRENT_MODULE.md` while this module is active.
+**Branch:** master (post-merge). Merge to master with `#minor` token → CI cuts v1.1.0 (reset/sync with UI/UX overhaul).
 
 *History note:* the original verbose Step 13 appendix (USN rejection, architecture rationale, hosting options, build-order phases) has been removed now that sync is built and shipped. The decisions it documented are preserved in `Prj_Progress.md`. The current sync code is the source of truth for "how it works"; this plan tracks "what's next."

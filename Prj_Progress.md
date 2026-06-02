@@ -1002,3 +1002,22 @@ Plan agreed with user via three structured AskUserQuestion rounds (kebab vs swip
 
 **Cold-resume:** Branch `feature/ux-fixes`, commits `cc61f56` (demo seeder, parked + not visually verified) and the upcoming Task Row UX commit. Step 16 module already closed in a prior entry; this is a focused follow-up driven by user feedback. After commit, decide whether to keep stacking small UX commits on `feature/ux-fixes` or merge with `#minor` → next minor release.
 ---
+
+## 2026-06-02 — Step 17 Motion System (Phases 1-9)
+
+**Summary:**
+- **What happened:** Step 17 introduced a Apple-tier motion system across the desktop app — design tokens, accessibility plumbing, hover & cursor system, layout choreography, navigation polish, drag chrome, personality (breathing sync, focus/blur dim, idle dim, reactive background), eased determinate progress, final audit.
+- **Files touched per phase summary:**
+    - **Phase 1:** Created `lib/theme/motion.dart` (tokens) and `lib/utils/motion_accessibility.dart` (provider); added settings UI for speed/reduce-motion.
+    - **Phase 2:** Migrated existing implicit animations to new tokens; added `PressScale` to all controls; checkbox completion choreography; `AnimatedNumber` counters.
+    - **Phase 3:** `HoverLift` on cards; hover-reveal action icons; cursor proximity glow; animated tooltips.
+    - **Phase 4:** Staggered list entry; FLIP-style reorder proxyDecorator; inertial scroll / rubber-banding.
+    - **Phase 5:** Direction-aware tab switches; `showMotionDialog` with origin-aware scale and backdrop blur; right-click context menus.
+    - **Phase 6:** Panel drag chrome (lift/shadow/rotate); `showMotionToast` (slide-in bottomSnackBar).
+    - **Phase 7:** Breathing sync indicator (sine-wave opacity); reactive background gradient (time-of-day hue shifts); window focus/blur/idle desaturation.
+    - **Phase 8:** Eased determinate progress rings; optimistic interaction refinement.
+    - **Phase 9:** Full accessibility audit; speed/reduce-motion validation; performance-mode toggle.
+- **What stayed deferred:** Cmd+K palette (its own module), animated focus ring travel, magnetic cursor, hero transitions (no detail screen), drop-zone breathe (single drop zone), Esc-cancel + drag-out-fade (Flutter ReorderableListView API limits), streak flame (no flame icon exists), focused-task pulse (no concept), progress ring ambient pulse (no dedicated ring), earned celebrations (substantial feature work — best as own module), emotional weight by action (cross-cutting refactor), skeleton screens, progressive reveal, window resize easing (would feel laggy).
+- **Commits list:** e4bdf21, 56b01f7, 3bf7370, 5097bf0, 184eca5, 102e692, 574c83e.
+- **How verified:** `flutter analyze` clean at every phase; user spot-checked visually and signed off.
+- **Cold-resume:** post-merge state on master, v1.1.0 published.
