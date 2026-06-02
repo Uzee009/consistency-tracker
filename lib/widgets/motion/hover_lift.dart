@@ -9,6 +9,7 @@ class HoverLift extends StatefulWidget {
   final double restElevation;
   final double hoverElevation;
   final Duration? duration;
+  final BorderRadius? borderRadius;
 
   const HoverLift({
     super.key,
@@ -17,6 +18,7 @@ class HoverLift extends StatefulWidget {
     this.restElevation = 0,
     this.hoverElevation = 8,
     this.duration,
+    this.borderRadius,
   });
 
   @override
@@ -44,6 +46,7 @@ class _HoverLiftState extends State<HoverLift> {
           duration: effectiveDuration,
           curve: Motion.standardEase,
           shape: BoxShape.rectangle,
+          borderRadius: widget.borderRadius ?? BorderRadius.zero,
           elevation: _isHovered ? widget.hoverElevation : widget.restElevation,
           color: Colors.transparent,
           shadowColor: Colors.black,

@@ -5,7 +5,6 @@ import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 import '../widgets/motion/press_scale.dart';
-import '../widgets/motion/cursor_glow.dart';
 
 String _friendlyAuthError(Object e, {required bool isSignUp}) {
   final s = e.toString().toLowerCase();
@@ -242,25 +241,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: PressScale(
-                    child: CursorGlow(
-                      radius: 80,
-                      maxOpacity: 0.12,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSignUp,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Create Account'),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleSignUp,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xs)),
                       ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Create Account'),
                     ),
                   ),
                 ),

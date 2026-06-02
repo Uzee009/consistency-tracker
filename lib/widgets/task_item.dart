@@ -108,7 +108,9 @@ class _TaskItemState extends State<TaskItem> with SingleTickerProviderStateMixin
         child: HoverLift(
           liftPx: 2,
           hoverElevation: 6,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: CursorGlow(
+            maxOpacity: 0.025,
             child: AnimatedContainer(
               duration: accessibility.apply(Motion.medium),
               curve: Motion.standardEase,

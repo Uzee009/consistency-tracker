@@ -17,7 +17,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 import '../widgets/motion/press_scale.dart';
-import '../widgets/motion/cursor_glow.dart';
 import '../widgets/app_card.dart';
 import '../utils/demo_seeder.dart';
 import '../utils/motion_dialog.dart';
@@ -800,19 +799,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       if (_hasLocalUserRow)
                         PressScale(
-                          child: CursorGlow(
-                            radius: 80,
-                            maxOpacity: 0.12,
-                            child: ElevatedButton(
-                              onPressed: _isSavingSettings ? null : _saveSettings,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 32, vertical: 16),
-                              ),
-                              child: _isSavingSettings
-                                  ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Text('SAVE CHANGES'),
+                          child: ElevatedButton(
+                            onPressed: _isSavingSettings ? null : _saveSettings,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 16),
                             ),
+                            child: _isSavingSettings
+                                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Text('SAVE CHANGES'),
                           ),
                         ),
                     ],

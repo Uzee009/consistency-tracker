@@ -8,7 +8,6 @@ import '../theme/app_spacing.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 import 'motion/press_scale.dart';
-import 'motion/cursor_glow.dart';
 
 class AddTaskBottomSheet extends StatefulWidget {
   final TaskType type;
@@ -272,6 +271,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             Row(
               children: [
                 Expanded(
+                  flex: 1,
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
@@ -284,14 +284,15 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
+                  flex: 2,
                   child: PressScale(
-                    child: CursorGlow(
-                      radius: 80,
-                      maxOpacity: 0.12,
-                      child: ElevatedButton(
-                        onPressed: _saveTask,
-                        child: Text(widget.task == null ? 'Save Task' : 'Update Task'),
+                    child: ElevatedButton(
+                      onPressed: _saveTask,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       ),
+                      child: Text(widget.task == null ? 'Save Task' : 'Update Task'),
                     ),
                   ),
                 ),

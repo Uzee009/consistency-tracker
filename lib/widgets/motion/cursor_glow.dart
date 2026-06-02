@@ -11,9 +11,9 @@ class CursorGlow extends StatefulWidget {
   const CursorGlow({
     super.key,
     required this.child,
-    this.radius = 120,
+    this.radius = 100,
     this.color,
-    this.maxOpacity = 0.08,
+    this.maxOpacity = 0.035,
   });
 
   @override
