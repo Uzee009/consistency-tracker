@@ -1,9 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/style_service.dart';
+import '../theme/motion.dart';
+import '../utils/motion_accessibility.dart';
 import '../main.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
+import 'motion/animated_tooltip.dart';
 
 class ConsistencyHeatmap extends StatefulWidget {
   final Map<DateTime, int> heatmapData;
@@ -130,12 +133,13 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
     }
 
     if (targetMonthIndex >= 0 && targetMonthIndex < monthsCount) {
+      final accessibility = MotionAccessibility.of(context);
       // V9 FIX: If target is the current/last month, just scroll to end to ensure full visibility
       if (targetMonthIndex == monthsCount - 1) {
         _heatmapScrollController.animateTo(
           _heatmapScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
+          duration: accessibility.apply(const Duration(milliseconds: 500)),
+          curve: Motion.standardEase,
         );
         return;
       }
@@ -170,8 +174,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
 
       _heatmapScrollController.animateTo(
         totalOffset.clamp(0, _heatmapScrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+        duration: accessibility.apply(const Duration(milliseconds: 500)),
+        curve: Motion.standardEase,
       );
     }
   }
@@ -424,8 +428,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
                 height: cellHeight,
                 padding: const EdgeInsets.all(2),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
+                  duration: MotionAccessibility.of(context).apply(const Duration(milliseconds: 220)),
+                  curve: Motion.standardEase,
                   decoration: BoxDecoration(
                     color: finalCellColor,
                     borderRadius: BorderRadius.circular(AppRadius.md), // Increased radius
@@ -452,9 +456,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             );
 
             if (hasData) {
-              cell = Tooltip(
+              cell = AnimatedTooltip(
                 message: tooltipMessage,
-                waitDuration: const Duration(milliseconds: 400),
                 child: cell,
               );
             }
@@ -682,8 +685,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
               child: Padding(
                 padding: const EdgeInsets.all(1.2),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
+                  duration: MotionAccessibility.of(context).apply(const Duration(milliseconds: 220)),
+                  curve: Motion.standardEase,
                   decoration: BoxDecoration(
                     color: finalCellColor,
                     borderRadius: BorderRadius.circular(3),
@@ -718,9 +721,8 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           );
 
           if (hasData) {
-            cell = Tooltip(
+            cell = AnimatedTooltip(
               message: tooltipMessage,
-              waitDuration: const Duration(milliseconds: 400),
               child: cell,
             );
           }

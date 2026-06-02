@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/scoring_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_radius.dart';
+import 'motion/animated_double.dart';
+import 'motion/animated_number.dart';
 
 class AnalyticsKPIs extends StatelessWidget {
   final AnalyticsResult analytics;
@@ -58,6 +60,13 @@ class AnalyticsKPIs extends StatelessWidget {
         ? VerticalDivider(color: isDark ? Colors.white10 : Colors.black12, width: AppSpacing.lg, indent: 4, endIndent: 4)
         : Divider(color: isDark ? Colors.white10 : Colors.black12, height: AppSpacing.md);
 
+    final kpiStyle = TextStyle(
+      fontSize: 32,
+      fontWeight: FontWeight.w900,
+      height: 1.1,
+      letterSpacing: -1,
+    );
+
     if (isFocused) {
       // Individual Habit KPIs
       return [
@@ -65,6 +74,10 @@ class AnalyticsKPIs extends StatelessWidget {
           context,
           label: analytics.isAtRisk ? 'STREAK AT RISK' : 'CURRENT',
           value: analytics.currentStreak.toString(),
+          valueWidget: AnimatedNumber(
+            value: analytics.currentStreak, 
+            style: kpiStyle.copyWith(color: analytics.isAtRisk ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.primary),
+          ),
           subtitle: analytics.isAtRisk ? 'SAVE IT TODAY!' : 'STREAK',
           color: analytics.isAtRisk ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.primary,
           isWarning: analytics.isAtRisk,
@@ -74,6 +87,10 @@ class AnalyticsKPIs extends StatelessWidget {
           context,
           label: 'LONGEST',
           value: analytics.longestStreak.toString(),
+          valueWidget: AnimatedNumber(
+            value: analytics.longestStreak,
+            style: kpiStyle.copyWith(color: Theme.of(context).colorScheme.tertiary),
+          ),
           subtitle: 'STREAK',
           color: Theme.of(context).colorScheme.tertiary,
           isClickable: analytics.longestStreakStart != null,
@@ -84,6 +101,11 @@ class AnalyticsKPIs extends StatelessWidget {
           context,
           label: '30-DAY',
           value: '${(analytics.consistencyRate * 100).toStringAsFixed(0)}%',
+          valueWidget: AnimatedDouble(
+            value: analytics.consistencyRate * 100,
+            formatter: (v) => '${v.toStringAsFixed(0)}%',
+            style: kpiStyle.copyWith(color: _getConsistencyColor(analytics.consistencyRate)),
+          ),
           subtitle: 'CONSISTENCY',
           color: _getConsistencyColor(analytics.consistencyRate),
         ),
@@ -111,6 +133,11 @@ class AnalyticsKPIs extends StatelessWidget {
           context,
           label: '7-DAY',
           value: '${(analytics.momentum7Day * 100).toStringAsFixed(0)}%',
+          valueWidget: AnimatedDouble(
+            value: analytics.momentum7Day * 100,
+            formatter: (v) => '${v.toStringAsFixed(0)}%',
+            style: kpiStyle.copyWith(color: _getConsistencyColor(analytics.momentum7Day)),
+          ),
           subtitle: 'MOMENTUM',
           color: _getConsistencyColor(analytics.momentum7Day),
         ),
@@ -130,6 +157,7 @@ class AnalyticsKPIs extends StatelessWidget {
     BuildContext context, {
     required String label,
     required String value,
+    Widget? valueWidget,
     required String subtitle,
     required Color color,
     bool isWarning = false,
@@ -171,7 +199,7 @@ class AnalyticsKPIs extends StatelessWidget {
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(
+                child: valueWidget ?? Text(
                   value,
                   style: TextStyle(
                     fontSize: 32,

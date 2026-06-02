@@ -7,6 +7,7 @@ import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/services/connectivity_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
+import 'package:consistency_tracker_v1/services/motion_settings_service.dart';
 import 'package:consistency_tracker_v1/screens/login_screen.dart';
 import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
@@ -15,6 +16,8 @@ import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
+import '../widgets/motion/press_scale.dart';
+import '../widgets/motion/cursor_glow.dart';
 import '../widgets/app_card.dart';
 import '../utils/demo_seeder.dart';
 
@@ -33,12 +36,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _currentVersion;
   bool _checkingUpdate = false;
   bool _isSavingSettings = false;
+  double _motionSpeed = 1.0;
+  bool _motionPerfMode = false;
 
   @override
   void initState() {
     super.initState();
     _userFuture = _loadUserData();
     _loadCurrentVersion();
+    _motionSpeed = motionNotifier.value.speed;
+    _motionPerfMode = motionNotifier.value.performanceMode;
   }
 
   Future<void> _loadCurrentVersion() async {
@@ -78,15 +85,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
           monthlyCheatDays: _monthlyCheatDays!,
         );
         await DatabaseService.instance.updateUser(updatedUser);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Settings saved successfully.')),
-          );
-        }
+      }
+      
+      // Persist motion settings
+      await MotionSettingsService.save(motionNotifier.value);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings saved successfully.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);
     }
+  }
+
+  void _updateMotionSpeed(double v) {
+    setState(() => _motionSpeed = v);
+    motionNotifier.value = motionNotifier.value.copyWith(speed: v);
+  }
+
+  void _updateMotionPerfMode(bool v) {
+    setState(() => _motionPerfMode = v);
+    motionNotifier.value = motionNotifier.value.copyWith(performanceMode: v);
   }
 
   Future<void> _updateTheme(ThemeMode mode) async {
@@ -127,6 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24.0, vertical: 32.0),
                     child: Column(
@@ -194,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               padding:
                   const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
@@ -370,23 +393,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     spacing: 12,
                                     runSpacing: 8,
                                     children: [
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).push(
-                                          CupertinoPageRoute(
-                                              builder: (context) =>
-                                                  const LoginScreen()),
+                                      PressScale(
+                                        child: ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).push(
+                                            CupertinoPageRoute(
+                                                builder: (context) =>
+                                                    const LoginScreen()),
+                                          ),
+                                          child: const Text('Sign In'),
                                         ),
-                                        child: const Text('Sign In'),
                                       ),
-                                      OutlinedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).push(
-                                          CupertinoPageRoute(
-                                              builder: (context) =>
-                                                  const SignUpScreen()),
+                                      PressScale(
+                                        child: OutlinedButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).push(
+                                            CupertinoPageRoute(
+                                                builder: (context) =>
+                                                    const SignUpScreen()),
+                                          ),
+                                          child: const Text('Create Account'),
                                         ),
-                                        child: const Text('Create Account'),
                                       ),
                                     ],
                                   ),
@@ -514,20 +541,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ElevatedButton.icon(
-                                  onPressed: (isSyncing || !isAuthed)
-                                      ? null
-                                      : _handleSyncNow,
-                                  icon: isSyncing
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
-                                      : const Icon(Icons.sync, size: AppIconSize.lg),
-                                  label:
-                                      Text(isSyncing ? 'Syncing…' : 'Sync Now'),
+                                PressScale(
+                                  child: ElevatedButton.icon(
+                                    onPressed: (isSyncing || !isAuthed)
+                                        ? null
+                                        : _handleSyncNow,
+                                    icon: isSyncing
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2),
+                                          )
+                                        : const Icon(Icons.sync, size: AppIconSize.lg),
+                                    label:
+                                        Text(isSyncing ? 'Syncing…' : 'Sync Now'),
+                                  ),
                                 ),
                                 if (!isAuthed) ...[
                                   const SizedBox(height: 8),
@@ -554,6 +583,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                           ),
                         ),
+                  const SizedBox(height: 40),
+                  _buildSectionHeader('MOTION & ANIMATION',
+                      'Control the speed and frequency of animations.'),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel(
+                            'Animation Speed (${_motionSpeed.toStringAsFixed(2)}x)'),
+                        Slider(
+                          value: _motionSpeed,
+                          min: 0.5,
+                          max: 2.0,
+                          divisions: 6,
+                          label: '${_motionSpeed.toStringAsFixed(2)}x',
+                          onChanged: _updateMotionSpeed,
+                        ),
+                        const SizedBox(height: 24),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Performance Mode',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
+                          subtitle: const Text(
+                              'Disables ambient animations for lower-end systems.',
+                              style: TextStyle(fontSize: 12)),
+                          value: _motionPerfMode,
+                          onChanged: _updateMotionPerfMode,
+                          activeThumbColor:
+                              Theme.of(context).colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   _buildSectionHeader('UPDATES', 'Keep the app up to date.'),
                   AppCard(
@@ -597,17 +660,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
 
                     // Check for Updates Button
-                    ElevatedButton.icon(
-                      onPressed: _checkingUpdate ? null : _handleCheckForUpdate,
-                      icon: _checkingUpdate
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.system_update, size: AppIconSize.lg),
-                      label: Text(
-                          _checkingUpdate ? 'Checking…' : 'Check for Updates'),
+                    PressScale(
+                      child: ElevatedButton.icon(
+                        onPressed: _checkingUpdate ? null : _handleCheckForUpdate,
+                        icon: _checkingUpdate
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.system_update, size: AppIconSize.lg),
+                        label: Text(
+                            _checkingUpdate ? 'Checking…' : 'Check for Updates'),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
@@ -624,12 +689,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => UpdateService.instance
-                                        .downloadAndApply(),
-                                    icon:
-                                        const Icon(Icons.restart_alt, size: AppIconSize.lg),
-                                    label: const Text('Update & Restart'),
+                                  PressScale(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => UpdateService.instance
+                                          .downloadAndApply(),
+                                      icon:
+                                          const Icon(Icons.restart_alt, size: AppIconSize.lg),
+                                      label: const Text('Update & Restart'),
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   TextButton(
@@ -731,15 +798,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       if (_hasLocalUserRow)
-                        ElevatedButton(
-                          onPressed: _isSavingSettings ? null : _saveSettings,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 16),
+                        PressScale(
+                          child: CursorGlow(
+                            radius: 80,
+                            maxOpacity: 0.12,
+                            child: ElevatedButton(
+                              onPressed: _isSavingSettings ? null : _saveSettings,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 16),
+                              ),
+                              child: _isSavingSettings
+                                  ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Text('SAVE CHANGES'),
+                            ),
                           ),
-                          child: _isSavingSettings
-                              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Text('SAVE CHANGES'),
                         ),
                     ],
                   ),

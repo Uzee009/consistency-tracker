@@ -7,6 +7,7 @@ import '../../widgets/consistency_heatmap.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_icon_size.dart';
+import '../motion/animated_tooltip.dart';
 
 class CalendarPanel extends StatefulWidget {
   final DashboardController controller;
@@ -47,7 +48,7 @@ class _CalendarResetAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
+    return AnimatedTooltip(
       message: 'Reset to Today',
       child: GestureDetector(
         onTap: () => controller.setSelectedDate(DateTime.now(), showLoading: false),

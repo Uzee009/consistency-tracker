@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/scoring_service.dart';
 import '../theme/app_radius.dart';
+import '../theme/motion.dart';
+import '../utils/motion_accessibility.dart';
+import 'motion/animated_tooltip.dart';
 
 class AnalyticsCarousel extends StatefulWidget {
   final List<MomentumPoint> momentumData;
@@ -32,6 +35,7 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accessibility = MotionAccessibility.of(context);
 
     final content = Column(
       children: [
@@ -55,9 +59,8 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Tooltip(
+                  AnimatedTooltip(
                     message: _getHelpText(),
-                    triggerMode: TooltipTriggerMode.tap,
                     child: Icon(
                       Icons.info_outline_rounded,
                       size: 14,
@@ -71,13 +74,13 @@ class _AnalyticsCarouselState extends State<AnalyticsCarousel> {
                   _buildNavButton(
                     context, 
                     Icons.chevron_left_rounded, 
-                    _currentPage > 0 ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
+                    _currentPage > 0 ? () => _pageController.previousPage(duration: accessibility.apply(Motion.medium), curve: Motion.standardEase) : null
                   ),
                   const SizedBox(width: 8),
                   _buildNavButton(
                     context, 
                     Icons.chevron_right_rounded, 
-                    _currentPage < 1 ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null
+                    _currentPage < 1 ? () => _pageController.nextPage(duration: accessibility.apply(Motion.medium), curve: Motion.standardEase) : null
                   ),
                 ],
               ),

@@ -14,6 +14,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:consistency_tracker_v1/services/audio_service.dart';
 import 'package:consistency_tracker_v1/services/sync_service.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
+import 'package:consistency_tracker_v1/services/motion_settings_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -22,6 +23,7 @@ import 'package:path/path.dart' as p;
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
 final ValueNotifier<VisualStyle> styleNotifier =
     ValueNotifier(VisualStyle.minimalist);
+final ValueNotifier<MotionSettings> motionNotifier = ValueNotifier(const MotionSettings());
 
 void _cleanupOldUpdate() {
   try {
@@ -101,6 +103,8 @@ void main() async {
       prefs.getInt(DatabaseService.prefixedKey('visual_style')) ??
           0; // 0: minimalist, 1: vibrant
   styleNotifier.value = VisualStyle.values[styleIndex];
+
+  motionNotifier.value = await MotionSettingsService.load();
 
   await AudioService.instance.initialize();
 

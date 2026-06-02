@@ -212,6 +212,7 @@ class _AnalyticsExplorerScreenState extends State<AnalyticsExplorerScreen> {
             builder: (context, loading, _) {
               if (loading) return const Center(child: CircularProgressIndicator());
               return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -450,7 +451,10 @@ class _SearchSidebarState extends State<_SearchSidebar> {
                   title: _ctrl.text.isEmpty ? 'No habits in this category' : 'No matches',
                   subtitle: _ctrl.text.isEmpty ? null : 'Try a different search term.',
                 )
-              : ListView.builder(itemCount: _filtered.length, itemBuilder: (c, i) => _tile(_filtered[i])),
+              : ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _filtered.length, 
+                  itemBuilder: (c, i) => _tile(_filtered[i])),
         ),
       ]),
     );
@@ -536,10 +540,13 @@ class _Inspector extends StatelessWidget {
         ])),
         const Divider(height: 1),
         _score(context, isC),
-        Expanded(child: ListView(padding: const EdgeInsets.symmetric(horizontal: 24), children: [
-          Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text('HABITS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurfaceVariant))),
-          ...tasks.map((t) => _tTile(context, t)),
-        ])),
+        Expanded(child: ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24), 
+          children: [
+            Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text('HABITS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurfaceVariant))),
+            ...tasks.map((t) => _tTile(context, t)),
+          ])),
       ]),
     );
   }

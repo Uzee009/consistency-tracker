@@ -15,6 +15,9 @@ import '../services/update_service.dart';
 import '../widgets/sync_status.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
+import '../theme/motion.dart';
+import '../utils/motion_accessibility.dart';
+import '../widgets/motion/animated_tooltip.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -94,8 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 valueListenable: UpdateService.instance.available,
                 builder: (context, available, _) {
                   return AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
+                    duration: MotionAccessibility.of(context).apply(Motion.medium),
+                    curve: Motion.standardEase,
                     child: (available == null ||
                             _dismissedUpdateVersion == available.version)
                         ? const SizedBox.shrink()
@@ -538,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final tooltipMsg =
                     syncStatusTooltip(readiness, authed: isAuthed);
 
-                return Tooltip(
+                return AnimatedTooltip(
                   message: tooltipMsg,
                   child: Material(
                     color: primary.withValues(alpha: 0.1),
@@ -553,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
+                              duration: MotionAccessibility.of(context).apply(Motion.medium),
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(
