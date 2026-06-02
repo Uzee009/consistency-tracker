@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 import '../widgets/app_card.dart';
+import '../utils/demo_seeder.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -724,6 +725,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                           ),
                         ),
+                  _buildDemoSection(),
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -890,5 +892,118 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final local = dt.toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+  }
+
+  Widget _buildDemoSection() {
+    final email = PocketBaseService.instance.userEmail;
+    if (email != "demo@account.com") return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 40),
+        _buildSectionHeader(
+            'DEMO ACCOUNT', 'These actions only appear for the demo account.'),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ElevatedButton(
+                onPressed: _handleDemoSeed,
+                child: const Text('Seed demo data'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _handleDemoWipe,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .error
+                        .withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Text('Wipe demo data'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleDemoSeed() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text("Seeding demo data..."),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await DemoSeeder.seed();
+      navigator.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('Demo data seeded.')));
+    } catch (e) {
+      navigator.pop();
+      messenger.showSnackBar(SnackBar(content: Text('Seed failed: $e')));
+    }
+  }
+
+  Future<void> _handleDemoWipe() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Wipe demo data'),
+        content: const Text('Wipe all demo tasks and history?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Wipe')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text("Wiping demo data..."),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await DemoSeeder.wipe();
+      navigator.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('Demo data wiped.')));
+    } catch (e) {
+      navigator.pop();
+      messenger.showSnackBar(SnackBar(content: Text('Wipe failed: $e')));
+    }
   }
 }
