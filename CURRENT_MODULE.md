@@ -1,6 +1,6 @@
 **Module:** Step 17 — Motion System (Apple-Tier Animation Polish)
 **Branch:** feature/ux-fixes (stacking on Step 16; revisit after Step 16 merges to master)
-**State:** IN_PROGRESS — Phase 7 (Personality & Ambient Life, reduced scope) implemented; pending visual verify
+**State:** IN_PROGRESS — Phase 8 (Optimistic UI & Loading, narrow scope) implemented; pending flutter analyze + visual verify
 **Last updated:** 2026-06-02
 
 ## Scope (locked with user)
@@ -98,10 +98,10 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
   - Neutral (edit, save) → standard ease
 
 ### Phase 8 — Optimistic UI & Loading States (Batch 01 loading)
-- [ ] Optimistic task completion: animate as if succeeded immediately on tap; rollback animation only on sync failure
-- [ ] Skeleton screens replace existing spinners; skeleton width/height morphs into real content shape
-- [ ] Progressive reveal: fields populate in readable order (title → meta → actions) over ~200ms
-- [ ] Eased progress rings: tween to target over ~600ms with `Motion.standardEase` instead of jumping
+- [x] Optimistic task completion: animate as if succeeded immediately (already-done — local DB writes are synchronous; AnimatedOpacity dims row on state change)
+- [x] Eased progress rings: tween to target over Motion.slow with Motion.standardEase (applied to analytics completion ring)
+- [ ] Skeleton screens (deferred — needs per-screen target-shape mapping; defer to dedicated polish module)
+- [ ] Progressive reveal field cascade (deferred — low-impact polish; revisit in Phase 9 or follow-up)
 
 ### Phase 9 — Accessibility, Settings, Final Audit
 - [ ] Verify `MotionAccessibility.reduce` short-circuits every animation (springs collapse to 50ms fades, ambient loops stop)
@@ -112,7 +112,7 @@ Step 16 (UI/UX Overhaul) closed with Phase 4 already laying some implicit-animat
 
 ## Next Action
 
-Orchestrator runs flutter analyze + visual smoke on sync breathing, focus/blur dim, idle dim, background drift. On pass, proceed to Phase 8 (Optimistic UI & Loading States).
+Orchestrator runs flutter analyze + visual smoke on progress ring easing. On pass, proceed to Phase 9 (Accessibility, Settings, Final Audit).
 
 ## Review History
 

@@ -11,6 +11,8 @@ import '../widgets/analytics_kpis.dart';
 import '../widgets/analytics_carousel.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
+import '../theme/motion.dart';
+import '../utils/motion_accessibility.dart';
 import '../widgets/app_card.dart';
 import '../widgets/empty_state.dart';
 
@@ -553,17 +555,79 @@ class _Inspector extends StatelessWidget {
 
   Widget _score(BuildContext context, bool isC) {
     final color = isC ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.primary;
-    return Container(margin: const EdgeInsets.all(24), padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: color.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(AppRadius.xl), border: Border.all(color: color.withValues(alpha: 0.1))), child: Row(children: [
-      Stack(alignment: Alignment.center, children: [
-        SizedBox(width: 48, height: 48, child: CircularProgressIndicator(value: isC ? 1.0 : (record?.completionScore ?? 0), strokeWidth: 5, valueColor: AlwaysStoppedAnimation(color))),
-        Text(isC ? '100%' : '${((record?.completionScore ?? 0)*100).toInt()}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: isC ? Theme.of(context).colorScheme.tertiary : null)),
-      ]),
-      const SizedBox(width: 16),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(isC ? 'CHEAT DAY' : 'DAILY SCORE', style: TextStyle(fontWeight: FontWeight.w900, color: isC ? Theme.of(context).colorScheme.tertiary : null)),
-        Text(isC ? 'Streak protected' : 'Completion rate', style: TextStyle(fontSize: 11, color: isC ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onSurfaceVariant)),
-      ])),
-    ]));
+    final targetValue = isC ? 1.0 : (record?.completionScore ?? 0);
+    final reduce = MotionAccessibility.of(context).reduce;
+
+    return Container(
+      margin: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: reduce
+                    ? CircularProgressIndicator(
+                        value: targetValue,
+                        strokeWidth: 5,
+                        valueColor: AlwaysStoppedAnimation(color),
+                      )
+                    : TweenAnimationBuilder<double>(
+                        tween: Tween<double>(end: targetValue),
+                        duration: Motion.slow,
+                        curve: Motion.standardEase,
+                        builder: (context, v, _) => CircularProgressIndicator(
+                          value: v,
+                          strokeWidth: 5,
+                          valueColor: AlwaysStoppedAnimation(color),
+                        ),
+                      ),
+              ),
+              Text(
+                isC ? '100%' : '${(targetValue * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: isC ? Theme.of(context).colorScheme.tertiary : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isC ? 'CHEAT DAY' : 'DAILY SCORE',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: isC ? Theme.of(context).colorScheme.tertiary : null,
+                  ),
+                ),
+                Text(
+                  isC ? 'Streak protected' : 'Completion rate',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isC
+                        ? Theme.of(context).colorScheme.tertiary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _tTile(BuildContext context, Task t) {
