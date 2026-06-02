@@ -4,6 +4,7 @@ import '../models/day_record_model.dart';
 import '../services/style_service.dart';
 import '../main.dart';
 import 'task_item.dart';
+import 'empty_state.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
@@ -124,11 +125,10 @@ class TaskSection extends StatelessWidget {
           if (showTitle) const Divider(),
           Expanded(
             child: filteredTasks.isEmpty
-                ? Center(
-                    child: Text(
-                      'No tasks yet',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2), fontSize: 13),
-                    ),
+                ? const EmptyState(
+                    icon: Icons.checklist_outlined,
+                    title: 'No tasks yet',
+                    subtitle: 'Tap + to add your first one.',
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: AppSpacing.xs),

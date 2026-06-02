@@ -914,3 +914,26 @@ Plan saved to `/home/uzee/.claude/plans/scalable-painting-dove.md`. Eight batche
 
 **Cold-resume:** Read `CURRENT_MODULE.md` + this entry. Branch: `feature/ux-fixes`. Next: ask user to spot-check the running app, then choose between merging or continuing to Phase 3.
 
+---
+## 2026-06-02 — Step 16 Phase 3 (UX Polish)
+
+**What happened:**
+Layered UX polish on top of the Phase 2 design system. Created `lib/widgets/empty_state.dart` (reusable icon+title+subtitle+action placeholder) and applied it to the task list and analytics search sidebar. Migrated login + signup error UI from a separate red Container to inline `InputDecoration.errorText` that clears on edit. Removed the dead `SettingsScreen.isEmbedded=false` standalone-push variant (CANCEL button + AppBar + back chevron) — Settings is always the PROFILE tab now. Added `_isSavingSettings` state with a button spinner. Swapped all 4 `MaterialPageRoute` push sites to `CupertinoPageRoute` for smoother desktop transitions.
+
+**Files touched:** 7 modified, 1 new (`empty_state.dart`). ~+64 / -85 lines net (deletions exceed insertions thanks to dead-code removal).
+
+**What stayed put:**
+- First-run live preview already wired (`styleNotifier.value = style` on tap) — no edit needed.
+- Login + signup async disable already correct — no edit needed.
+- Other async paths (timer save, task add/delete) are local DB writes completing in ms; spinner instrumentation would be noise.
+
+**What's open:**
+- ~40 raw `TextStyle(fontSize:…)` instances pending migration to `textTheme` (Phase 2 carryover). Defer to follow-up.
+- Manual visual smoke on Linux Mint pending (especially: error states in login/signup, empty task list, empty analytics search, settings save spinner).
+- Decision: merge Phases 1-3 with `#minor` → v1.5.0 now, or stack Phase 4 first.
+
+**How the work was done:**
+Plan in CURRENT_MODULE.md task list. One big batched gemini spec covering EmptyState + form errorText + Settings de-embed + Cupertino swap + save spinner. Orchestrator verified with `flutter analyze` + targeted grep audits after gemini wrapped. Gemini had a few `replace` failures mid-spec and recovered via `write_file` rewrites; final state verified analyze-clean and matches the spec.
+
+**Cold-resume:** Read CURRENT_MODULE.md + this entry. Branch: `feature/ux-fixes`. Three Phase-2/3 commits accumulated; not merged to master. Next: ask user to spot-check, then choose between merging or starting Phase 4 (Motion & Micro-interactions).
+---

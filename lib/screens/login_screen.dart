@@ -1,6 +1,7 @@
 // lib/screens/login_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:consistency_tracker_v1/services/pocketbase_service.dart';
 import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 import '../theme/app_radius.dart';
@@ -151,6 +152,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
                   onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 ),
                 const SizedBox(height: 16),
@@ -161,9 +165,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: 'Password',
                     labelText: 'Password',
                     enabled: !_isLoading,
+                    errorText: _errorMessage,
                   ),
                   obscureText: true,
                   textInputAction: TextInputAction.done,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
                   onSubmitted: (_) => _isLoading ? null : _handleSignIn(),
                 ),
                 const SizedBox(height: 16),
@@ -204,25 +212,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                // Error message
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.xs),
-                      border: Border.all(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 // Sign In button
                 SizedBox(
                   width: double.infinity,
@@ -252,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
+                              CupertinoPageRoute(
                                 builder: (_) => const SignUpScreen(),
                               ),
                             );

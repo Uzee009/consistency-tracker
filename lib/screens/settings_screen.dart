@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:consistency_tracker_v1/models/user_model.dart';
 import 'package:consistency_tracker_v1/services/database_service.dart';
 import 'package:consistency_tracker_v1/services/style_service.dart';
@@ -17,8 +18,7 @@ import '../theme/app_icon_size.dart';
 import '../widgets/app_card.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final bool isEmbedded;
-  const SettingsScreen({super.key, this.isEmbedded = false});
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -31,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int? _monthlyCheatDays;
   String? _currentVersion;
   bool _checkingUpdate = false;
+  bool _isSavingSettings = false;
 
   @override
   void initState() {
@@ -65,21 +66,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
-    final user = await _userFuture;
-    if (user != null && _monthlyCheatDays != null) {
-      final updatedUser = User(
-        id: user.id,
-        name: _nameController.text,
-        createdAt: user.createdAt,
-        monthlyCheatDays: _monthlyCheatDays!,
-      );
-      await DatabaseService.instance.updateUser(updatedUser);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved successfully.')),
+    setState(() => _isSavingSettings = true);
+    try {
+      final user = await _userFuture;
+      if (user != null && _monthlyCheatDays != null) {
+        final updatedUser = User(
+          id: user.id,
+          name: _nameController.text,
+          createdAt: user.createdAt,
+          monthlyCheatDays: _monthlyCheatDays!,
         );
-        if (!widget.isEmbedded) Navigator.of(context).pop();
+        await DatabaseService.instance.updateUser(updatedUser);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Settings saved successfully.')),
+          );
+        }
       }
+    } finally {
+      if (mounted) setState(() => _isSavingSettings = false);
     }
   }
 
@@ -367,7 +372,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ElevatedButton(
                                         onPressed: () =>
                                             Navigator.of(context).push(
-                                          MaterialPageRoute(
+                                          CupertinoPageRoute(
                                               builder: (context) =>
                                                   const LoginScreen()),
                                         ),
@@ -376,7 +381,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       OutlinedButton(
                                         onPressed: () =>
                                             Navigator.of(context).push(
-                                          MaterialPageRoute(
+                                          CupertinoPageRoute(
                                               builder: (context) =>
                                                   const SignUpScreen()),
                                         ),
@@ -723,20 +728,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (!widget.isEmbedded)
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('CANCEL'),
-                        ),
-                      const SizedBox(width: 12),
                       if (_hasLocalUserRow)
                         ElevatedButton(
-                          onPressed: _saveSettings,
+                          onPressed: _isSavingSettings ? null : _saveSettings,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 32, vertical: 16),
                           ),
-                          child: const Text('SAVE CHANGES'),
+                          child: _isSavingSettings
+                              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('SAVE CHANGES'),
                         ),
                     ],
                   ),
@@ -748,19 +749,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
 
-    if (widget.isEmbedded)
-      return Scaffold(backgroundColor: Colors.transparent, body: content);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('SETTINGS'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: AppIconSize.lg),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: content,
-    );
+    return Scaffold(backgroundColor: Colors.transparent, body: content);
   }
 
   Widget _buildSectionHeader(String title, String subtitle) {

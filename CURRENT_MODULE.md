@@ -1,30 +1,23 @@
 **Module:** Step 16 — UI/UX Overhaul: Apple-Level Polish
 **Branch:** feature/ux-fixes
-**State:** IN_PROGRESS (Phase 1 + 1b + 2 shipped — Phase 3 next session)
-**Last updated:** 2026-06-02 (Phase 2 ship)
+**State:** IN_PROGRESS (Phase 1 + 1b + 2 + 3 shipped — Phase 4 next session)
+**Last updated:** 2026-06-02 (Phase 3 ship)
 
 ## Working Context
 
-Phase 2 — Design System Foundation — is complete on `feature/ux-fixes`. The design system primitives are now centralized:
+Phase 3 — UX Polish — is complete on `feature/ux-fixes`. Shipped:
 
-- **`lib/theme/app_spacing.dart`** — 8 spacing tokens (xxs=4 … xxxl=40)
-- **`lib/theme/app_radius.dart`** — 6 radius tokens (xs=4 … xxl=24)
-- **`lib/theme/app_icon_size.dart`** — 6 icon-size tokens (xs=12 … xxl=24)
-- **`lib/widgets/app_card.dart`** — single reusable card chrome, extracted from the duplicated `_buildCard` helpers
-- **`lib/main.dart`** — strengthened `textTheme` (9 explicit roles) via new `_buildAppTextTheme(Brightness)` helper; `colorScheme.tertiary` (brand orange `#EA580C` light / `#FB923C` dark) and `colorScheme.error` (red `#DC2626` light / `#F87171` dark) now drive what used to be hard-coded `Colors.orange`/`Colors.red` references
-
-Sweep results across `lib/screens/` and `lib/widgets/`:
-- **Zero** raw `Colors.red|orange|grey|blue|green|yellow|amber|purple` references remaining (verified via grep)
-- All `BorderRadius.circular(N)` on the standard scale (4/6/8/12/16/24) now go through `AppRadius.*`; non-token values (1/2/3/10/20) intentionally left inline
-- All `Icon(size: N)` on the standard scale (12/14/16/18/20/24) now go through `AppIconSize.*`
-- `_buildCard` removed from `settings_screen.dart` (6 call sites swapped to `AppCard`); `_section` helper in `analytics_explorer_screen.dart` now wraps `AppCard`
-- `syncStatusColor` signature changed to take `ColorScheme`; both call sites (home + settings) updated
-- `StyleService` (the dynamic VisualStyle palette) was left untouched as planned
-- Semantic gradient colors in `analytics_kpis._getConsistencyColor` and pomodoro mode accents kept as hex constants (with explanatory comments) — they encode meaning, not theme
+- **`lib/widgets/empty_state.dart`** — new reusable EmptyState (icon + title + optional subtitle + optional action). Applied to the task list ('No tasks yet — tap + to add your first one') and to the analytics search sidebar (context-aware copy: 'No habits in this category' vs 'No matches' depending on whether a search term is active).
+- **Inline form validation** — login + signup screens migrated from a Container error banner to `InputDecoration.errorText` attached to the password field. Both screens also clear `_errorMessage` on `onChanged` of either email or password, so the error disappears as soon as the user starts correcting it.
+- **Settings de-embed** — `SettingsScreen.isEmbedded` parameter and all its dead-code branches removed; the screen is now always rendered as the PROFILE bottom-nav tab. `home_screen.dart` updated to drop the now-removed arg. The standalone push route (CANCEL button + AppBar + back chevron variant) is gone — one way to reach Settings.
+- **Settings save feedback** — added `_isSavingSettings` state; the SAVE CHANGES button now disables and shows a spinner during the async write to DatabaseService.
+- **Cupertino transitions** — all 4 `MaterialPageRoute` push sites swapped to `CupertinoPageRoute` (first-run → home, login → signup, settings → login, settings → signup). Smoother desktop-appropriate slide-in.
+- **First-run live preview** — already wired (`styleNotifier.value = style` fires on style tap in `_buildStyleOption`); confirmed working, no edit needed.
+- **Async audit** — login + signup already had full `_isLoading` disable + inline spinner. Settings save was the one gap, now closed. Other async paths (timer settings update, task add/delete, prefs writes) complete in milliseconds locally — instrumenting them would be noise, not signal.
 
 `flutter analyze`: clean.
 
-**Honest deferral:** ~40 `TextStyle(fontSize:…)` instantiations remain in `lib/screens/` and `lib/widgets/`. The plan's full goal of zero raw TextStyles wasn't met this phase — `textTheme` is strengthened and ready, but the call-site migration of all 40 instances was deferred to keep Phase 2's scope honest and the sweep mechanical. Migrating those to `Theme.of(context).textTheme.X.copyWith(...)` can be folded into Phase 3 polish or done as a follow-up pass.
+**Honest deferral:** the ~40 raw `TextStyle(fontSize:…)` instances from Phase 2 are still pending migration to `textTheme`. Folded forward to a follow-up pass; not blocking Phase 4.
 
 ## Next Action
 

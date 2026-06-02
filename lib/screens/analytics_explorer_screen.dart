@@ -12,6 +12,7 @@ import '../widgets/analytics_carousel.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
 import '../widgets/app_card.dart';
+import '../widgets/empty_state.dart';
 
 import '../controllers/dashboard_controller.dart';
 
@@ -442,7 +443,15 @@ class _SearchSidebarState extends State<_SearchSidebar> {
         const Divider(height: 16, indent: 16, endIndent: 16),
         _tabs(isDark),
         const SizedBox(height: 8),
-        Expanded(child: ListView.builder(itemCount: _filtered.length, itemBuilder: (c, i) => _tile(_filtered[i]))),
+        Expanded(
+          child: _filtered.isEmpty
+              ? EmptyState(
+                  icon: Icons.search_off,
+                  title: _ctrl.text.isEmpty ? 'No habits in this category' : 'No matches',
+                  subtitle: _ctrl.text.isEmpty ? null : 'Try a different search term.',
+                )
+              : ListView.builder(itemCount: _filtered.length, itemBuilder: (c, i) => _tile(_filtered[i])),
+        ),
       ]),
     );
   }

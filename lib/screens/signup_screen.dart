@@ -162,6 +162,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
                   onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 ),
                 const SizedBox(height: 16),
@@ -172,9 +175,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     hintText: 'Password',
                     labelText: 'Password',
                     enabled: !_isLoading,
+                    errorText: _errorMessage,
                   ),
                   obscureText: true,
                   textInputAction: TextInputAction.next,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
                   onSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 ),
                 const SizedBox(height: 16),
@@ -188,6 +195,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   obscureText: true,
                   textInputAction: TextInputAction.done,
+                  onChanged: (_) {
+                    if (_errorMessage != null) setState(() => _errorMessage = null);
+                  },
                   onSubmitted: (_) => _isLoading ? null : _handleSignUp(),
                 ),
                 const SizedBox(height: 16),
@@ -226,25 +236,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                // Error message
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.xs),
-                      border: Border.all(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 // Create Account button
                 SizedBox(
                   width: double.infinity,

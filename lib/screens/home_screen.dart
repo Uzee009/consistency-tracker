@@ -271,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // V9: Pass controller to Explorer
       return AnalyticsExplorerScreen(controller: _dataController);
     } else if (_activeTabIndex == 2) {
-      return const SettingsScreen(isEmbedded: true);
+      return const SettingsScreen();
     }
 
     // DEFAULT: DASHBOARD
