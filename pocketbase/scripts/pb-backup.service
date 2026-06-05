@@ -1,0 +1,14 @@
+[Unit]
+Description=PocketBase Daily Backup to GCS
+After=network.target
+
+[Service]
+Type=oneshot
+User=uzeeslive
+WorkingDirectory=/home/uzeeslive/pb
+# Ensure this file exists on the server with PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD, GCS_BUCKET
+EnvironmentFile=/home/uzeeslive/pb/scripts/.env
+ExecStart=/bin/bash /home/uzeeslive/pb/scripts/pb_backup.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -97,7 +97,7 @@ class SyncService {
       name: 'tasks',
       pk: ['sid'],
       textCols: ['sid', 'name', 'type', 'created_at', 'frequency_type'],
-      intCols: ['duration_days', 'weekly_target', 'updated_at'],
+      intCols: ['duration_days', 'weekly_target', 'updated_at', 'sort_order'],
       boolCols: ['is_perpetual', 'is_active', 'deleted', 'dirty'],
     ),
     const _Col(
