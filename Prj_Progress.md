@@ -1076,3 +1076,15 @@ Two-part module closing infra debt left over from Step 16's Task Row UX (manual 
 - `feedback_pragmatic-over-secpurity.md` — for solo project IAM, prefer broader role upfront over least-priv that iterates through permission errors.
 
 **Cold-resume:** post-merge state on master, v1.2.0 published (or about to be). CURRENT_MODULE.md is reset to COMPLETE. Daily backup timer is the new persistent piece of live infra — first scheduled fire is Sat 2026-06-06 03:00 UTC; to verify success run `gcloud storage ls gs://ct-pb-backups-acd35fdb/` on the VM, expect a `pb-2026-06-06.zip` object.
+
+## 2026-06-05 — Session: Mobile (Android) track kickoff + plan cleanup
+
+**Summary:**
+- User decided to start a mobile build now that desktop is in a good place. Scoped as **Android only** — iOS ruled out (no MacBook, no Apple Dev account).
+- Design-first workflow agreed: skip the dry-run spike (desktop layout is not phone-shaped, breakage is a given) and instead redesign every screen in claude.ai Artifacts before any Flutter is written. Motion polish explicitly deferred until app is stable end-to-end on Android.
+- Same Flutter project, `mobile_` prefix on new mobile-only Dart files (e.g. `mobile_home_screen.dart`); shared code (sync, data, models, theme tokens) reused as-is.
+- Created four kickoff docs: `mobile_DEVELOPMENT_PLAN.md` (M1–M7 roadmap), `mobile_CURRENT_MODULE.md` (M1 IN_PROGRESS), `mobile_Prj_Progress.md` (own log, separate from desktop), `mobile_DESIGN_BRIEF.md` (pasteable into claude.ai Artifacts alongside desktop screenshots). Committed as `9b50928` on branch `feature/mobile-android` and pushed to origin so the user can pick it up on another machine.
+- Cleaned up `DEVELOPMENT_PLAN.md`: all DONE steps trimmed to one-line pointers (the long Step 15 fix plan and Step 13 architecture details are gone; full history remains here in Prj_Progress.md). Added a top-of-file pointer to `mobile_DEVELOPMENT_PLAN.md` and a 'Next up (desktop)' section listing the open candidates.
+- No code changes; docs-only session.
+
+**Cold-resume:** on `feature/mobile-android` (pushed). Desktop is idle. User is off-session designing mobile mockups in claude.ai Artifacts and will return with screenshots + nav decision; next CLI work will be M3 (design tokens) → M4/M5 (`mobile_*.dart` screens) via gemini-coder.
