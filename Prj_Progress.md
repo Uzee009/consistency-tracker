@@ -1055,3 +1055,24 @@ Two-part module closing infra debt left over from Step 16's Task Row UX (manual 
 **Commits on the branch:** cccf366, 3c626d3, 794e782 — all `[skip release]`. The merge commit to master carries `#minor`.
 
 **Cold-resume:** post-merge state on master, v1.2.0 published.
+
+## 2026-06-05 — Session: Step 18 PB Infra Debt (sort_order + GCS backups in one session)
+
+**Summary:**
+- Session opened with a status check; user picked the 'known infra debt' bucket from CURRENT_MODULE follow-up list (sort_order PB field + missing PB backups). Scoped as one module (Step 18).
+- **Part A (sort_order)** shipped fast: gemini did spec → migration + sync_service edit + flutter analyze clean in one batched call. Deployed by user via SSH on the GCP VM (`instance-20260527-135427` / `us-central1-a`) — fetched migration from GitHub raw, PB restart auto-applied. Verified via direct sqlite3 query on the PB `_migrations` table and `tasks` collection schema.
+- **Part B (GCS backups)** took the rest of the session — five distinct rabbit holes:
+  1. **VM access scopes** — default Compute SA was `devstorage.read_only`, ceiling above IAM. Fixed via Console: stop VM → 'Allow full Cloud API access' → start. ~1 min PB downtime.
+  2. **IAM permissions iterated** — gave Storage Object Creator → bumped to Object Admin after both `gsutil cp` (needed list) and `gcloud storage cp` (needed get) failed pre-checks. User correctly called out that broader role upfront would've saved an hour. Saved as memory `feedback_pragmatic-over-secpurity.md`.
+  3. **PB v0.38 API quirks** — admin auth endpoint moved to `/api/collections/_superusers/auth-with-password`; backup downloads require a separate file token from `/api/files/token` (admin token returns 403); backup name field must include `.zip` suffix to pass regex validation. Three follow-up commits to the script.
+  4. **NAT hairpinning** — VM couldn't reach its own external IP (`34.45.181.160`) over the public domain. Solved with a `/etc/hosts` line: `127.0.0.1 consistancy.duckdns.org` so the TLS cert still matches but traffic loops via localhost.
+  5. **gsutil → gcloud storage** — gsutil cp pre-checks via `objects.list` which our SA didn't have at the time. Switched to gcloud storage cp which uses simpler upload semantics.
+- Bucket `ct-pb-backups-acd35fdb` created in Console (gsutil mb hit project-level `storage.buckets.create` denial from the SA), 14-day lifecycle rule applied via Console.
+- Manual backup test produced `pb-2026-06-05.zip` (1.1 MiB) in GCS. systemd timer `pb-backup.timer` enabled; next fire Sat 2026-06-06 03:00 UTC.
+- Merged feature/pb-infra-debt → master with `#minor` (commit `193de07`); CI to cut v1.2.0.
+
+**Memory updates this session:**
+- `gcloud-not-local.md` — Claude can't drive gcloud from the local Mint box; hand GCP commands one at a time, wait for output.
+- `feedback_pragmatic-over-secpurity.md` — for solo project IAM, prefer broader role upfront over least-priv that iterates through permission errors.
+
+**Cold-resume:** post-merge state on master, v1.2.0 published (or about to be). CURRENT_MODULE.md is reset to COMPLETE. Daily backup timer is the new persistent piece of live infra — first scheduled fire is Sat 2026-06-06 03:00 UTC; to verify success run `gcloud storage ls gs://ct-pb-backups-acd35fdb/` on the VM, expect a `pb-2026-06-06.zip` object.
