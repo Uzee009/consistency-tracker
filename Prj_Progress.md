@@ -1021,3 +1021,37 @@ Plan agreed with user via three structured AskUserQuestion rounds (kebab vs swip
 - **Commits list:** e4bdf21, 56b01f7, 3bf7370, 5097bf0, 184eca5, 102e692, 574c83e.
 - **How verified:** `flutter analyze` clean at every phase; user spot-checked visually and signed off.
 - **Cold-resume:** post-merge state on master, v1.1.0 published.
+
+## 2026-06-05 — Step 18 PocketBase Infra Debt (sort_order sync + GCS daily backups)
+
+**What happened:**
+Two-part module closing infra debt left over from Step 16's Task Row UX (manual ordering didn't sync across devices because the PB schema lacked the field) and the long-standing 'no backups' on the PB server.
+
+**Part A — sort_order field:**
+- PB migration `1780400000_add_sort_order.js` adds an optional `sort_order` number field to the `tasks` collection (mirrors the `1780300000_add_device_id.js` pattern from Step 15).
+- `lib/services/sync_service.dart`: added `sort_order` to the `tasks` `_Col.intCols` so push payloads include it. Model toMap/fromMap already handled it.
+- Deployed to live PB on GCP (`consistancy.duckdns.org` / `/home/uzeeslive/pb`). Migration applied on PB restart (verified in `_migrations` table and in the `tasks` collection schema via direct sqlite3 query).
+
+**Part B — GCS daily backups:**
+- `pocketbase/scripts/pb_backup.sh`: hits PB admin `/api/collections/_superusers/auth-with-password` → triggers `/api/backups` → fetches via separate file token from `/api/files/token` (admin token alone returns 403 on backup download in PB v0.23+) → `gcloud storage cp` to the bucket. PB_URL is env-overridable.
+- `pocketbase/scripts/pb-backup.service` + `.timer`: oneshot service + daily timer at 03:00 UTC, with EnvironmentFile sourcing `/home/uzeeslive/pb/scripts/.env`.
+- GCS bucket `ct-pb-backups-acd35fdb` (us-central1, uniform access, public-access-prevented, soft-delete 7d). 14-day retention via bucket lifecycle rule (Delete · Age 14d) — handled by GCS itself, no script-side pruning.
+- `pocketbase/scripts/README.md` runbook covers Console bucket setup, IAM grant, systemd install, manual test, and restore procedure.
+
+**Deployment story (the long part):**
+1. VM's default Compute service account was scoped `devstorage.read_only` — had to flip VM access scopes to 'Allow full Cloud API access' via Console (1 min PB downtime).
+2. Bucket + lifecycle rule created in Console (gsutil mb hit project-level `storage.buckets.create` denial).
+3. IAM iteratively widened from Object Creator → Object Admin on the bucket as upload tooling needed more reads — final role: Storage Object Admin on the bucket only (bucket soft-delete + lifecycle as safety net). Lesson recorded in memory.
+4. PB v0.38.2 backup API quirks fixed across two follow-up commits (`3c626d3`, `794e782`): file-token auth for downloads, `.zip` suffix in name field for PB's regex validation, switched gsutil→gcloud storage cp (gsutil cp pre-checks via `objects.list` which the SA didn't have).
+5. GCP NAT hairpinning blocked the VM from reaching its own external IP for the public PB domain — solved with a `/etc/hosts` alias `127.0.0.1 consistancy.duckdns.org` so the cert still matches but traffic loops via localhost.
+6. Manual test backup uploaded successfully (`pb-2026-06-05.zip`, 1.1 MiB) to `gs://ct-pb-backups-acd35fdb/`. Timer enabled; next fire Sat 2026-06-06 03:00 UTC.
+
+**Known follow-ups (non-blocking):**
+- Script doesn't `exit` cleanly on the trigger API returning a JSON error — keeps going. Only manifests on same-day re-run (PB rejects duplicate name); benign for daily timer use. Could pre-DELETE before triggering for idempotency.
+- Repo-side `pocketbase/scripts/` was added with `git add -f` (folder is gitignored). If we want future edits to land normally, the .gitignore rule for that path should be relaxed.
+- Stray 9-byte file `1748260800_init_sync_collect` in PB's pb_migrations/ on the VM — leftover from a past SSH-paste accident; harmless, can be `rm`'d.
+- Public domain has a typo (`consistancy` not `consistency`) baked into the PB serve command + cert. Out of scope here.
+
+**Commits on the branch:** cccf366, 3c626d3, 794e782 — all `[skip release]`. The merge commit to master carries `#minor`.
+
+**Cold-resume:** post-merge state on master, v1.2.0 published.

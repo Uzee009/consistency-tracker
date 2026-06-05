@@ -68,4 +68,7 @@ Motion tokens + 11 reusable motion widgets, hover/cursor/drag/modal polish, brea
 
 **Branch:** master (post-merge). Merge to master with `#minor` token → CI cuts v1.1.0 (reset/sync with UI/UX overhaul).
 
+### Step 18 — PocketBase Infra Debt — DONE (2026-06-05)
+**Outcome:** PB tasks.sort_order field added so manual ordering now syncs cross-device. Daily PB backups land in GCS bucket `ct-pb-backups-acd35fdb` at 03:00 UTC, 14-day retention via GCS lifecycle. Full narrative in Prj_Progress.md.
+
 *History note:* the original verbose Step 13 appendix (USN rejection, architecture rationale, hosting options, build-order phases) has been removed now that sync is built and shipped. The decisions it documented are preserved in `Prj_Progress.md`. The current sync code is the source of truth for "how it works"; this plan tracks "what's next."
