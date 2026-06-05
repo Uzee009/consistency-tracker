@@ -47,7 +47,7 @@ if [ ! -s "${TEMP_FILE}" ] || ! head -c2 "${TEMP_FILE}" | grep -q 'PK'; then
 fi
 
 echo "Uploading to GCS: gs://${GCS_BUCKET}/${BACKUP_NAME}..."
-gsutil cp "${TEMP_FILE}" "gs://${GCS_BUCKET}/${BACKUP_NAME}"
+gcloud storage cp "${TEMP_FILE}" "gs://${GCS_BUCKET}/${BACKUP_NAME}"
 
 echo "Cleaning up local temp file..."
 rm "${TEMP_FILE}"
