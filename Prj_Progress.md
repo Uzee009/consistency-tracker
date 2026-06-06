@@ -1088,3 +1088,11 @@ Two-part module closing infra debt left over from Step 16's Task Row UX (manual 
 - No code changes; docs-only session.
 
 **Cold-resume:** on `feature/mobile-android` (pushed). Desktop is idle. User is off-session designing mobile mockups in claude.ai Artifacts and will return with screenshots + nav decision; next CLI work will be M3 (design tokens) → M4/M5 (`mobile_*.dart` screens) via gemini-coder.
+
+## 2026-06-06 — Incident: server 'unreachable', root cause = ephemeral external IP changed
+
+Short follow-up to Step 18. User reported the app showing 'sync server unreachable' / 'server offline' despite PB running fine on the GCP VM. Probed from local Mint box: TCP timeout (not refused) to `consistancy.duckdns.org`; DNS still resolved to the old IP `34.45.181.160`. Root cause: the VM's external IP is **ephemeral**, and the stop/start we did last session to change access scopes (for the GCS backup IAM work) reassigned a new IP. DuckDNS was still pointing at the old one. User updated DuckDNS with the new IP from GCP Console — app back online.
+
+Memory `sync-server-infra.md` updated with the ephemeral-IP gotcha and a long-term fix recommendation: promote the IP to **static** in VPC Network → IP addresses. User parked the static-IP promotion for a later session.
+
+No code changes.
