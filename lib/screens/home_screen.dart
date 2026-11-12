@@ -1,10 +1,12 @@
 // lib/screens/home_screen.dart
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/dashboard_layout_controller.dart';
 import '../widgets/dashboard_grid_renderer.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/desktop_widget_view.dart';
 import '../screens/analytics_explorer_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/sync_service.dart';
@@ -12,6 +14,7 @@ import '../services/database_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/pocketbase_service.dart';
 import '../services/update_service.dart';
+import '../services/window_mode_service.dart';
 import '../widgets/sync_status.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
@@ -85,17 +88,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([_dataController, _layoutController]),
-      builder: (context, _) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ValueListenableBuilder<WindowMode>(
+      valueListenable: WindowModeService.instance.modeNotifier,
+      builder: (context, windowMode, _) {
+        if (windowMode == WindowMode.widget) {
+          return DesktopWidgetView(controller: _dataController);
+        }
 
-        return Scaffold(
-          body: ReactiveBackground(
-            child: Column(
-              children: [
-              // 1. GLOBAL HEADER
-              _buildGlobalHeader(context),
+        return ListenableBuilder(
+          listenable: Listenable.merge([_dataController, _layoutController]),
+          builder: (context, _) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
+            return Scaffold(
+              body: ReactiveBackground(
+                child: Column(
+                  children: [
+                  // 1. GLOBAL HEADER
+                  _buildGlobalHeader(context),
 
               // UPDATE BANNER
               ValueListenableBuilder<UpdateInfo?>(
@@ -275,7 +285,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     },
   );
-}
+      },
+    );
+  }
 
   Widget _buildActiveView() {
     if (_activeTabIndex == 1) {
@@ -416,6 +428,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 tooltip: 'Refresh',
                 color: Theme.of(context).colorScheme.onSurface,
               ),
+              if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: () => WindowModeService.instance.switchToWidget(),
+                  icon: const Icon(Icons.picture_in_picture_alt_rounded, size: AppIconSize.lg),
+                  tooltip: 'Switch to Widget Mode',
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ],
             ],
           ),
         ],

@@ -21,6 +21,7 @@ import 'package:consistency_tracker_v1/widgets/motion/ambient_dim.dart';
 import 'package:consistency_tracker_v1/services/badge_service.dart';
 import 'package:consistency_tracker_v1/services/system_tray_service.dart';
 import 'package:consistency_tracker_v1/services/startup_service.dart';
+import 'package:consistency_tracker_v1/services/window_mode_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -85,7 +86,7 @@ void main() async {
 
     // Initialize Window Manager
     await windowManager.ensureInitialized();
-    await windowManager.setPreventClose(false);
+    await windowManager.setPreventClose(true);
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1400, 900),
       minimumSize:
@@ -140,10 +141,11 @@ void main() async {
   // Initialize connectivity service (checks online status + subscribes to changes)
   await ConnectivityService.instance.init();
 
-  // Desktop integration: Taskbar badge, System Tray, Startup Launch
+  // Desktop integration: Taskbar badge, System Tray, Startup Launch, Window Mode
   await BadgeService.instance.init();
   await SystemTrayService.instance.init();
   await StartupService.instance.init();
+  await WindowModeService.instance.init();
   unawaited(BadgeService.instance.evaluateBadge());
 
   unawaited(UpdateService.instance.checkForUpdate());
@@ -228,8 +230,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver, WindowListen
   }
 
   @override
+  void onWindowResize() {
+    WindowModeService.instance.onWindowResized();
+  }
+
+  @override
+  void onWindowMove() {
+    WindowModeService.instance.onWindowMoved();
+  }
+
+  @override
   void onWindowClose() async {
-    await windowManager.destroy();
+    // Minimize / hide to system tray so widget, taskbar badge, and background sync remain active.
+    // Full process termination is done via System Tray -> Quit Consistency Tracker.
+    await windowManager.hide();
   }
 
   void _onActiveDbChanged() {
@@ -349,6 +363,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver, WindowListen
               error: const Color(0xFFDC2626),
             ),
             useMaterial3: true,
+            tooltipTheme: const TooltipThemeData(excludeFromSemantics: true),
             scaffoldBackgroundColor: Colors.white,
             appBarTheme: AppBarTheme(
               backgroundColor: Colors.white,
@@ -441,6 +456,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver, WindowListen
               error: const Color(0xFFF87171),
             ),
             useMaterial3: true,
+            tooltipTheme: const TooltipThemeData(excludeFromSemantics: true),
             scaffoldBackgroundColor: const Color(0xFF09090B),
             appBarTheme: AppBarTheme(
               backgroundColor: const Color(0xFF09090B),

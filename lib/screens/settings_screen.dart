@@ -15,6 +15,7 @@ import 'package:consistency_tracker_v1/widgets/sync_status.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'package:consistency_tracker_v1/services/badge_service.dart';
 import 'package:consistency_tracker_v1/services/startup_service.dart';
+import 'package:consistency_tracker_v1/services/window_mode_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
@@ -842,6 +843,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             setState(() {});
                           },
                           activeThumbColor: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Interactive Desktop Widget',
+                                      style: TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Switch to a compact, floating, always-on-top desktop companion.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            PressScale(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  await WindowModeService.instance.switchToWidget();
+                                },
+                                icon: const Icon(Icons.picture_in_picture_alt_rounded, size: 16),
+                                label: const Text('Open Widget'),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
