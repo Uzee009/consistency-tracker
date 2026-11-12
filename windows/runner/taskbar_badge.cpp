@@ -35,12 +35,7 @@ void TaskbarBadge::RegisterWithMessenger(flutter::BinaryMessenger* messenger, HW
 TaskbarBadge::TaskbarBadge(HWND window_handle)
     : window_handle_(window_handle), taskbar_list_(nullptr), current_icon_(nullptr) {
   EnsureGdiplus();
-  CoInitialize(NULL);
-  HRESULT hr = CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER,
-                                IID_ITaskbarList3, (void**)&taskbar_list_);
-  if (SUCCEEDED(hr) && taskbar_list_) {
-    taskbar_list_->HrInit();
-  }
+  EnsureTaskbarList();
 }
 
 TaskbarBadge::~TaskbarBadge() {
@@ -48,6 +43,17 @@ TaskbarBadge::~TaskbarBadge() {
   if (taskbar_list_) {
     taskbar_list_->Release();
     taskbar_list_ = nullptr;
+  }
+}
+
+void TaskbarBadge::EnsureTaskbarList() {
+  if (!taskbar_list_) {
+    CoInitialize(NULL);
+    HRESULT hr = CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER,
+                                  IID_ITaskbarList3, (void**)&taskbar_list_);
+    if (SUCCEEDED(hr) && taskbar_list_) {
+      taskbar_list_->HrInit();
+    }
   }
 }
 
@@ -94,6 +100,7 @@ void TaskbarBadge::HandleMethodCall(
 }
 
 void TaskbarBadge::SetOverlayBadge(int count, int r, int g, int b) {
+  EnsureTaskbarList();
   if (!taskbar_list_ || !window_handle_) return;
 
   if (current_icon_) {
@@ -113,6 +120,7 @@ void TaskbarBadge::SetOverlayBadge(int count, int r, int g, int b) {
 }
 
 void TaskbarBadge::ClearOverlayBadge() {
+  EnsureTaskbarList();
   if (taskbar_list_ && window_handle_) {
     taskbar_list_->SetOverlayIcon(window_handle_, NULL, NULL);
   }
@@ -123,7 +131,9 @@ void TaskbarBadge::ClearOverlayBadge() {
 }
 
 HICON TaskbarBadge::CreateBadgeIcon(int count, COLORREF bg_color) {
-  const int size = 16;
+  int size = GetSystemMetrics(SM_CXSMICON);
+  if (size <= 0) size = 16;
+
   Gdiplus::Bitmap bitmap(size, size, PixelFormat32bppARGB);
   Gdiplus::Graphics graphics(&bitmap);
 
@@ -139,15 +149,17 @@ HICON TaskbarBadge::CreateBadgeIcon(int count, COLORREF bg_color) {
   graphics.FillEllipse(&brush, 0, 0, size - 1, size - 1);
 
   // Draw white border around circle for readability against light taskbar
-  Gdiplus::Pen borderPen(Gdiplus::Color(180, 255, 255, 255), 1.0f);
+  Gdiplus::Pen borderPen(Gdiplus::Color(200, 255, 255, 255), 1.0f);
   graphics.DrawEllipse(&borderPen, 0, 0, size - 1, size - 1);
 
   // Draw text
   std::wstring text = std::to_wstring(count);
-  if (count > 9) text = L"9+";
+  if (count > 99) text = L"99+";
+  else if (count > 9) text = L"9+";
 
   Gdiplus::FontFamily fontFamily(L"Segoe UI");
-  Gdiplus::Font font(&fontFamily, count > 9 ? 8.0f : 9.0f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+  Gdiplus::REAL fontSize = (Gdiplus::REAL)(size * (count > 9 ? 0.48f : 0.58f));
+  Gdiplus::Font font(&fontFamily, fontSize, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
   Gdiplus::SolidBrush textBrush(Gdiplus::Color(255, 255, 255, 255));
 
   Gdiplus::StringFormat format;
@@ -158,7 +170,9 @@ HICON TaskbarBadge::CreateBadgeIcon(int count, COLORREF bg_color) {
   graphics.DrawString(text.c_str(), -1, &font, rect, &format, &textBrush);
 
   HICON hIcon = NULL;
-  bitmap.GetHICON(&hIcon);
+  Gdiplus::Status status = bitmap.GetHICON(&hIcon);
+  if (status != Gdiplus::Ok) {
+    return NULL;
+  }
   return hIcon;
 }
-

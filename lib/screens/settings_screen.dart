@@ -801,34 +801,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel('End of Day Badge Threshold'),
-                        const SizedBox(height: 6),
-                        _buildDropdown<int>(
-                          value: BadgeService.instance.eodHour,
-                          items: [
-                            const DropdownMenuItem(value: 18, child: Text('6:00 PM (Early Evening)')),
-                            const DropdownMenuItem(value: 19, child: Text('7:00 PM')),
-                            const DropdownMenuItem(value: 20, child: Text('8:00 PM (Default)')),
-                            const DropdownMenuItem(value: 21, child: Text('9:00 PM')),
-                            const DropdownMenuItem(value: 22, child: Text('10:00 PM (Late Night)')),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildLabel('End of Day Badge Threshold'),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'The taskbar badge turns red and highlights remaining tasks after this time.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            PressScale(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final current = BadgeService.instance.eodTime;
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: current,
+                                    initialEntryMode: TimePickerEntryMode.inputOnly,
+                                    helpText: 'Enter End of Day Threshold',
+                                    confirmText: 'SET TIME',
+                                  );
+                                  if (picked != null) {
+                                    await BadgeService.instance.setEodTime(picked);
+                                    setState(() {});
+                                  }
+                                },
+                                icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                                label: Text(
+                                  _formatEodTime(BadgeService.instance.eodTime),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
                           ],
-                          onChanged: (v) {
-                            if (v != null) {
-                              setState(() {
-                                BadgeService.instance.setEodHour(v);
-                              });
-                            }
-                          },
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'The taskbar badge turns red and highlights remaining tasks after this time.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () async {
+                                await BadgeService.instance.testBadge();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Test badge sent! Check your Windows taskbar icon.'),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.visibility_outlined, size: 16),
+                              label: const Text('Test Taskbar Badge Preview',
+                                  style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Launch on Windows Startup',
@@ -999,6 +1045,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  String _formatEodTime(TimeOfDay time) {
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    final hourOfPeriod = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minuteStr = time.minute.toString().padLeft(2, '0');
+    return '$hourOfPeriod:$minuteStr $period';
   }
 
   Future<void> _handleSyncNow() async {

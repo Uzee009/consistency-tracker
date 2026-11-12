@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/database_service.dart';
@@ -14,40 +15,47 @@ class BadgeService {
   int _lastCount = -1;
   Color? _lastColor;
   int _eodHour = 20; // 8 PM default
+  int _eodMinute = 0;
 
   int get eodHour => _eodHour;
+  int get eodMinute => _eodMinute;
+  TimeOfDay get eodTime => TimeOfDay(hour: _eodHour, minute: _eodMinute);
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _eodHour = prefs.getInt(DatabaseService.prefixedKey('badge_eod_hour')) ?? 20;
+    _eodMinute = prefs.getInt(DatabaseService.prefixedKey('badge_eod_minute')) ?? 0;
 
     // Periodic evaluation every 60 seconds for time-of-day progression
     _evalTimer?.cancel();
     _evalTimer = Timer.periodic(const Duration(minutes: 1), (_) => evaluateBadge());
   }
 
-  Future<void> setEodHour(int hour) async {
-    _eodHour = hour;
+  Future<void> setEodTime(TimeOfDay time) async {
+    _eodHour = time.hour;
+    _eodMinute = time.minute;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(DatabaseService.prefixedKey('badge_eod_hour'), hour);
+    await prefs.setInt(DatabaseService.prefixedKey('badge_eod_hour'), time.hour);
+    await prefs.setInt(DatabaseService.prefixedKey('badge_eod_minute'), time.minute);
     await evaluateBadge();
+  }
+
+  Future<void> setEodHour(int hour) async {
+    await setEodTime(TimeOfDay(hour: hour, minute: _eodMinute));
   }
 
   /// Calculates whether and how the badge should show:
   /// - If count == 0: clear
-  /// - Before 12 PM: clear (fresh day start)
-  /// - 12 PM - 3:59 PM: Yellow badge
-  /// - 4 PM - (EOD - 1 minute): Orange badge
-  /// - >= EOD hour (default 8 PM): Red badge
+  /// - Morning (5:00 AM - 11:59 AM): Calm Blue badge (#3B82F6)
+  /// - Midday (12:00 PM - 3:59 PM): Amber / Yellow badge (#EAB308)
+  /// - Late Afternoon (4:00 PM - EOD threshold): Orange badge (#F97316)
+  /// - Evening / Night / Past EOD (>= EOD threshold or < 5:00 AM): Urgent Red badge (#EF4444)
   Future<void> updateBadge({
     required int pendingTaskCount,
   }) async {
     if (!Platform.isWindows) return;
 
-    final now = DateTime.now();
-    final hour = now.hour;
-
-    if (pendingTaskCount <= 0 || hour < 12) {
+    if (pendingTaskCount <= 0) {
       if (_lastCount != 0) {
         _lastCount = 0;
         _lastColor = null;
@@ -58,14 +66,20 @@ class BadgeService {
       return;
     }
 
+    final now = DateTime.now();
+    final currentMinutes = now.hour * 60 + now.minute;
+    final eodMinutes = _eodHour * 60 + _eodMinute;
+
     // Determine progressive color
     Color badgeColor;
-    if (hour >= _eodHour) {
-      badgeColor = const Color(0xFFEF4444); // Red (End of Day urgency)
-    } else if (hour >= 16) {
+    if (now.hour < 5 || currentMinutes >= eodMinutes) {
+      badgeColor = const Color(0xFFEF4444); // Red (End of Day urgency or late night)
+    } else if (now.hour >= 16) {
       badgeColor = const Color(0xFFF97316); // Orange (Late afternoon)
-    } else {
+    } else if (now.hour >= 12) {
       badgeColor = const Color(0xFFEAB308); // Yellow (Midday)
+    } else {
+      badgeColor = const Color(0xFF3B82F6); // Blue (Fresh morning start)
     }
 
     if (_lastCount == pendingTaskCount && _lastColor == badgeColor) {
@@ -86,6 +100,19 @@ class BadgeService {
         'r': r,
         'g': g,
         'b': b,
+      });
+    } catch (_) {}
+  }
+
+  /// Sends a temporary preview badge to verify Windows taskbar badge integration
+  Future<void> testBadge() async {
+    if (!Platform.isWindows) return;
+    try {
+      await _channel.invokeMethod('setBadge', {
+        'count': 3,
+        'r': 239,
+        'g': 68,
+        'b': 68,
       });
     } catch (_) {}
   }

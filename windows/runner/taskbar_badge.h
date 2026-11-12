@@ -22,6 +22,7 @@ class TaskbarBadge {
       const flutter::MethodCall<flutter::EncodableValue>& method_call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
+  void EnsureTaskbarList();
   void SetOverlayBadge(int count, int r, int g, int b);
   void ClearOverlayBadge();
   HICON CreateBadgeIcon(int count, COLORREF bg_color);

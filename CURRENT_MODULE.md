@@ -7,11 +7,11 @@
 
 Desktop integration to make accountability seamless and visible without distraction:
 - **19A — Interactive Widget Mode:** Completed. Frameless, floating desktop widget with custom rounded border/shadow, hidden from Windows Taskbar (`skipTaskbar = true`), full interactive task checking/skipping/adding via original `AddTaskBottomSheet`, draggable via `DragToMoveArea`, always-on-top pin toggle, and full native edge/corner resizing.
-- **19B — Progressive Taskbar Badge:** Completed. Win32 native overlay icon (`ITaskbarList3::SetOverlayIcon`) with daytime progression (Yellow at noon, Orange at 4 PM, Red at EOD threshold). Real-time updates on task completion.
+- **19B — Progressive Taskbar Badge:** Completed. Win32 native overlay icon (`ITaskbarList3::SetOverlayIcon`) with daytime progression (Blue in morning, Yellow at midday, Orange at 4 PM, Red at EOD threshold). Real-time updates on task completion with DPI-aware scaling and AXTree semantics stabilization.
 - **19C — System Tray Integration:** Completed. App icon in Windows tray with context menu (Open Dashboard, Widget Mode toggle, Quit).
 - **19D — Windows Startup Launch:** Completed. Opt-in registry toggle in Settings screen.
 - **19F — Encouragement Engine (Widget):** Completed. Ambient bottom quote banner with curated habit heuristics and streak-based dynamic encouragement, tap-to-rotate quotes.
-- **Configurable EOD Threshold:** Completed. Allows user to choose 6 PM, 7 PM, 8 PM (default), 9 PM, or 10 PM.
+- **Configurable EOD Threshold:** Completed. Allows user to set exact minute-level threshold via direct manual text input picker.
 
 ## Next Action
 
