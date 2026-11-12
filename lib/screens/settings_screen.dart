@@ -13,6 +13,9 @@ import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:consistency_tracker_v1/widgets/sync_status.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
+import 'package:consistency_tracker_v1/services/badge_service.dart';
+import 'package:consistency_tracker_v1/services/startup_service.dart';
+import 'package:consistency_tracker_v1/services/window_mode_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
@@ -791,6 +794,138 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                           ),
                         ),
+                  const SizedBox(height: 40),
+                  _buildSectionHeader('DESKTOP INTEGRATION & WIDGET',
+                      'Configure Windows taskbar badge, startup launch, and EOD thresholds.'),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildLabel('End of Day Badge Threshold'),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'The taskbar badge turns red and highlights remaining tasks after this time.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            PressScale(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final current = BadgeService.instance.eodTime;
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: current,
+                                    initialEntryMode: TimePickerEntryMode.inputOnly,
+                                    helpText: 'Enter End of Day Threshold',
+                                    confirmText: 'SET TIME',
+                                  );
+                                  if (picked != null) {
+                                    await BadgeService.instance.setEodTime(picked);
+                                    setState(() {});
+                                  }
+                                },
+                                icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                                label: Text(
+                                  _formatEodTime(BadgeService.instance.eodTime),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () async {
+                                await BadgeService.instance.testBadge();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Test badge sent! Check your Windows taskbar icon.'),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.visibility_outlined, size: 16),
+                              label: const Text('Test Taskbar Badge Preview',
+                                  style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Launch on Windows Startup',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
+                          subtitle: const Text(
+                              'Automatically start Consistency Tracker when you log into Windows.',
+                              style: TextStyle(fontSize: 12)),
+                          value: StartupService.instance.isLaunchOnStartup,
+                          onChanged: (v) async {
+                            await StartupService.instance.setLaunchOnStartup(v);
+                            setState(() {});
+                          },
+                          activeThumbColor: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Interactive Desktop Widget',
+                                      style: TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Switch to a compact, floating, always-on-top desktop companion.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            PressScale(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  await WindowModeService.instance.switchToWidget();
+                                },
+                                icon: const Icon(Icons.picture_in_picture_alt_rounded, size: 16),
+                                label: const Text('Open Widget'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   _buildDemoSection(),
                   const SizedBox(height: 40),
                   Row(
@@ -910,6 +1045,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  String _formatEodTime(TimeOfDay time) {
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    final hourOfPeriod = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minuteStr = time.minute.toString().padLeft(2, '0');
+    return '$hourOfPeriod:$minuteStr $period';
   }
 
   Future<void> _handleSyncNow() async {

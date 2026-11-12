@@ -8,6 +8,7 @@ import '../models/user_model.dart';
 import '../services/database_service.dart';
 import '../services/scoring_service.dart';
 import '../services/audio_service.dart';
+import '../services/badge_service.dart';
 
 class DashboardController extends ChangeNotifier {
   // --- STATE ---
@@ -89,6 +90,12 @@ class DashboardController extends ChangeNotifier {
 
     isLoading = false;
     notifyListeners();
+
+    // Update Windows Taskbar Badge
+    final pendingCount = todaysTasks.where(
+      (t) => !todayRecord.completedTaskIds.contains(t.sid) && !todayRecord.skippedTaskIds.contains(t.sid),
+    ).length;
+    unawaited(BadgeService.instance.updateBadge(pendingTaskCount: pendingCount));
   }
 
   // --- ACTIONS ---
@@ -127,6 +134,12 @@ class DashboardController extends ChangeNotifier {
     );
     notifyListeners();
 
+    // Immediate reactive badge update
+    final pendingCount = todaysTasks.where(
+      (t) => !updatedCompletedIds.contains(t.sid) && !updatedSkippedIds.contains(t.sid),
+    ).length;
+    unawaited(BadgeService.instance.updateBadge(pendingTaskCount: pendingCount));
+
     await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds, forceCheatOff: reclaimCheat);
     _scheduleRefresh();
   }
@@ -148,6 +161,12 @@ class DashboardController extends ChangeNotifier {
       skippedTaskIds: updatedSkippedIds,
     );
     notifyListeners();
+
+    // Immediate reactive badge update
+    final pendingCount = todaysTasks.where(
+      (t) => !updatedCompletedIds.contains(t.sid) && !updatedSkippedIds.contains(t.sid),
+    ).length;
+    unawaited(BadgeService.instance.updateBadge(pendingTaskCount: pendingCount));
 
     await _updateDayRecordInDb(updatedCompletedIds, updatedSkippedIds);
     _scheduleRefresh();

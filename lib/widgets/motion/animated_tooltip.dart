@@ -27,6 +27,7 @@ class _AnimatedTooltipState extends State<AnimatedTooltip> {
 
     return Tooltip(
       message: widget.message,
+      excludeFromSemantics: true,
       waitDuration: delay,
       verticalOffset: 12,
       preferBelow: widget.preferBelow,

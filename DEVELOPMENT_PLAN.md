@@ -71,4 +71,42 @@ Motion tokens + 11 reusable motion widgets, hover/cursor/drag/modal polish, brea
 ### Step 18 — PocketBase Infra Debt — DONE (2026-06-05)
 **Outcome:** PB tasks.sort_order field added so manual ordering now syncs cross-device. Daily PB backups land in GCS bucket `ct-pb-backups-acd35fdb` at 03:00 UTC, 14-day retention via GCS lifecycle. Full narrative in Prj_Progress.md.
 
+---
+
+## Step 19 — Windows Widget & Desktop Integration — IN PROGRESS
+
+**Branch:** `feature/windows-widget-development`
+**Goal:** Make the app impossible to ignore — Duolingo-style frictionless, in-your-face accountability without spam.
+
+### 19A — Interactive Widget Mode (Main Window Transformation)
+Transform the main window between standard full Dashboard (1400×900) and compact, floating, always-on-top Widget Mode (~320×360).
+- Shows: Streak number, remaining task count, interactive checklist (direct completion/skips), time-based streak accent color.
+- Resizable with minimum constraints; clean custom mini title bar with "Expand to Dashboard" and "Pin / Always-on-Top" toggles.
+- Zero extra IPC/second-window overhead: driven directly by existing `DashboardController` & state.
+
+### 19B — Progressive Taskbar Badge
+Overlay icon on the Windows Taskbar showing remaining task count with progressive urgency:
+- Morning (before 12 PM): No badge (fresh start).
+- Midday (12 PM - 4 PM): Yellow badge.
+- Late Afternoon (4 PM - 8 PM): Orange badge.
+- Evening / Night (> user-configured EOD, default 8 PM): Red badge.
+- 0 tasks remaining: Cleared immediately.
+- Win32 `ITaskbarList3::SetOverlayIcon` via Windows platform channel or FFI.
+
+### 19C — System Tray & Minimize-to-Tray
+Prevent app exit on close when configured; minimize to system tray instead so widget/badge/reminders stay alive.
+- Tray context menu: "Show Dashboard", "Widget Mode", "Quit".
+- Tray icon click toggles window visibility.
+
+### 19D — Windows Startup Launch (Opt-in)
+User setting (checkbox in Settings) to launch the app on Windows startup (`HKCU\Software\Microsoft\Windows\Run`). Off by default.
+
+### 19E — Timed Reminders (Non-Spammy, Opt-in)
+Max 1–2 scheduled gentle Windows desktop reminders if tasks remain pending (e.g. at 5 PM or EOD threshold). Opt-in in Settings.
+
+### 19F — Encouragement Quotes / AI Messages (Low Priority)
+Curated offline bank of task-tailored micro-encouragements and quotes; optional Gemini API enhancement later.
+
+---
+
 *History note:* the original verbose Step 13 appendix (USN rejection, architecture rationale, hosting options, build-order phases) has been removed now that sync is built and shipped. The decisions it documented are preserved in `Prj_Progress.md`. The current sync code is the source of truth for "how it works"; this plan tracks "what's next."

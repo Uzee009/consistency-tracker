@@ -526,9 +526,11 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
           ),
         ),
         Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute weeks vertically
-            children: gridRows,
+          child: ExcludeSemantics(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute weeks vertically
+              children: gridRows,
+            ),
           ),
         ),
       ],
@@ -802,21 +804,23 @@ class _ConsistencyHeatmapState extends State<ConsistencyHeatmap> {
             child: dynamicDayLabelColumn,
           ),
           Flexible(
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                },
-              ),
-              child: SingleChildScrollView(
-                controller: _heatmapScrollController,
-                scrollDirection: Axis.horizontal,
-                physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: dynamicMonthWidgets,
+            child: ExcludeSemantics(
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                  },
+                ),
+                child: SingleChildScrollView(
+                  controller: _heatmapScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: shouldScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: dynamicMonthWidgets,
+                  ),
                 ),
               ),
             ),
