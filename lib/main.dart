@@ -18,6 +18,9 @@ import 'package:consistency_tracker_v1/services/update_service.dart';
 import 'package:consistency_tracker_v1/services/motion_settings_service.dart';
 import 'package:consistency_tracker_v1/utils/idle_detector.dart';
 import 'package:consistency_tracker_v1/widgets/motion/ambient_dim.dart';
+import 'package:consistency_tracker_v1/services/badge_service.dart';
+import 'package:consistency_tracker_v1/services/system_tray_service.dart';
+import 'package:consistency_tracker_v1/services/startup_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -82,6 +85,7 @@ void main() async {
 
     // Initialize Window Manager
     await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(false);
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1400, 900),
       minimumSize:
@@ -135,6 +139,12 @@ void main() async {
 
   // Initialize connectivity service (checks online status + subscribes to changes)
   await ConnectivityService.instance.init();
+
+  // Desktop integration: Taskbar badge, System Tray, Startup Launch
+  await BadgeService.instance.init();
+  await SystemTrayService.instance.init();
+  await StartupService.instance.init();
+  unawaited(BadgeService.instance.evaluateBadge());
 
   unawaited(UpdateService.instance.checkForUpdate());
 
@@ -215,6 +225,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver, WindowListen
   @override
   void onWindowBlur() {
     windowFocusedNotifier.value = false;
+  }
+
+  @override
+  void onWindowClose() async {
+    await windowManager.destroy();
   }
 
   void _onActiveDbChanged() {

@@ -13,6 +13,8 @@ import 'package:consistency_tracker_v1/screens/signup_screen.dart';
 import 'package:consistency_tracker_v1/main.dart';
 import 'package:consistency_tracker_v1/widgets/sync_status.dart';
 import 'package:consistency_tracker_v1/services/update_service.dart';
+import 'package:consistency_tracker_v1/services/badge_service.dart';
+import 'package:consistency_tracker_v1/services/startup_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_icon_size.dart';
@@ -791,6 +793,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                           ),
                         ),
+                  const SizedBox(height: 40),
+                  _buildSectionHeader('DESKTOP INTEGRATION & WIDGET',
+                      'Configure Windows taskbar badge, startup launch, and EOD thresholds.'),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('End of Day Badge Threshold'),
+                        const SizedBox(height: 6),
+                        _buildDropdown<int>(
+                          value: BadgeService.instance.eodHour,
+                          items: [
+                            const DropdownMenuItem(value: 18, child: Text('6:00 PM (Early Evening)')),
+                            const DropdownMenuItem(value: 19, child: Text('7:00 PM')),
+                            const DropdownMenuItem(value: 20, child: Text('8:00 PM (Default)')),
+                            const DropdownMenuItem(value: 21, child: Text('9:00 PM')),
+                            const DropdownMenuItem(value: 22, child: Text('10:00 PM (Late Night)')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() {
+                                BadgeService.instance.setEodHour(v);
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'The taskbar badge turns red and highlights remaining tasks after this time.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Launch on Windows Startup',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
+                          subtitle: const Text(
+                              'Automatically start Consistency Tracker when you log into Windows.',
+                              style: TextStyle(fontSize: 12)),
+                          value: StartupService.instance.isLaunchOnStartup,
+                          onChanged: (v) async {
+                            await StartupService.instance.setLaunchOnStartup(v);
+                            setState(() {});
+                          },
+                          activeThumbColor: Theme.of(context).colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
                   _buildDemoSection(),
                   const SizedBox(height: 40),
                   Row(
