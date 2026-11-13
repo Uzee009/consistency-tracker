@@ -275,6 +275,16 @@ class DashboardController extends ChangeNotifier {
 
           if (timerMode == 'focus') {
             _consecutiveSessions++;
+
+            // V11 AUTO-SWITCH: Focus -> Break
+            // After every 2 focus sessions, take a Long Break.
+            if (_consecutiveSessions % 2 == 0) {
+              timerMode = 'longBreak';
+            } else {
+              timerMode = 'shortBreak';
+            }
+          } else {
+            // Full Pomodoro cycle completed (Work + Break finished)
             int newCompleted = todayRecord.pomodoroSessionsCompleted + 1;
             if (newCompleted > todayRecord.pomodoroGoal) newCompleted = todayRecord.pomodoroGoal;
             updatePomodoroStats(newCompleted, todayRecord.pomodoroGoal);
@@ -286,14 +296,6 @@ class DashboardController extends ChangeNotifier {
               });
             }
 
-            // V11 AUTO-SWITCH: Focus -> Break
-            // After every 2 focus sessions, take a Long Break.
-            if (_consecutiveSessions % 2 == 0) {
-              timerMode = 'longBreak';
-            } else {
-              timerMode = 'shortBreak';
-            }
-          } else {
             // V11 AUTO-SWITCH: Break -> Focus
             timerMode = 'focus';
           }

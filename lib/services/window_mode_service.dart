@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'badge_service.dart';
 
 enum WindowMode {
   dashboard,
@@ -70,14 +71,16 @@ class WindowModeService {
         await windowManager.setPosition(Offset(widgetPosX, widgetPosY));
       }
 
-      // 4. Frameless, shadow, skip taskbar, and pin
+      // 4. Frameless, shadow, keep visible on taskbar for badge, and pin
       await windowManager.setAsFrameless();
       await windowManager.setHasShadow(true);
-      await windowManager.setSkipTaskbar(true); // Hidden from taskbar in widget mode
+      await windowManager.setSkipTaskbar(false); // Kept visible in taskbar so live badge overlay displays
       await windowManager.setAlwaysOnTop(isPinnedNotifier.value);
     } catch (_) {}
 
     modeNotifier.value = WindowMode.widget;
+    // Refresh taskbar badge overlay on the new window state
+    BadgeService.instance.evaluateBadge(force: true);
   }
 
   Future<void> switchToDashboard() async {
@@ -121,6 +124,8 @@ class WindowModeService {
     } catch (_) {}
 
     modeNotifier.value = WindowMode.dashboard;
+    // Refresh taskbar badge overlay
+    BadgeService.instance.evaluateBadge(force: true);
   }
 
   Future<void> toggleMode() async {

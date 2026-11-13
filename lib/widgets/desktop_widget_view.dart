@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/dashboard_controller.dart';
 import '../models/task_model.dart';
-import '../services/audio_service.dart';
 import '../services/window_mode_service.dart';
 import '../services/badge_service.dart';
 import '../services/scoring_service.dart';
@@ -29,6 +28,26 @@ class DesktopWidgetView extends StatefulWidget {
 
 class _DesktopWidgetViewState extends State<DesktopWidgetView> {
   bool _completedExpanded = false;
+  bool _showPomodoro = false;
+
+  Color _getTimerAccentColor(BuildContext context, String mode) {
+    switch (mode) {
+      case 'focus':
+        return Theme.of(context).colorScheme.primary;
+      case 'shortBreak':
+        return const Color(0xFF10B981);
+      case 'longBreak':
+        return const Color(0xFF60A5FA);
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
+
+  String _formatTimerTime(int seconds) {
+    final mins = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
 
   Color _getUrgencyColor(int pendingCount) {
     if (pendingCount <= 0) return const Color(0xFF10B981); // Green complete
@@ -71,6 +90,14 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
         final urgencyColor = _getUrgencyColor(pendingTasks.length);
         final streak = widget.controller.analytics.currentStreak;
 
+        // Pomodoro State
+        final int timerSeconds = widget.controller.timerSecondsRemaining;
+        final bool isTimerRunning = widget.controller.isTimerRunning;
+        final String timerMode = widget.controller.timerMode;
+        final Color timerAccentColor = _getTimerAccentColor(context, timerMode);
+        final int totalDuration = widget.controller.timerDurations[timerMode] ?? (25 * 60);
+        final bool hasActiveTimer = isTimerRunning || (timerSeconds < totalDuration);
+
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: DragToResizeArea(
@@ -100,55 +127,79 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
                   children: [
                     // 1. DRAGGABLE TITLE BAR & QUICK CONTROLS
                     DragToMoveArea(
-                      child: _buildHeader(context, isDark, primaryColor, urgencyColor, pendingTasks.length),
+                      child: _buildHeader(
+                        context,
+                        isDark,
+                        primaryColor,
+                        urgencyColor,
+                        pendingTasks.length,
+                        isTimerRunning,
+                        timerAccentColor,
+                        timerSeconds,
+                      ),
                     ),
 
-                    // 2. MOMENTUM PROGRESS BAR
-                    _buildProgressBar(context, isDark, primaryColor, progress, doneCount, totalTasks),
+                    if (_showPomodoro)
+                      Expanded(
+                        child: _buildFullPomodoroView(context, isDark, primaryColor, timerAccentColor),
+                      )
+                    else ...[
+                      // 2. COLLAPSIBLE MINI POMODORO BAR (When timer active, placed above progress)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOutCubic,
+                        child: hasActiveTimer
+                            ? _buildMiniPomodoroBar(context, isDark, timerAccentColor)
+                            : const SizedBox.shrink(),
+                      ),
 
-                    // 3. TASK LIST HEADER WITH COMPACT ADD BUTTONS
-                    _buildTaskListHeader(context, isDark, primaryColor),
+                      // 2.5 MOMENTUM PROGRESS BAR
+                      _buildProgressBar(context, isDark, primaryColor, progress, doneCount, totalTasks),
 
-                    // 4. SCROLLABLE TASK LIST
-                    Expanded(
-                      child: allTasks.isEmpty
-                          ? _buildEmptyState(context, isDark)
-                          : ListView(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.xs,
-                              ),
-                              children: [
-                                if (pendingTasks.isNotEmpty) ...[
-                                  ...pendingTasks.map((t) => _buildTaskRow(context, t, isDark, false, false)),
-                                ],
+                      // 3. TASK LIST HEADER WITH COMPACT ADD BUTTONS
+                      _buildTaskListHeader(context, isDark, primaryColor),
 
-                                if (skippedTasks.isNotEmpty) ...[
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xxs),
-                                    child: Text(
-                                      'SKIPPED (${skippedTasks.length})',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.0,
-                                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      // 4. SCROLLABLE TASK LIST
+                      Expanded(
+                        child: allTasks.isEmpty
+                            ? _buildEmptyState(context, isDark)
+                            : ListView(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xs,
+                                ),
+                                children: [
+                                  if (pendingTasks.isNotEmpty) ...[
+                                    ...pendingTasks.map((t) => _buildTaskRow(context, t, isDark, false, false)),
+                                  ],
+
+                                  if (skippedTasks.isNotEmpty) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xxs),
+                                      child: Text(
+                                        'SKIPPED (${skippedTasks.length})',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.0,
+                                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  ...skippedTasks.map((t) => _buildTaskRow(context, t, isDark, false, true)),
-                                ],
+                                    ...skippedTasks.map((t) => _buildTaskRow(context, t, isDark, false, true)),
+                                  ],
 
-                                if (completedTasks.isNotEmpty) ...[
-                                  const SizedBox(height: AppSpacing.xs),
-                                  _buildCompletedAccordionHeader(context, isDark, completedTasks.length),
-                                  if (_completedExpanded) ...[
-                                    ...completedTasks.map((t) => _buildTaskRow(context, t, isDark, true, false)),
+                                  if (completedTasks.isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.xs),
+                                    _buildCompletedAccordionHeader(context, isDark, completedTasks.length),
+                                    if (_completedExpanded) ...[
+                                      ...completedTasks.map((t) => _buildTaskRow(context, t, isDark, true, false)),
+                                    ],
                                   ],
                                 ],
-                              ],
-                            ),
-                    ),
+                              ),
+                      ),
+                    ],
 
                     // 5. BOTTOM ENCOURAGEMENT & QUOTES BAR (Step 19F)
                     _buildQuoteBottomBar(context, isDark, streak, pendingTasks.length, progress >= 1.0),
@@ -168,6 +219,9 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
     Color primaryColor,
     Color urgencyColor,
     int pendingCount,
+    bool isTimerRunning,
+    Color timerAccentColor,
+    int timerSeconds,
   ) {
     final streak = widget.controller.analytics.currentStreak;
 
@@ -248,6 +302,28 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
           ),
 
           const Spacer(),
+
+          // POMODORO TIMER TOGGLE
+          IconButton(
+            iconSize: AppIconSize.md,
+            splashRadius: 16,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            tooltip: _showPomodoro
+                ? 'Back to Tasks'
+                : (isTimerRunning
+                    ? 'Pomodoro Active (${_formatTimerTime(timerSeconds)})'
+                    : 'Pomodoro Timer'),
+            icon: Icon(
+              _showPomodoro
+                  ? Icons.checklist_rounded
+                  : (isTimerRunning ? Icons.timer_rounded : Icons.timer_outlined),
+              color: (_showPomodoro || isTimerRunning)
+                  ? timerAccentColor
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            onPressed: () => setState(() => _showPomodoro = !_showPomodoro),
+          ),
 
           // CONTROLS (Pin, Expand, Close to Tray)
           ValueListenableBuilder<bool>(
@@ -493,15 +569,9 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
                     );
                     if (confirm == true) {
                       await widget.controller.toggleTaskCompletion(task, isDone, reclaimCheat: true);
-                      if (isDone) {
-                        AudioService.instance.playSound(AudioType.goalReached);
-                      }
                     }
                   } else {
                     await widget.controller.toggleTaskCompletion(task, isDone);
-                    if (isDone) {
-                      AudioService.instance.playSound(AudioType.goalReached);
-                    }
                   }
                 },
               ),
@@ -515,9 +585,6 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
               onTap: () async {
                 final isDone = !isCompleted;
                 await widget.controller.toggleTaskCompletion(task, isDone);
-                if (isDone) {
-                  AudioService.instance.playSound(AudioType.goalReached);
-                }
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,6 +837,393 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniPomodoroBar(
+    BuildContext context,
+    bool isDark,
+    Color accentColor,
+  ) {
+    final controller = widget.controller;
+    final isRunning = controller.isTimerRunning;
+    final seconds = controller.timerSecondsRemaining;
+    final mode = controller.timerMode;
+    final modeLabel = mode == 'focus'
+        ? 'Focus'
+        : (mode == 'shortBreak' ? 'Short Break' : 'Long Break');
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.xxs, AppSpacing.sm, AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: isDark ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: accentColor.withValues(alpha: isRunning ? 0.35 : 0.2),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Mode badge & live countdown (tap anywhere on this side to expand)
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _showPomodoro = true),
+              child: Row(
+                children: [
+                  Icon(
+                    isRunning ? Icons.hourglass_top_rounded : Icons.pause_circle_outline_rounded,
+                    size: 15,
+                    color: accentColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    modeLabel.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: accentColor.withValues(alpha: 0.85),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatTimerTime(seconds),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Quick Play/Pause button
+          PressScale(
+            onTap: controller.toggleTimer,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                size: 16,
+                color: accentColor,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 6),
+
+          // Expand to Full Timer
+          IconButton(
+            iconSize: 16,
+            splashRadius: 14,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            tooltip: 'Expand Focus Mode',
+            icon: Icon(
+              Icons.open_in_full_rounded,
+              size: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            onPressed: () => setState(() => _showPomodoro = true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFullPomodoroView(
+    BuildContext context,
+    bool isDark,
+    Color primaryColor,
+    Color accentColor,
+  ) {
+    final controller = widget.controller;
+    final seconds = controller.timerSecondsRemaining;
+    final isRunning = controller.isTimerRunning;
+    final mode = controller.timerMode;
+    final goal = controller.todayRecord.pomodoroGoal;
+    final completed = controller.todayRecord.pomodoroSessionsCompleted;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: AppSpacing.xs),
+
+          // 1. MODE SELECTOR PILLS
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildPomodoroModeChip(context, 'Focus', 'focus', mode, accentColor),
+              const SizedBox(width: 6),
+              _buildPomodoroModeChip(context, 'Short Break', 'shortBreak', mode, accentColor),
+              const SizedBox(width: 6),
+              _buildPomodoroModeChip(context, 'Long Break', 'longBreak', mode, accentColor),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // 2. BIG HERO DIGITAL TIMER (Clickable to play/pause)
+          GestureDetector(
+            onTap: controller.toggleTimer,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              children: [
+                Text(
+                  _formatTimerTime(seconds),
+                  style: GoogleFonts.inter(
+                    fontSize: 56,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: -2.0,
+                    color: isRunning ? accentColor : Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isRunning
+                      ? (mode == 'focus' ? 'Deep Work in Progress' : 'Resting & Recharging')
+                      : 'Tap to ${seconds == (controller.timerDurations[mode] ?? 1500) ? 'Start' : 'Resume'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // 3. MAIN CONTROLS (Reset, Play/Pause, Settings - Outlined, No Glow)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Reset Button
+              IconButton(
+                iconSize: 20,
+                splashRadius: 18,
+                tooltip: 'Reset Timer',
+                icon: Icon(
+                  Icons.refresh_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+                onPressed: controller.resetTimer,
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              // Main Play/Pause Button (Outlined, No Glow)
+              PressScale(
+                onTap: controller.toggleTimer,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.8),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    isRunning ? Icons.pause_outlined : Icons.play_arrow_outlined,
+                    size: 28,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.md),
+
+              // Settings Button
+              IconButton(
+                iconSize: 20,
+                splashRadius: 18,
+                tooltip: 'Timer Settings',
+                icon: Icon(
+                  Icons.tune_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+                onPressed: () => _showTimerSettingsDialog(context, controller),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // 4. DAILY SESSIONS PROGRESS (Dots only)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 7),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(AppRadius.xxl),
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(goal, (index) {
+                final isDone = index < completed;
+                return Container(
+                  width: 7,
+                  height: 7,
+                  margin: const EdgeInsets.symmetric(horizontal: 3.5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDone ? accentColor : Colors.transparent,
+                    border: Border.all(
+                      color: isDone
+                          ? accentColor
+                          : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // 5. RETURN TO TASKS BUTTON
+          PressScale(
+            onTap: () => setState(() => _showPomodoro = false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 7),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.checklist_outlined,
+                    size: 15,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Back to Tasks',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPomodoroModeChip(
+    BuildContext context,
+    String label,
+    String modeId,
+    String currentMode,
+    Color accentColor,
+  ) {
+    final isSelected = currentMode == modeId;
+    return GestureDetector(
+      onTap: () => widget.controller.setTimerMode(modeId),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? accentColor.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(
+            color: isSelected ? accentColor.withValues(alpha: 0.4) : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: isSelected
+                ? accentColor
+                : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTimerSettingsDialog(BuildContext context, DashboardController controller) {
+    final focusController = TextEditingController(text: (controller.timerDurations['focus']! ~/ 60).toString());
+    final shortController = TextEditingController(text: (controller.timerDurations['shortBreak']! ~/ 60).toString());
+    final longController = TextEditingController(text: (controller.timerDurations['longBreak']! ~/ 60).toString());
+    final goalController = TextEditingController(text: controller.todayRecord.pomodoroGoal.toString());
+
+    showMotionDialog(
+      context: context,
+      child: AlertDialog(
+        title: const Text('Timer Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDurationField('Focus Duration (mins)', focusController),
+            _buildDurationField('Short Break (mins)', shortController),
+            _buildDurationField('Long Break (mins)', longController),
+            _buildDurationField('Daily Session Goal', goalController),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              controller.updateTimerSettings(
+                int.tryParse(focusController.text) ?? 25,
+                int.tryParse(shortController.text) ?? 5,
+                int.tryParse(longController.text) ?? 15,
+                int.tryParse(goalController.text) ?? 4,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDurationField(String label, TextEditingController textController) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: TextField(
+        controller: textController,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(fontSize: 12),
+          isDense: true,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         ),
       ),
     );
