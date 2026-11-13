@@ -52,11 +52,12 @@ class BadgeService {
   /// - Evening / Night / Past EOD (>= EOD threshold or < 5:00 AM): Urgent Red badge (#EF4444)
   Future<void> updateBadge({
     required int pendingTaskCount,
+    bool force = false,
   }) async {
     if (!Platform.isWindows) return;
 
     if (pendingTaskCount <= 0) {
-      if (_lastCount != 0) {
+      if (_lastCount != 0 || force) {
         _lastCount = 0;
         _lastColor = null;
         try {
@@ -82,7 +83,7 @@ class BadgeService {
       badgeColor = const Color(0xFF3B82F6); // Blue (Fresh morning start)
     }
 
-    if (_lastCount == pendingTaskCount && _lastColor == badgeColor) {
+    if (!force && _lastCount == pendingTaskCount && _lastColor == badgeColor) {
       return; // No change needed
     }
 
@@ -117,7 +118,7 @@ class BadgeService {
     } catch (_) {}
   }
 
-  Future<void> evaluateBadge() async {
+  Future<void> evaluateBadge({bool force = false}) async {
     if (!Platform.isWindows) return;
 
     try {
@@ -134,7 +135,7 @@ class BadgeService {
         (t) => !completedIds.contains(t.sid) && !skippedIds.contains(t.sid),
       ).length;
 
-      await updateBadge(pendingTaskCount: pendingCount);
+      await updateBadge(pendingTaskCount: pendingCount, force: force);
     } catch (_) {}
   }
 

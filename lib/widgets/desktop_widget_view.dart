@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/dashboard_controller.dart';
 import '../models/task_model.dart';
-import '../services/audio_service.dart';
 import '../services/window_mode_service.dart';
 import '../services/badge_service.dart';
 import '../services/scoring_service.dart';
@@ -570,15 +569,9 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
                     );
                     if (confirm == true) {
                       await widget.controller.toggleTaskCompletion(task, isDone, reclaimCheat: true);
-                      if (isDone) {
-                        AudioService.instance.playSound(AudioType.goalReached);
-                      }
                     }
                   } else {
                     await widget.controller.toggleTaskCompletion(task, isDone);
-                    if (isDone) {
-                      AudioService.instance.playSound(AudioType.goalReached);
-                    }
                   }
                 },
               ),
@@ -592,9 +585,6 @@ class _DesktopWidgetViewState extends State<DesktopWidgetView> {
               onTap: () async {
                 final isDone = !isCompleted;
                 await widget.controller.toggleTaskCompletion(task, isDone);
-                if (isDone) {
-                  AudioService.instance.playSound(AudioType.goalReached);
-                }
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

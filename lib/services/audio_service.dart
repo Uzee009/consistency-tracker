@@ -48,10 +48,10 @@ class AudioService {
     if (!isEnabled.value) return;
 
     final packStr = currentPack.value.toString().split('.').last;
-    String fileName = (type == AudioType.timerEnd) ? 'timer_end.ogg' : 'goal_reached.ogg';
+    String fileName = (type == AudioType.timerEnd) ? 'timer_end.mp3' : 'goal_reached.mp3';
 
     try {
-      // V11: Use standard AssetSource for OGG files (Native Linux format, universal support)
+      // Universal MP3 format natively supported on Windows, Linux, macOS, iOS, Android
       await _player.play(AssetSource('sounds/$packStr/$fileName'));
     } catch (e) {
       debugPrint('AudioService: Playback Error ($type): $e');
