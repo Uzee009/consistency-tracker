@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../controllers/dashboard_controller.dart';
@@ -23,7 +24,6 @@ import '../utils/motion_accessibility.dart';
 import '../widgets/motion/animated_tooltip.dart';
 import '../widgets/motion/breathing.dart';
 import '../widgets/motion/reactive_background.dart';
-
 import '../utils/motion_toast.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -39,6 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardLayoutController();
   int _activeTabIndex = 0; // 0: Dashboard, 1: Explorer, 2: Profile
   String? _dismissedUpdateVersion;
+  Timer? _midnightTimer;
+  Timer? _dateSentinelTimer;
 
   @override
   void initState() {
@@ -47,6 +49,49 @@ class _HomeScreenState extends State<HomeScreen> {
     SyncService.instance.dataChanged.addListener(_onSyncDataChanged);
     UpdateService.instance.available.addListener(_onUpdateAvailableChanged);
     DatabaseService.instance.activeDbRevision.addListener(_onActiveDbChanged);
+    _scheduleMidnightRefresh();
+    _startDateSentinel();
+  }
+
+  /// Schedules a one-shot timer that fires exactly at the next midnight.
+  /// On firing it snaps the dashboard to today and re-schedules itself
+  /// so every subsequent midnight is also caught automatically.
+  void _scheduleMidnightRefresh() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    final durationUntilMidnight = nextMidnight.difference(now);
+    _midnightTimer = Timer(durationUntilMidnight, () {
+      if (!mounted) return;
+      _dataController.initialize(DateTime.now());
+      _scheduleMidnightRefresh(); // schedule the next midnight
+    });
+  }
+
+  /// Polls every 30 seconds to check if the system date has drifted away
+  /// from the date currently shown — runs regardless of window focus.
+  /// Catches both forward (midnight rollover) and backward (clock reset)
+  /// system-time changes automatically, with no user action required.
+  void _startDateSentinel() {
+    _dateSentinelTimer?.cancel();
+    _dateSentinelTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      _checkAndSnapToToday();
+    });
+  }
+
+  /// Compares the system date against the date the dashboard is showing.
+  /// Re-initialises and resets the midnight timer if they differ.
+  void _checkAndSnapToToday() {
+    final controllerDate = _dataController.selectedDate;
+    final today = DateTime.now();
+    final dateChanged = controllerDate.year != today.year ||
+        controllerDate.month != today.month ||
+        controllerDate.day != today.day;
+    if (dateChanged) {
+      _dataController.initialize(today);
+      _scheduleMidnightRefresh(); // recalculate midnight from real current time
+    }
   }
 
   void _onSyncDataChanged() {
@@ -78,6 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
+    _dateSentinelTimer?.cancel();
     SyncService.instance.dataChanged.removeListener(_onSyncDataChanged);
     UpdateService.instance.available.removeListener(_onUpdateAvailableChanged);
     DatabaseService.instance.activeDbRevision.removeListener(_onActiveDbChanged);
@@ -423,9 +470,9 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildSyncButton(context),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: () => _dataController.initialize(_dataController.selectedDate),
+                onPressed: () => _dataController.initialize(DateTime.now()),
                 icon: const Icon(Icons.refresh, size: AppIconSize.lg),
-                tooltip: 'Refresh',
+                tooltip: 'Refresh to Today',
                 color: Theme.of(context).colorScheme.onSurface,
               ),
               if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
